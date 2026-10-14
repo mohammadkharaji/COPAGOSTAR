@@ -6,6 +6,7 @@ After=network.target
 User=sr
 WorkingDirectory=/opt/sr/backend
 Environment=SR_HOLIDAYS=
+EnvironmentFile=/etc/sr/auth.env
 ExecStart=/opt/sr/backend/.venv/bin/uvicorn app.api:app --host 0.0.0.0 --port 8000
 Restart=on-failure
 

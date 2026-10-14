@@ -6,15 +6,73 @@ import sys
 import time
 from datetime import date, datetime
 
-from fastapi import FastAPI, HTTPException, Query, Request
+import os
 
+from fastapi import FastAPI, HTTPException, Query, Request, Response
+from fastapi.responses import JSONResponse
+from pydantic import BaseModel, Field
+
+from . import auth
 from .config import CORES, DB_PATH, DEFAULT_CORE, HOLIDAYS, PROMO_KALA_SOURCES, RAW_DIR, ROOT
 from .db import connect
 from .jalali import (JALALI_MONTHS, JALALI_WEEKDAYS, days_in_jalali_month, format_jdate, gregorian_to_jalali,
                      jalali_to_gregorian, jalali_weekday, parse_jdate)
 from .schema import LIMITATIONS
 
-app = FastAPI(title="SR Sales Dashboard API", docs_url=None, redoc_url=None)
+app = FastAPI(title="SR Sales Dashboard API", docs_url=None, redoc_url=None, openapi_url=None)
+
+PUBLIC_API = {"/api/auth/login"}
+limiter = auth.LoginLimiter()
+
+
+@app.middleware("http")
+async def require_login(request: Request, call_next):
+    path = request.url.path
+    if path.startswith("/api/"):
+        if path not in PUBLIC_API and auth.verify_token(request.cookies.get(auth.COOKIE)) is None:
+            return JSONResponse({"detail": "نیاز به ورود"}, status_code=401, headers={"Cache-Control": "no-store"})
+        response = await call_next(request)
+        response.headers["Cache-Control"] = "no-store"
+        return response
+    return await call_next(request)
+
+
+class LoginBody(BaseModel):
+    username: str = Field(max_length=100)
+    password: str = Field(max_length=256)
+
+
+def _client_key(request: Request) -> str:
+    return request.client.host if request.client else "unknown"
+
+
+@app.post("/api/auth/login")
+def login(body: LoginBody, request: Request, response: Response):
+    if not auth.configured():
+        raise HTTPException(503, "ورود پیکربندی نشده است")
+    key = _client_key(request)
+    if limiter.blocked(key):
+        raise HTTPException(429, "تلاش ناموفق زیاد بود؛ چند دقیقه بعد دوباره امتحان کنید")
+    if not auth.check_login(body.username, body.password):
+        limiter.fail(key)
+        time.sleep(0.4)
+        raise HTTPException(401, "نام کاربری یا رمز عبور درست نیست")
+    limiter.ok(key)
+    response.set_cookie(
+        auth.COOKIE, auth.make_token(body.username), max_age=auth.SESSION_SECONDS, httponly=True, samesite="strict",
+        secure=request.url.scheme == "https" or os.environ.get("SR_COOKIE_SECURE") == "1", path="/")
+    return {"ok": True}
+
+
+@app.get("/api/auth/me")
+def me():
+    return {"user": auth.username()}
+
+
+@app.post("/api/auth/logout")
+def logout(response: Response):
+    response.delete_cookie(auth.COOKIE, path="/")
+    return {"ok": True}
 
 EXPECTED_KG_MONTHS = [f"sr_kg_14050{m}" for m in range(1, 8)]
 

@@ -6,6 +6,8 @@ import pytest
 from fastapi.testclient import TestClient
 
 
+TEST_PASSWORD = "test-password-123"
+
 COLS = ["SR[ID]", "SR[ProductName]", "SR[Brand]", "SR[MainUnit]", "SR[InvoiceCode]", "SR[Year/Month]",
         "SR[InvoiceDate]", "SR[CustomerCode]", "SR[CustomerName]", "SR[Visitor]", "SR[VisitorCode]",
         "SR[Superviser]", "SR[Branch]", "SR[BranchCode]", "SR[Movaze]", "SR[Mantaghe]", "SR[CityName]",
@@ -34,11 +36,16 @@ def build_client(tmp_path, monkeypatch, chunks):
         (raw / f"{name}.tsv").write_text("\x1f".join(COLS) + "\x1e" + "\x1e".join(rows) + "\x1e", encoding="utf-8")
     monkeypatch.setenv("SR_RAW_DIR", str(raw))
     monkeypatch.setenv("SR_DB_PATH", str(tmp_path / "t.duckdb"))
-    from app import config, db, ingest, api
+    from app import auth, config, db, ingest, api
+    monkeypatch.setenv("SR_AUTH_USER", "admin")
+    monkeypatch.setenv("SR_AUTH_PASS_HASH", auth.hash_password(TEST_PASSWORD))
+    monkeypatch.setenv("SR_AUTH_SECRET", "t" * 40)
     for m in (config, db, ingest, api):
         importlib.reload(m)
     assert sum(r["rows"] for r in ingest.ingest_all()) == sum(len(r) for r in chunks.values())
-    return TestClient(api.app)
+    c = TestClient(api.app)
+    assert c.post("/api/auth/login", json={"username": "admin", "password": TEST_PASSWORD}).status_code == 200
+    return c
 
 
 @pytest.fixture()
@@ -292,3 +299,106 @@ def test_sync_status_states_and_conflict(client):
     path.write_text(json.dumps({"state": "ok", "finished_at": now, "rows_loaded": 3}), encoding="utf-8")
     done = client.get("/api/sync-status").json()
     assert done["state"] == "ok" and done["rows_loaded"] == 3
+
+
+# ---------- ورود و دسترسی ----------
+
+def fresh(client):
+    from fastapi.testclient import TestClient
+    from app import api
+    return TestClient(api.app)
+
+
+def test_every_api_route_requires_login(client):
+    from app import api
+    anon = fresh(client)
+    paths = sorted({r.path for r in api.app.routes if getattr(r, "path", "").startswith("/api/")
+                    and r.path != "/api/auth/login" and "{" not in r.path})
+    assert "/api/overview" in paths and "/api/invoice-lines" in paths
+    for path in paths:
+        for method in ("get", "post"):
+            res = getattr(anon, method)(path)
+            assert res.status_code in (401, 405) and res.status_code != 200, (method, path)
+        assert anon.get(path).status_code == 401, path
+    assert anon.get("/api/customer/A").status_code == 401
+    assert anon.get("/api/nope-not-a-route").status_code == 401
+    assert anon.post("/api/sync").status_code == 401
+
+
+def test_login_sets_httponly_strict_cookie_and_grants_access(client):
+    anon = fresh(client)
+    res = anon.post("/api/auth/login", json={"username": "admin", "password": TEST_PASSWORD})
+    assert res.status_code == 200
+    cookie = res.headers["set-cookie"].lower()
+    assert "httponly" in cookie and "samesite=strict" in cookie and "sr_session=" in cookie
+    assert anon.get("/api/overview").status_code == 200
+    assert anon.get("/api/overview").headers["cache-control"] == "no-store"
+
+
+@pytest.mark.parametrize("user,password", [("admin", "wrong"), ("root", TEST_PASSWORD), ("", ""), ("admin", "")])
+def test_wrong_credentials_are_rejected(client, user, password):
+    anon = fresh(client)
+    res = anon.post("/api/auth/login", json={"username": user, "password": password})
+    assert res.status_code == 401
+    assert "set-cookie" not in res.headers
+    assert anon.get("/api/overview").status_code == 401
+
+
+def test_logout_ends_the_session(client):
+    assert client.get("/api/overview").status_code == 200
+    assert client.post("/api/auth/logout").status_code == 200
+    client.cookies.clear()
+    assert client.get("/api/overview").status_code == 401
+
+
+def test_forged_tampered_and_expired_tokens_are_rejected(client):
+    from app import auth
+    good = auth.make_token("admin")
+    payload, sig = good.split(".")
+    other = auth.make_token("admin", now=1)
+    for bad in ("", "x", "a.b", good + "x", payload + "." + sig[::-1], payload, other, auth.make_token("root")):
+        anon = fresh(client)
+        anon.cookies.set("sr_session", bad)
+        assert anon.get("/api/overview").status_code == 401, bad
+    assert auth.verify_token(good) == "admin"
+    assert auth.verify_token(good, now=10**12) is None
+
+
+def test_token_signed_with_another_secret_is_rejected(client, monkeypatch):
+    from app import auth
+    monkeypatch.setenv("SR_AUTH_SECRET", "z" * 40)
+    forged = auth.make_token("admin")
+    monkeypatch.setenv("SR_AUTH_SECRET", "t" * 40)
+    anon = fresh(client)
+    anon.cookies.set("sr_session", forged)
+    assert anon.get("/api/overview").status_code == 401
+
+
+def test_lockout_after_repeated_failures(client):
+    anon = fresh(client)
+    codes = [anon.post("/api/auth/login", json={"username": "admin", "password": "x"}).status_code for _ in range(6)]
+    assert codes[:5] == [401] * 5 and codes[5] == 429
+    assert anon.post("/api/auth/login", json={"username": "admin", "password": TEST_PASSWORD}).status_code == 429
+    assert anon.get("/api/overview").status_code == 401
+
+
+def test_unconfigured_auth_fails_closed(client, monkeypatch):
+    monkeypatch.delenv("SR_AUTH_PASS_HASH")
+    anon = fresh(client)
+    assert anon.post("/api/auth/login", json={"username": "admin", "password": TEST_PASSWORD}).status_code == 503
+    assert client.get("/api/overview").status_code == 401
+    monkeypatch.setenv("SR_AUTH_PASS_HASH", "garbage")
+    assert fresh(client).post("/api/auth/login", json={"username": "admin", "password": "garbage"}).status_code == 401
+
+
+def test_short_secret_fails_closed(client, monkeypatch):
+    monkeypatch.setenv("SR_AUTH_SECRET", "short")
+    assert client.get("/api/overview").status_code == 401
+
+
+def test_password_hash_roundtrip(client):
+    from app import auth
+    h = auth.hash_password("pässwörd@@")
+    assert "pässwörd" not in h and h.startswith("scrypt:")
+    assert auth.verify_password("pässwörd@@", h) and not auth.verify_password("pässwörd@", h)
+    assert auth.hash_password("a") != auth.hash_password("a")

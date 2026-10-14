@@ -21,7 +21,7 @@ const initialState = () => {
   return { core: CORES[q.get('core')] ? q.get('core') : 'kg', month: /^\d{6}$/.test(q.get('month') ?? '') ? q.get('month') : '', dims }
 }
 
-export default function App() {
+export default function App({ onLogout }) {
   const init = useMemo(initialState, [])
   const [core, setCore] = useState(init.core)
   const [route, setRoute] = useState(pageFromHash)
@@ -118,7 +118,7 @@ export default function App() {
       page={page} onNavigate={go} core={core} cores={CORES} setCore={setCore} title={title} subtitle={subtitle}
       month={month} setMonth={setMonth} filters={options.data ?? {}} dims={dims} onFilterChange={setDim}
       onReset={() => { setMonth(''); setDims({}) }} showFilters={page !== 'health' && page !== 'customer'} hideMonth={page === 'monthly' || page === 'growth'}
-      error={error} partial={partial} lastDataDate={health?.last_data_date} syncState={syncState} syncNotice={syncNotice} onDismissNotice={() => setSyncNotice('')} onRefresh={startSync}
+      error={error} partial={partial} lastDataDate={health?.last_data_date} syncState={syncState} syncNotice={syncNotice} onDismissNotice={() => setSyncNotice('')} onRefresh={startSync} onLogout={onLogout}
     >
       {page === 'overview' && <ExecutiveDashboard p={p} cal={cal} month={month} setMonth={setMonth} />}
       {page === 'trend' && <TrendPage p={p} />}

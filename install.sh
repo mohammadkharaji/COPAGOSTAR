@@ -3,6 +3,8 @@
 #
 #   sudo bash install.sh [--data /path/to/sr.duckdb] [--port 8000]
 #
+# Login: the first install asks for the admin password (or reads SR_ADMIN_PASSWORD); only a salted
+# hash is stored, in /etc/sr/auth.env (root-only). Re-runs keep it; set SR_ADMIN_PASSWORD to change it.
 # Installs system packages, Node.js and uv if missing, copies the app to /opt/sr, builds the
 # frontend, and starts two systemd services: sr-api (dashboard + API) and sr-sync (watches
 # /opt/sr/data/raw for new sr_*.tsv extracts). Python itself is provided by uv.
@@ -16,7 +18,7 @@ while [ $# -gt 0 ]; do
   case "$1" in
     --data) DATA_FILE="${2:?--data needs a file path}"; shift 2 ;;
     --port) PORT="${2:?--port needs a number}"; shift 2 ;;
-    -h|--help) sed -n '2,9p' "$0"; exit 0 ;;
+    -h|--help) sed -n "2,12p" "$0"; exit 0 ;;
     *) echo "Unknown option: $1" >&2; exit 1 ;;
   esac
 done
@@ -75,6 +77,26 @@ as_sr "cd $APP_DIR/backend && uv sync --frozen --no-dev"
 echo "==> Frontend build"
 as_sr "cd $APP_DIR/frontend && npm ci --no-audit --no-fund && npm run build"
 
+echo "==> Login credentials"
+AUTH_ENV=/etc/sr/auth.env
+mkdir -p /etc/sr
+if [ -n "${SR_ADMIN_PASSWORD:-}" ] || [ ! -f "$AUTH_ENV" ]; then
+  PW="${SR_ADMIN_PASSWORD:-}"
+  if [ -z "$PW" ]; then
+    [ -r /dev/tty ] || { echo "No admin password: set SR_ADMIN_PASSWORD or run from a terminal." >&2; exit 1; }
+    read -rsp "Admin password: " PW </dev/tty; echo
+  fi
+  [ -n "$PW" ] || { echo "Empty admin password." >&2; exit 1; }
+  HASH="$(cd "$APP_DIR/backend" && printf '%s\n' "$PW" | sudo -u sr .venv/bin/python -m app.auth hash)"
+  SECRET="$(grep -s '^SR_AUTH_SECRET=' "$AUTH_ENV" | cut -d= -f2- || true)"
+  [ -n "$SECRET" ] || SECRET="$(cd "$APP_DIR/backend" && sudo -u sr .venv/bin/python -m app.auth secret)"
+  ( umask 077
+    printf 'SR_AUTH_USER=%s\nSR_AUTH_PASS_HASH=%s\nSR_AUTH_SECRET=%s\n' "${SR_ADMIN_USER:-admin}" "$HASH" "$SECRET" > "$AUTH_ENV" )
+  PW=""
+fi
+chown root:root "$AUTH_ENV"
+chmod 600 "$AUTH_ENV"
+
 echo "==> systemd services (port $PORT)"
 install -m 644 "$APP_DIR/deploy/sr-api.service" /etc/systemd/system/sr-api.service
 install -m 644 "$APP_DIR/deploy/sr-sync.service" /etc/systemd/system/sr-sync.service
@@ -85,8 +107,9 @@ systemctl restart sr-api sr-sync
 
 echo "==> Health check"
 for _ in $(seq 1 20); do
-  if curl -fsS "http://127.0.0.1:$PORT/api/meta" >/dev/null 2>&1; then
-    echo "OK: http://<server-ip>:$PORT"
+  STATUS="$(curl -s -o /dev/null -w '%{http_code}' "http://127.0.0.1:$PORT/api/meta" || true)"
+  if [ "$STATUS" = "401" ]; then
+    echo "OK: http://<server-ip>:$PORT (API requires login)"
     [ -f "$APP_DIR/data/sr.duckdb" ] || echo "Note: no database yet. Put sr_*.tsv files in $APP_DIR/data/raw (sr-sync loads them) or re-run with --data."
     exit 0
   fi
