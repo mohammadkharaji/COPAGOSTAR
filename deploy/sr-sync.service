@@ -1,0 +1,12 @@
+[Unit]
+Description=SR data sync watcher (ingests data/raw/sr_*.tsv into DuckDB)
+After=network.target
+
+[Service]
+User=sr
+WorkingDirectory=/opt/sr
+ExecStart=/opt/sr/backend/.venv/bin/python -X utf8 scripts/sync.py
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target

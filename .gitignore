@@ -1,0 +1,7 @@
+data/
+.venv/
+__pycache__/
+*.parquet
+*.duckdb
+node_modules/
+dist/

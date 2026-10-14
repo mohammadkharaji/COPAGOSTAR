@@ -1,0 +1,10 @@
+[project]
+name = 'sr-dashboard'
+version = '0.1.0'
+requires-python = '>=3.11'
+dependencies = ['duckdb>=1.5.6','fastapi>=0.143.0','uvicorn>=0.54.0']
+[dependency-groups]
+dev = ['httpx>=0.28.1','pytest>=9.1.1']
+[tool.pytest.ini_options]
+pythonpath = ['.']
+testpaths = ['tests']
