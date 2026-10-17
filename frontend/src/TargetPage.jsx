@@ -113,7 +113,7 @@ export default function TargetPage({ core, onUnavailable }) {
             <Panel title="کنترل کیفیت داده" note={d.method} full>
               <ul className="tgt-quality">
                 <li>ویزیتورهای فایل تارگت: <b>{fa(q.visitors_in_target)}</b> نفر؛ بدون کد قابل تطبیق: <b>{fa(q.visitors_without_code)}</b> نفر ({billions(q.target_rial_without_code)} میلیارد ریال هدف، فقط در شعبه، مدیر و سرپرست لحاظ می‌شود).</li>
-                <li>فروش دسته‌هایی که تارگت ندارند: <b>{billions(q.sales_outside_target_categories_rial)}</b> میلیارد ریال که در تحقق نیامده است.</li>
+                <li>فروش کالاهای بدون دسته تارگتی: <b>{billions(q.sales_outside_target_categories_rial)}</b> میلیارد ریال که در تحقق لحاظ شده و در ردیف «سایر (بدون تارگت)» جدا نمایش داده می‌شود.</li>
                 <li>تعداد دسته کالای تارگتی: <b>{fa(q.target_categories)}</b>.</li>
               </ul>
             </Panel>

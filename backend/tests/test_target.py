@@ -54,27 +54,29 @@ def test_totals_follow_sales_rules(client):
     j = get(client)
     s = j["summary"]
     assert s["target_rial"] == 3400 + 600
-    # promotion rows are excluded, the return is netted, and only target categories count: 1000 - 200 + 500 + 300
-    assert s["actual_rial"] == 1600 and j["quality"]["sales_outside_target_categories_rial"] == 70
-    assert s["achieved_pct"] == pytest.approx(0.4)
+    # same number as the overview: promotion rows count, the return is netted, products without a target category are included
+    # 1000 - 200 + 500 + 300 + 70 (no target category) + 50 (promotion)
+    assert s["actual_rial"] == 1720 and j["quality"]["sales_outside_target_categories_rial"] == 70
+    assert s["achieved_pct"] == pytest.approx(0.43)
     assert j["quality"]["visitors_in_target"] == 3
     cats = {r["label"] for r in get(client, by="category")["rows"]}
-    assert cats == {"دسته A", "دسته B", "دسته C"}
+    assert cats == {"دسته A", "دسته B", "دسته C", "سایر (بدون تارگت)"}
+    assert next(r for r in get(client, by="category")["rows"] if r["label"] == "سایر (بدون تارگت)")["actual_rial"] == 70
 
 
 def test_grouping_by_branch_manager_supervisor(client):
     by = lambda k: {r["label"]: (r["target_rial"], r["actual_rial"]) for r in get(client, by=k)["rows"]}  # noqa: E731
-    assert by("branch") == {"شعبه تهران": (3400, 1600), "شعبه کرج": (600, 0)}
-    assert by("manager") == {"مدیر ۱": (3400, 1600), "مدیر ۲": (600, 0)}
+    assert by("branch") == {"شعبه تهران": (3400, 1720), "شعبه کرج": (600, 0)}
+    assert by("manager") == {"مدیر ۱": (3400, 1720), "مدیر ۲": (600, 0)}
     assert by("supervisor")["سرپرست ۲"][0] == 1400
 
 
 def test_visitor_matching_by_code_then_unique_name(client):
     j = get(client, by="visitor")
     rows = {r["label"]: r for r in j["rows"]}
-    assert rows["علی رضایی"]["target_rial"] == 2000 and rows["علی رضایی"]["actual_rial"] == 800
+    assert rows["علی رضایی"]["target_rial"] == 2000 and rows["علی رضایی"]["actual_rial"] == 870
     # the file row without a code is attached to that name's code (12)
-    assert rows["رضا احمدی"]["target_rial"] == 1400 and rows["رضا احمدی"]["actual_rial"] == 500
+    assert rows["رضا احمدی"]["target_rial"] == 1400 and rows["رضا احمدی"]["actual_rial"] == 550
     nocode = next(r for r in j["rows"] if r["key"] == "__no_code__")
     assert nocode["target_rial"] == 600 and nocode["actual_rial"] == 0 and nocode["status"] is None
     other = next(r for r in j["rows"] if r["key"] == "__other__")
@@ -96,7 +98,7 @@ def test_expected_share_uses_dashboard_working_day_rule(client, monkeypatch):
     assert j["expected_pct"] == pytest.approx(j["elapsed_working_days"] / 26)
     assert j["daily"][-1]["expected_cum_rial"] == pytest.approx(4000)
     cum = [d["actual_cum_rial"] for d in j["daily"] if d["actual_cum_rial"] is not None]
-    assert len(cum) == 13 and cum[-1] == 1600  # the day-11 return lowers the running total
+    assert len(cum) == 13 and cum[-1] == 1720  # the day-11 return lowers the running total
     from app import target
     monkeypatch.setattr(target, "HOLIDAYS", ("1405/07/20",))
     assert get(client)["working_days"] == 25

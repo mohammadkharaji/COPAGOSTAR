@@ -25,6 +25,7 @@ ON_TRACK, WATCH = 1.0, 0.9
 NO_CODE = "__no_code__"      # target rows of visitors that cannot be matched to a visitor code
 OTHER = "__other__"          # sales of visitors that have no target
 NO_SUPERVISOR, NO_MANAGER = "بدون سرپرست در فایل تارگت", "بدون مدیر در فایل تارگت"
+NO_TARGET = "__no_target__"  # sales of products whose category has no target (counted in actual, shown apart)
 
 T = namedtuple("T", "branch line category group code name supervisor manager rial")
 A = namedtuple("A", "branch line code category day amount")
@@ -90,7 +91,7 @@ def target_report(request: Request, core: str = "kg", month: str | None = Query(
         sales = con.execute(
             """SELECT s.branch, s.group_name, s.visitor_code, d.target_category, COALESCE(s.jdate_key, 0) % 100, SUM(s.rial_vat)
                FROM fact_sales s LEFT JOIN dim_product d ON d.unique_product_code = s.unique_product_code
-               WHERE s.core=? AND s.year_month=? AND NOT s.is_promo GROUP BY 1, 2, 3, 4, 5""", [name, ym]).fetchall()
+               WHERE s.core=? AND s.year_month=? GROUP BY 1, 2, 3, 4, 5""", [name, ym]).fetchall()
         last = con.execute("SELECT MAX(jdate_key) FROM fact_sales WHERE core=?", [name]).fetchone()[0]
     finally:
         con.close()
@@ -107,7 +108,7 @@ def target_report(request: Request, core: str = "kg", month: str | None = Query(
             c = codes.setdefault(t.code, {"name": t.name, "supervisor": t.supervisor, "branch": t.branch, "rial": 0.0})
             c["rial"] += t.rial
     outside = sum(r[5] or 0 for r in sales if r[3] not in cats)
-    arows = [A(r[0], r[1], r[2], r[3], r[4], r[5] or 0.0) for r in sales if r[3] in cats]
+    arows = [A(r[0], r[1], r[2], r[3] if r[3] in cats else NO_TARGET, r[4], r[5] or 0.0) for r in sales]
 
     def t_attrs(t):
         return {"branch": t.branch, "line": t.line, "manager": t.manager, "supervisor": t.supervisor,
@@ -116,7 +117,7 @@ def target_report(request: Request, core: str = "kg", month: str | None = Query(
     def a_attrs(a):
         return {"branch": a.branch, "line": a.line, "manager": manager_of.get((a.branch, a.line)),
                 "supervisor": codes[a.code]["supervisor"] if a.code in codes else None,
-                "group": group_of[a.category], "category": a.category, "visitor": a.code}
+                "group": group_of.get(a.category, NO_TARGET), "category": a.category, "visitor": a.code}
 
     def keep(attrs, skip=None):
         return all(attrs[k] in v for k, v in filters.items() if k != skip)
@@ -145,7 +146,7 @@ def target_report(request: Request, core: str = "kg", month: str | None = Query(
         if by == "visitor":
             return ("ویزیتورهای بدون کد (هدف فقط در شعبه/سرپرست/مدیر لحاظ شده)" if key == NO_CODE
                     else "سایر ویزیتورها (بدون تارگت)" if key == OTHER else codes[key]["name"])
-        return key
+        return "سایر (بدون تارگت)" if key == NO_TARGET else key
 
     def key_t(t):
         return {"branch": t.branch, "line": t.line, "manager": t.manager, "supervisor": t.supervisor, "group": t.group,
@@ -175,7 +176,7 @@ def target_report(request: Request, core: str = "kg", month: str | None = Query(
 
     rows = []
     for key, (target, actual) in sorted(agg.items(), key=lambda kv: (-kv[1][0], -kv[1][1])):
-        row = {"key": key, "label": label(key), "synthetic": key in (NO_CODE, OTHER) or key in (NO_SUPERVISOR, NO_MANAGER),
+        row = {"key": key, "label": label(key), "synthetic": key in (NO_CODE, OTHER, NO_TARGET, NO_SUPERVISOR, NO_MANAGER),
                **metrics(target, actual)}
         if row["synthetic"]:
             row["status"] = None
@@ -215,5 +216,5 @@ def target_report(request: Request, core: str = "kg", month: str | None = Query(
             "target_categories": len(cats),
         },
         "thresholds": {"on_track": ON_TRACK, "watch": WATCH},
-        "method": "تحقق = فروش (Rial+Vat، بدون ردیف‌های پروموشن، با کسر مرجوعی) دسته‌کالاهای تارگتی. درصد انتظار = روزهای کاری تا آخرین روز دارای داده ÷ روزهای کاری ماه؛ همان قاعدهٔ کارت پیش‌بینی داشبورد (جمعه و SR_HOLIDAYS غیرکاری).",
+        "method": "تحقق = کل فروش ثبت‌شده (Rial+Vat، شامل ردیف‌های پروموشن و با کسر مرجوعی)، همان عدد نمای کلی داشبورد؛ فروش کالاهایی که دسته تارگتی ندارند در ردیف «سایر (بدون تارگت)» جدا نشان داده می‌شود. درصد انتظار = روزهای کاری تا آخرین روز دارای داده ÷ روزهای کاری ماه؛ همان قاعدهٔ کارت پیش‌بینی داشبورد (جمعه و SR_HOLIDAYS غیرکاری).",
     }
