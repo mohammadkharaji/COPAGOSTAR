@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import {
   Activity, ArrowDownLeft, BarChart3, Building2, CalendarDays, ChevronDown, ChevronLeft, ChevronRight, CircleDollarSign, FileText,
-  Filter, HeartPulse, LayoutDashboard, ListOrdered, MapPin, PackageSearch, Percent, PieChart as PieIcon, Printer, RefreshCw, ShoppingBag, Sparkles,
+  Filter, HeartPulse, LayoutDashboard, ListOrdered, LogOut, MapPin, PackageSearch, Percent, PieChart as PieIcon, Printer, RefreshCw, ShoppingBag, Sparkles,
   Target, TrendingDown, TrendingUp, UserCheck, UserRound, Users, X,
 } from 'lucide-react'
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
@@ -39,7 +39,7 @@ function QuickSelect({ label, value, options, onChange, format = (x) => x }) {
 /* ---------- پوستهٔ مشترک همهٔ صفحه‌ها ---------- */
 export function ExecShell({
   page, onNavigate, core, cores, setCore, title, subtitle, month, setMonth, filters = {}, dims = {}, onFilterChange, onReset,
-  showFilters = true, hideMonth = false, error, partial, lastDataDate, syncState = 'never', syncNotice, onDismissNotice, onRefresh, children,
+  showFilters = true, hideMonth = false, error, partial, lastDataDate, syncState = 'never', syncNotice, onDismissNotice, onRefresh, onLogout, user, children,
 }) {
   const [collapsed, setCollapsed] = useState(false)
   const [advanced, setAdvanced] = useState(false)
@@ -74,6 +74,13 @@ export function ExecShell({
           <button type="button" className="exec-refresh" onClick={onRefresh} disabled={running}>
             <RefreshCw size={16} className={running ? 'spin' : ''} /><span>{running ? 'در حال به‌روزرسانی…' : 'به‌روزرسانی داده'}</span>
           </button>
+          {onLogout && (
+            <div className="exec-profile">
+              <span className="exec-avatar" aria-hidden="true"><UserRound size={17} /></span>
+              <div className="exec-profile-copy"><b dir="ltr">{user || 'کاربر'}</b><small>حساب کاربری</small></div>
+              <button type="button" className="exec-logout" onClick={onLogout} aria-label="خروج از حساب" title="خروج از حساب"><LogOut size={17} /></button>
+            </div>
+          )}
         </div>
       </aside>
 
@@ -97,6 +104,11 @@ export function ExecShell({
             <button type="button" className="exec-refresh-mini" onClick={() => window.print()} aria-label="چاپ یا ذخیره PDF" title="چاپ / PDF">
               <Printer size={17} />
             </button>
+            {onLogout && (
+              <button type="button" className="exec-refresh-mini exec-logout-mini" onClick={onLogout} aria-label="خروج از حساب" title="خروج">
+                <LogOut size={17} />
+              </button>
+            )}
           </div>
         </header>
 

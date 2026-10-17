@@ -39,6 +39,7 @@ export default function App({ onLogout }) {
   const options = useApi('/filters', { core, v: ver, ...(dims.branch && { branch: dims.branch }), ...(dims.region && { region: dims.region }), ...(dims.state && { state: dims.state }), ...(dims.city && { city: dims.city }), ...(dims.main_group && { main_group: dims.main_group }) })
   const [tick, setTick] = useState(0)
   const sync = useApi('/sync-status', { t: tick })
+  const me = useApi('/auth/me', {})
   const syncState = sync.data?.state
   const running = syncState === 'running'
   const prevSync = useRef(syncState)
@@ -120,7 +121,7 @@ export default function App({ onLogout }) {
       page={page} onNavigate={go} core={core} cores={CORES} setCore={setCore} title={title} subtitle={subtitle}
       month={month} setMonth={setMonth} filters={options.data ?? {}} dims={dims} onFilterChange={setDim}
       onReset={() => { setMonth(''); setDims({}) }} showFilters={page !== 'health' && page !== 'customer'} hideMonth={page === 'monthly' || page === 'growth'}
-      error={error} partial={partial} lastDataDate={health?.last_data_date} syncState={syncState} syncNotice={syncNotice} onDismissNotice={() => setSyncNotice('')} onRefresh={startSync} onLogout={onLogout}
+      error={error} partial={partial} lastDataDate={health?.last_data_date} syncState={syncState} syncNotice={syncNotice} onDismissNotice={() => setSyncNotice('')} onRefresh={startSync} onLogout={onLogout} user={me.data?.user}
     >
       {page === 'overview' && <ExecutiveDashboard p={p} cal={cal} month={month} setMonth={setMonth} />}
       {page === 'trend' && <TrendPage p={p} />}
