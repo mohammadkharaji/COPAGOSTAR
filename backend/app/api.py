@@ -834,6 +834,12 @@ def data_health():
         con.close()
 
 
+# >>> AGENT (optional feature; see backend/app/agent/README.txt for removal)
+from . import agent as _agent  # noqa: E402
+if _agent.enabled():
+    app.include_router(_agent.router)
+# <<< AGENT
+
 DIST = ROOT / "frontend" / "dist"
 if DIST.is_dir():
     from fastapi.staticfiles import StaticFiles

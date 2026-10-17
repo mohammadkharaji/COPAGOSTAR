@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { get, post, useApi } from './api'
 import { monthLabel, monthRange } from './format'
 import ExecutiveDashboard, { ExecShell, NAV } from './ExecutiveDashboard'
+import AgentPanel from './agent/AgentPanel' // AGENT (removable)
 import { BranchRegionPage, CustomerPage, GrowthPage, HealthPage, InvoicePage, MonthlyTrendPage, ParetoPage, ProductBrandPage, ProfilePage, TrendPage, VisitorPage } from './pages'
 
 const CORES = { kg: 'کوپا گستر', ch: 'زنجیره‌ای' }
@@ -132,6 +133,7 @@ export default function App({ onLogout }) {
       {page === 'invoice' && <InvoicePage p={p} />}
       {page === 'customer' && <CustomerPage key={arg} core={core} code={arg} setCode={(c) => go('customer', c)} />}
       {page === 'health' && <HealthPage health={health} meta={meta} quality={quality} />}
+      <AgentPanel /> {/* AGENT (removable) */}
     </ExecShell>
   )
 }
