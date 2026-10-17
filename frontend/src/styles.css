@@ -173,7 +173,7 @@ tbody tr:hover, tbody tr.sel { background: #fbf3e0; }
 .exec-reset:hover { color: #dc2626; border-color: #fecaca; }
 .exec-page { max-width: 1480px; margin: 18px auto 0; }
 .exec-page > * + * { margin-top: 14px; }
-.exec-page .exec-kpis { margin: 14px 0; grid-template-columns: repeat(12, minmax(0, 1fr)); }.exec-page .exec-kpis .exec-metric { grid-column: span 4; }.exec-page .exec-kpis .exec-metric:nth-child(-n+4) { grid-column: span 3; }
+.exec-page .exec-kpis { margin: 14px 0; grid-template-columns: repeat(20, minmax(0, 1fr)); }.exec-page .exec-kpis .exec-metric { grid-column: span 4; }.exec-page .exec-kpis .exec-metric:nth-child(-n+4) { grid-column: span 5; }
 .exec-grid { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 14px; align-items: stretch; }
 .exec-grid > * { margin-top: 0 !important; }
 .exec-span-8 { grid-column: span 8; }.exec-span-4 { grid-column: span 4; display: flex; }.exec-span-12 { grid-column: span 12; }

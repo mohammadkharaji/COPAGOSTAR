@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import {
   Activity, ArrowDownLeft, BarChart3, Building2, CalendarDays, ChevronDown, ChevronLeft, ChevronRight, CircleDollarSign, FileText,
-  Filter, HeartPulse, LayoutDashboard, ListOrdered, LogOut, MapPin, PackageSearch, Percent, PieChart as PieIcon, Printer, RefreshCw, ShoppingBag, Sparkles,
+  Filter, HeartPulse, LayoutDashboard, ListOrdered, MapPin, PackageSearch, Percent, PieChart as PieIcon, Printer, RefreshCw, ShoppingBag, Sparkles,
   Target, TrendingDown, TrendingUp, UserCheck, UserRound, Users, X,
 } from 'lucide-react'
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
@@ -38,7 +38,7 @@ function QuickSelect({ label, value, options, onChange, format = (x) => x }) {
 /* ---------- پوستهٔ مشترک همهٔ صفحه‌ها ---------- */
 export function ExecShell({
   page, onNavigate, core, cores, setCore, title, subtitle, month, setMonth, filters = {}, dims = {}, onFilterChange, onReset,
-  showFilters = true, hideMonth = false, error, partial, lastDataDate, syncState = 'never', syncNotice, onDismissNotice, onRefresh, onLogout, children,
+  showFilters = true, hideMonth = false, error, partial, lastDataDate, syncState = 'never', syncNotice, onDismissNotice, onRefresh, children,
 }) {
   const [collapsed, setCollapsed] = useState(false)
   const [advanced, setAdvanced] = useState(false)
@@ -67,17 +67,12 @@ export function ExecShell({
             <span className={`exec-dot ${syncState === 'failed' || partial ? 'bad' : ''}`} />
             <div>
               <b>{partial ? 'استخراج ناقص' : 'داده کامل'}</b>
-              <small>{running ? 'در حال به‌روزرسانی' : syncState === 'failed' ? 'آخرین به‌روزرسانی ناموفق بود' : lastDataDate ? `داده تا ${faDigits(lastDataDate)}` : 'منبع: فایل‌های استخراج‌شده'}</small>
+              <small>{running ? 'در حال به‌روزرسانی' : syncState === 'failed' ? 'آخرین به‌روزرسانی ناموفق بود' : lastDataDate ? `داده تا ${faDigits(lastDataDate)}` : 'منبع: SR-1405.xlsx'}</small>
             </div>
           </div>
           <button type="button" className="exec-refresh" onClick={onRefresh} disabled={running}>
             <RefreshCw size={16} className={running ? 'spin' : ''} /><span>{running ? 'در حال به‌روزرسانی…' : 'به‌روزرسانی داده'}</span>
           </button>
-          {onLogout && (
-            <button type="button" className="exec-logout" onClick={onLogout}>
-              <LogOut size={16} /><span>خروج</span>
-            </button>
-          )}
         </div>
       </aside>
 
@@ -327,11 +322,16 @@ export default function ExecutiveDashboard({ p, cal, month, setMonth }) {
   const { month: _m, start: _s, end: _e, ...dims } = p
   const ov = useApi('/overview', p)
   const invoiceLines = useApi('/invoice-lines', p)
+  const growth = useApi('/growth', { ...dims, kind: 'month' })
   const monthly = useApi('/monthly', { ...dims })
   const trend = useApi('/trend', p)
   const pace = useApi('/pace', dims)
   const o = ov.data
   const rows = monthly.data ?? []
+  const lastPeriod = growth.data?.periods?.at(-1)
+  const selectedPeriod = growth.data?.periods?.find((r) => r.key === month)
+  const invoiceGrowth = (month ? selectedPeriod : lastPeriod)?.compare?.growth?.invoice_count
+  const growthLabel = (month ? selectedPeriod : lastPeriod)?.label
   const days = trend.data ?? []
   const toggle = (ym) => setMonth(ym === month ? '' : ym)
   return (
@@ -351,9 +351,11 @@ export default function ExecutiveDashboard({ p, cal, month, setMonth }) {
         <Metric icon={CircleDollarSign} label="ریال خالص" value={o ? fa(o.net_rial) : '—'} unit="پس از کسر پروموشن" tone="teal" />
         <Metric icon={PackageSearch} label="تعداد کالا" value={o ? fa(o.sum_qty) : '—'} unit="عدد" tone="violet" />
         <Metric icon={FileText} label="تعداد فاکتور" value={o ? fa(o.invoice_count) : '—'} unit="فقره" tone="amber" />
+        <Metric icon={TrendingUp} label="درصد رشد فاکتور" value={pct(invoiceGrowth)} unit={growthLabel ? `${growthLabel} نسبت به دورهٔ مشابه ماه قبل` : 'مقایسه با ماه قبل'} tone="teal" />
         <Metric icon={ListOrdered} label="میانگین سطر فاکتور" value={invoiceLines.data ? fa2(invoiceLines.data.avg_lines_per_invoice) : '—'} unit="سطر در هر فاکتور · فقط فروش عادی" tone="blue" />
         <Metric icon={Users} label="مشتری فعال" value={o ? fa(o.active_customers) : '—'} unit="مشتری یکتا" tone="pink" />
-        <Metric icon={ArrowDownLeft} label="مجموع پروموشن" value={o ? fa(o.promo_total_rial) : '—'} unit={o ? `${pct(o.promo_percent)} از فروش` : '—'} tone="red" />
+        <Metric icon={ArrowDownLeft} label="مجموع پروموشن" value={o ? fa(o.promo_total_rial) : '—'} unit="ریال" tone="red" />
+        <Metric icon={Percent} label="درصد کل پروموشن" value={o ? pct(o.promo_percent) : '—'} unit="از فروش ناخالص · دورهٔ انتخاب‌شده" tone="pink" />
       </section>
 
       <section className="exec-grid">
