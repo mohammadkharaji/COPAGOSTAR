@@ -838,6 +838,9 @@ def data_health():
         con.close()
 
 
+from . import target as _target  # noqa: E402  (monthly sales target vs actual; routes under /api/target)
+app.include_router(_target.router)
+
 # >>> AGENT (optional feature; see backend/app/agent/README.txt for removal)
 from . import agent as _agent  # noqa: E402
 if _agent.enabled():

@@ -21,8 +21,15 @@ TEXT = tuple(c for c in COLUMN_MAP.values() if c not in NUMERIC)
 # copied onto fact_sales (joined by unique_product_code) so they filter like any other fact column.
 PRODUCT_FILE = "product.tsv"
 PRODUCT_MAP = {"Product[UniqueProductCode]": "unique_product_code", "Product[گروه کالای اصلی]": "main_group",
-               "Product[ProductGroup]": "sub_group"}
+               "Product[ProductGroup]": "sub_group", "Product[TargetCategory]": "target_category"}
 PRODUCT_DIMS = ("main_group", "sub_group")
+PRODUCT_DIM_COLS = tuple(v for v in PRODUCT_MAP.values() if v != "unique_product_code")  # columns of dim_product
+
+# Monthly sales target (one file per core and month, written by tools/monthly-target/convert_target.py):
+#   target_<core>_<YYYYMM>.tsv, \x1f/\x1e delimited like the other extracts, one row per visitor x target category.
+TARGET_GLOB = "target_*_*.tsv"
+TARGET_COLS = ("month", "branch", "line", "target_category", "product_group", "visitor_code", "visitor_name",
+               "supervisor", "manager", "target_rial")
 
 LIMITATIONS = [
     {"code": "NO_COGS", "severity": "blocked", "label": "بهای تمام‌شده در مدل داده وجود ندارد؛ سود ناخالص قابل محاسبه نیست"},

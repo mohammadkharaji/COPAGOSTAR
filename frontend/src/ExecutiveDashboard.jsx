@@ -17,7 +17,7 @@ const PRODUCT_GROUP_KEYS = ['main_group', 'sub_group'] // hidden while the data 
 
 export const NAV = [
   ['overview', 'نمای کلی', LayoutDashboard], ['trend', 'روند روزانه', Activity], ['monthly', 'روند ماهانه', BarChart3],
-  ['growth', 'آنالیز رشد و افت', Percent],
+  ['growth', 'آنالیز رشد و افت', Percent], ['target', 'تارگت', Target],
   ['branch', 'شعب و مناطق', MapPin], ['product', 'کالا و برند', ShoppingBag], ['profile', 'تحلیل شعبه و برند', Building2],
   ['pareto', 'تحلیل پارتو', TrendingUp],
   ['invoice', 'تحلیل فاکتور', FileText], ['customer', 'پروفایل مشتری', UserRound], ['visitor', 'پروفایل ویزیتور', UserCheck],

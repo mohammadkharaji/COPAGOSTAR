@@ -19,22 +19,24 @@ COLS = ["SR[ID]", "SR[ProductName]", "SR[Brand]", "SR[MainUnit]", "SR[InvoiceCod
 
 
 def make_row(src, inv, cust, rv, qty, disc="0", d2="0", settle="0", vcode="", vname="", date="1405/07/18",
-             branch="شعبه تهران", brand="", ucode=""):
+             branch="شعبه تهران", brand="", ucode="", line=""):
     d = dict.fromkeys(COLS, "")
     d.update({"SR[SourceTable]": src, "SR[InvoiceCode]": inv, "SR[CustomerCode]": cust, "SR[InvoiceDate]": date,
               "SR[Year/Month]": date[:4] + date[5:7], "SR[Core]": "کوپا گستر", "SR[Rial+Vat]": rv, "SR[QTY]": qty,
               "SR[TotalDiscount]": disc, "SR[DISCOUNT]": d2, "SR[TotalDiscountBySettlementInInvoiceRecord]": settle,
               "SR[Branch]": branch, "SR[CityName]": "تهران", "SR[State]": "منطقه ۱", "SR[Movaze]": "غرب",
-              "SR[VisitorCode]": vcode, "SR[Visitor]": vname, "SR[Brand]": brand, "SR[UniqueProductCode]": ucode})
+              "SR[VisitorCode]": vcode, "SR[Visitor]": vname, "SR[Brand]": brand, "SR[UniqueProductCode]": ucode, "SR[GROUP]": line})
     return "\x1f".join(d[c] for c in COLS)
 
 
-PRODUCT_COLS = ["Product[UniqueProductCode]", "Product[گروه کالای اصلی]", "Product[ProductGroup]", "Product[Brand]"]
+PRODUCT_COLS = ["Product[UniqueProductCode]", "Product[گروه کالای اصلی]", "Product[ProductGroup]", "Product[TargetCategory]",
+                "Product[Brand]"]
 
 
 def product_tsv(*products):
-    """products: (unique code, main group, sub group) tuples -> product.tsv text in the extract format."""
-    return "\x1f".join(PRODUCT_COLS) + "\x1e" + "".join("\x1f".join([*p, "b"]) + "\x1e" for p in products)
+    """products: (unique code, main group, sub group[, target category]) tuples -> product.tsv text in the extract format."""
+    return "\x1f".join(PRODUCT_COLS) + "\x1e" + "".join(
+        "\x1f".join([*p, *[""] * (4 - len(p)), "b"]) + "\x1e" for p in products)
 
 
 def build_client(tmp_path, monkeypatch, chunks, product=None):

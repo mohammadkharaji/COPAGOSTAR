@@ -1,3 +1,4 @@
+import TargetPage from './TargetPage'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { get, post, useApi } from './api'
 import { monthLabel, monthRange } from './format'
@@ -114,18 +115,21 @@ export default function App({ onLogout }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [core, month, dims, page, arg])
   const title = NAV.find(([k]) => k === page)[1]
-  const subtitle = `دوره: ${month ? monthLabel(month) : 'همه ماه‌ها'} · مبالغ به ریال و شامل مالیات و عوارض`
+  const subtitle = page === 'target'
+    ? 'پیشرفت فروش نسبت به تارگت ماهانه · مبالغ به ریال و شامل مالیات و عوارض'
+    : `دوره: ${month ? monthLabel(month) : 'همه ماه‌ها'} · مبالغ به ریال و شامل مالیات و عوارض`
 
   return (
     <ExecShell
       page={page} onNavigate={go} core={core} cores={CORES} setCore={setCore} title={title} subtitle={subtitle}
       month={month} setMonth={setMonth} filters={options.data ?? {}} dims={dims} onFilterChange={setDim}
-      onReset={() => { setMonth(''); setDims({}) }} showFilters={page !== 'health' && page !== 'customer'} hideMonth={page === 'monthly' || page === 'growth'}
+      onReset={() => { setMonth(''); setDims({}) }} showFilters={page !== 'health' && page !== 'customer' && page !== 'target'} hideMonth={page === 'monthly' || page === 'growth'}
       error={error} partial={partial} lastDataDate={health?.last_data_date} syncState={syncState} syncNotice={syncNotice} onDismissNotice={() => setSyncNotice('')} onRefresh={startSync} onLogout={onLogout} user={me.data?.user}
     >
       {page === 'overview' && <ExecutiveDashboard p={p} cal={cal} month={month} setMonth={setMonth} />}
       {page === 'trend' && <TrendPage p={p} />}
       {page === 'monthly' && <MonthlyTrendPage p={p} />}
+      {page === 'target' && <TargetPage key={core} core={core} />}
       {page === 'growth' && <GrowthPage p={p} />}
       {page === 'branch' && <BranchRegionPage p={p} openProfile={openProfile} />}
       {page === 'product' && <ProductBrandPage p={p} openProfile={openProfile} />}

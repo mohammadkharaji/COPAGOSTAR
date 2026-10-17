@@ -300,3 +300,11 @@ tbody tr:hover, tbody tr.sel { background: #fbf3e0; }
 .exec-logout-mini:hover { color: #dc2626; border-color: #fecaca; }
 .exec-collapsed .exec-profile-copy { display: none; }
 .exec-collapsed .exec-profile { flex-direction: column; padding: 8px 4px; }
+
+.tgt-filters { display:flex; flex-wrap:wrap; gap:12px; padding:16px; background:white; border:1px solid #e2e8f0; border-radius:16px; }
+.tgt-filters label, .tgt-month { display:grid; gap:6px; font-size:12px; color:#475569; }
+.tgt-filters select, .tgt-month select { max-width:210px; padding:8px; background:white; border:1px solid #cbd5e1; border-radius:8px; }
+.tgt-badge { display:inline-block; padding:4px 9px; border-radius:20px; white-space:nowrap; background:#f1f5f9; }
+.tgt-badge.good { background:#ecfdf5; color:#047857; }.tgt-badge.warn { background:#fffbeb; color:#92400e; }.tgt-badge.bad { background:#fef2f2; color:#b91c1c; }
+.tgt-pct { display:grid; gap:5px; min-width:100px; }.tgt-bar { position:relative; display:block; height:6px; background:#e2e8f0; border-radius:4px; }.tgt-bar i { display:block; height:6px; background:#2563eb; border-radius:4px; }.tgt-bar b { position:absolute; top:-3px; height:12px; border-inline-start:2px solid #475569; }
+.tgt-counts { display:flex; flex-wrap:wrap; gap:20px; }.tgt-count { display:grid; gap:8px; }.tgt-count b { font-size:24px; }.tgt-quality { line-height:2.2; padding-inline-start:20px; }
