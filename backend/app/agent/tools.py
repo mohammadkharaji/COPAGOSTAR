@@ -12,7 +12,7 @@ from starlette.requests import Request
 MAX_ROWS = 40          # list items kept per tool result
 MAX_CHARS = 14_000     # serialized size cap per tool result
 
-FILTER_KEYS = ["sales_type", "region", "state", "city", "branch", "brand", "group", "grade", "visitor"]
+FILTER_KEYS = ["sales_type", "region", "state", "city", "branch", "brand", "group", "grade", "visitor", "main_group", "sub_group"]
 _COMMON = {
     "core": {"type": "string", "enum": ["kg", "ch"], "description": "kg = کوپا گستر (پیش‌فرض)، ch = زنجیره‌ای"},
     "start": {"type": "string", "description": "شروع بازه شمسی، مثل 1405/07/01"},

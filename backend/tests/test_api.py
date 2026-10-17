@@ -19,19 +19,29 @@ COLS = ["SR[ID]", "SR[ProductName]", "SR[Brand]", "SR[MainUnit]", "SR[InvoiceCod
 
 
 def make_row(src, inv, cust, rv, qty, disc="0", d2="0", settle="0", vcode="", vname="", date="1405/07/18",
-             branch="شعبه تهران", brand=""):
+             branch="شعبه تهران", brand="", ucode=""):
     d = dict.fromkeys(COLS, "")
     d.update({"SR[SourceTable]": src, "SR[InvoiceCode]": inv, "SR[CustomerCode]": cust, "SR[InvoiceDate]": date,
               "SR[Year/Month]": date[:4] + date[5:7], "SR[Core]": "کوپا گستر", "SR[Rial+Vat]": rv, "SR[QTY]": qty,
               "SR[TotalDiscount]": disc, "SR[DISCOUNT]": d2, "SR[TotalDiscountBySettlementInInvoiceRecord]": settle,
               "SR[Branch]": branch, "SR[CityName]": "تهران", "SR[State]": "منطقه ۱", "SR[Movaze]": "غرب",
-              "SR[VisitorCode]": vcode, "SR[Visitor]": vname, "SR[Brand]": brand})
+              "SR[VisitorCode]": vcode, "SR[Visitor]": vname, "SR[Brand]": brand, "SR[UniqueProductCode]": ucode})
     return "\x1f".join(d[c] for c in COLS)
 
 
-def build_client(tmp_path, monkeypatch, chunks):
+PRODUCT_COLS = ["Product[UniqueProductCode]", "Product[گروه کالای اصلی]", "Product[ProductGroup]", "Product[Brand]"]
+
+
+def product_tsv(*products):
+    """products: (unique code, main group, sub group) tuples -> product.tsv text in the extract format."""
+    return "\x1f".join(PRODUCT_COLS) + "\x1e" + "".join("\x1f".join([*p, "b"]) + "\x1e" for p in products)
+
+
+def build_client(tmp_path, monkeypatch, chunks, product=None):
     raw = tmp_path / "raw"
     raw.mkdir()
+    if product:
+        (raw / "product.tsv").write_text(product, encoding="utf-8")
     for name, rows in chunks.items():
         (raw / f"{name}.tsv").write_text("\x1f".join(COLS) + "\x1e" + "\x1e".join(rows) + "\x1e", encoding="utf-8")
     monkeypatch.setenv("SR_RAW_DIR", str(raw))
@@ -154,6 +164,42 @@ def test_geo_filter_options_follow_selected_branch(client):
     assert other["branch"] == allopts["branch"]
     assert client.get("/api/filters", params={"branch": "x' OR '1'='1"}).json()["city"] == []
     assert client.get("/api/filters", params={"city": "اصفهان"}).json()["state"] == []
+
+
+def test_product_group_filters_and_sub_group_follows_main_group(tmp_path, monkeypatch):
+    s = "SRSalesProcedure1405"
+    c = build_client(tmp_path, monkeypatch, {"sr_kg_140507": [
+        make_row(s, "1", "A", "1000", "10", ucode="P1"), make_row(s, "2", "B", "500", "5", ucode="P2"),
+        make_row(s, "3", "A", "200", "2", ucode="P3"), make_row(s, "4", "B", "70", "1", ucode="NOPE")]},
+        product=product_tsv(("P1", "گروه الف", "زیر ۱"), ("P2", "گروه الف", "زیر ۲"), ("P3", "گروه ب", "زیر ۱")))
+    opts = c.get("/api/filters").json()
+    assert sorted(opts["main_group"]) == ["گروه الف", "گروه ب"] and sorted(opts["sub_group"]) == ["زیر ۱", "زیر ۲"]
+    assert sorted(c.get("/api/filters", params={"main_group": "گروه الف"}).json()["sub_group"]) == ["زیر ۱", "زیر ۲"]
+    assert c.get("/api/filters", params={"main_group": "گروه ب"}).json()["sub_group"] == ["زیر ۱"]
+    assert c.get("/api/filters", params={"main_group": "x' OR '1'='1"}).json()["sub_group"] == []
+    assert c.get("/api/filters", params={"main_group": "گروه الف"}).json()["main_group"] == opts["main_group"]
+    total = lambda **p: c.get("/api/overview", params=p).json()["sum_rial_vat"]  # noqa: E731
+    assert total() == 1770 and total(main_group="گروه الف") == 1500 and total(main_group="گروه ب") == 200
+    assert total(sub_group="زیر ۱") == 1200 and total(main_group="گروه ب", sub_group="زیر ۱") == 200
+    by = {r["key"]: r["sum_rial_vat"] for r in c.get("/api/breakdown", params={"by": "main_group"}).json()}
+    assert by == {"گروه الف": 1500, "گروه ب": 200}
+
+
+def test_product_groups_reapplied_when_product_file_changes(tmp_path, monkeypatch):
+    s = "SRSalesProcedure1405"
+    c = build_client(tmp_path, monkeypatch, {"sr_kg_140507": [make_row(s, "1", "A", "1000", "10", ucode="P1")]},
+                     product=product_tsv(("P1", "گروه الف", "زیر ۱")))
+    assert c.get("/api/filters").json()["main_group"] == ["گروه الف"]
+    from app import ingest
+    (tmp_path / "raw" / "product.tsv").write_text(product_tsv(("P1", "گروه ج", "زیر ۹")), encoding="utf-8")
+    assert [r["status"] for r in ingest.ingest_all()] == ["loaded", "skipped"]
+    opts = c.get("/api/filters").json()
+    assert opts["main_group"] == ["گروه ج"] and opts["sub_group"] == ["زیر ۹"]
+
+
+def test_no_product_file_means_empty_group_options(client):
+    opts = client.get("/api/filters").json()
+    assert opts["main_group"] == [] and opts["sub_group"] == []
 
 
 def test_pareto_and_invoice_bands(client):

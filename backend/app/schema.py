@@ -17,6 +17,13 @@ COLUMN_MAP = {
 NUMERIC = ("rial_vat", "qty", "total", "tax", "toll", "total_discount", "discount", "settlement_discount")
 TEXT = tuple(c for c in COLUMN_MAP.values() if c not in NUMERIC)
 
+# Product dimension (product.tsv, extracted from the model's Product table) -> dim_product. main_group/sub_group are
+# copied onto fact_sales (joined by unique_product_code) so they filter like any other fact column.
+PRODUCT_FILE = "product.tsv"
+PRODUCT_MAP = {"Product[UniqueProductCode]": "unique_product_code", "Product[گروه کالای اصلی]": "main_group",
+               "Product[ProductGroup]": "sub_group"}
+PRODUCT_DIMS = ("main_group", "sub_group")
+
 LIMITATIONS = [
     {"code": "NO_COGS", "severity": "blocked", "label": "بهای تمام‌شده در مدل داده وجود ندارد؛ سود ناخالص قابل محاسبه نیست"},
     {"code": "NO_RETURNS_140501_140502", "severity": "warning", "label": "مرجوعی فروردین و اردیبهشت در منبع وجود ندارد"},
