@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import {
   Activity, ArrowDownLeft, BarChart3, Building2, CalendarDays, ChevronDown, ChevronLeft, ChevronRight, CircleDollarSign, FileText,
-  Filter, HeartPulse, LayoutDashboard, ListOrdered, MapPin, PackageSearch, Percent, PieChart as PieIcon, Printer, RefreshCw, ShoppingBag, Sparkles,
+  Filter, HeartPulse, LayoutDashboard, ListOrdered, LogOut, MapPin, PackageSearch, Percent, PieChart as PieIcon, Printer, RefreshCw, ShoppingBag, Sparkles,
   Target, TrendingDown, TrendingUp, UserCheck, UserRound, Users, X,
 } from 'lucide-react'
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
@@ -12,7 +12,8 @@ import { Table } from './ui'
 const pct = (v) => (v == null ? '—' : `${new Intl.NumberFormat('fa-IR', { maximumFractionDigits: 1 }).format(v * 100)}٪`)
 const PIE_COLORS = ['#2563eb', '#0f766e', '#8b5cf6', '#f59e0b', '#ec4899', '#0ea5e9', '#84cc16', '#ef4444', '#94a3b8']
 const PIE_BY = [['branch', 'شعبه'], ['region', 'منطقه'], ['brand', 'برند'], ['sales_type', 'کانال فروش'], ['group', 'لاین'], ['grade', 'گرید مشتری']]
-const FILTER_LABELS = { sales_type: 'کانال فروش', region: 'منطقه', state: 'منطقه شهرداری', city: 'شهر', brand: 'برند', group: 'لاین', grade: 'گرید مشتری' }
+const FILTER_LABELS = { sales_type: 'کانال فروش', region: 'منطقه', state: 'منطقه شهرداری', city: 'شهر', brand: 'برند', group: 'لاین', grade: 'گرید مشتری', main_group: 'گروه کالای اصلی', sub_group: 'زیرگروه کالای اصلی' }
+const PRODUCT_GROUP_KEYS = ['main_group', 'sub_group'] // hidden while the data has no product groups (product.tsv not loaded)
 
 export const NAV = [
   ['overview', 'نمای کلی', LayoutDashboard], ['trend', 'روند روزانه', Activity], ['monthly', 'روند ماهانه', BarChart3],
@@ -38,7 +39,7 @@ function QuickSelect({ label, value, options, onChange, format = (x) => x }) {
 /* ---------- پوستهٔ مشترک همهٔ صفحه‌ها ---------- */
 export function ExecShell({
   page, onNavigate, core, cores, setCore, title, subtitle, month, setMonth, filters = {}, dims = {}, onFilterChange, onReset,
-  showFilters = true, hideMonth = false, error, partial, lastDataDate, syncState = 'never', syncNotice, onDismissNotice, onRefresh, children,
+  showFilters = true, hideMonth = false, error, partial, lastDataDate, syncState = 'never', syncNotice, onDismissNotice, onRefresh, onLogout, user, children,
 }) {
   const [collapsed, setCollapsed] = useState(false)
   const [advanced, setAdvanced] = useState(false)
@@ -73,6 +74,13 @@ export function ExecShell({
           <button type="button" className="exec-refresh" onClick={onRefresh} disabled={running}>
             <RefreshCw size={16} className={running ? 'spin' : ''} /><span>{running ? 'در حال به‌روزرسانی…' : 'به‌روزرسانی داده'}</span>
           </button>
+          {onLogout && (
+            <div className="exec-profile">
+              <span className="exec-avatar" aria-hidden="true"><UserRound size={17} /></span>
+              <div className="exec-profile-copy"><b dir="ltr">{user || 'کاربر'}</b><small>حساب کاربری</small></div>
+              <button type="button" className="exec-logout" onClick={onLogout} aria-label="خروج از حساب" title="خروج از حساب"><LogOut size={17} /></button>
+            </div>
+          )}
         </div>
       </aside>
 
@@ -96,6 +104,11 @@ export function ExecShell({
             <button type="button" className="exec-refresh-mini" onClick={() => window.print()} aria-label="چاپ یا ذخیره PDF" title="چاپ / PDF">
               <Printer size={17} />
             </button>
+            {onLogout && (
+              <button type="button" className="exec-refresh-mini exec-logout-mini" onClick={onLogout} aria-label="خروج از حساب" title="خروج">
+                <LogOut size={17} />
+              </button>
+            )}
           </div>
         </header>
 
@@ -125,7 +138,7 @@ export function ExecShell({
               <section className="exec-advanced">
                 <div className="exec-advanced-head"><b>فیلترهای تحلیلی</b><span>روی همهٔ نمودارها و جدول‌های این صفحه اعمال می‌شود</span></div>
                 <div className="exec-advanced-grid">
-                  {Object.entries(FILTER_LABELS).map(([k, label]) => (
+                  {Object.entries(FILTER_LABELS).filter(([k]) => !PRODUCT_GROUP_KEYS.includes(k) || filters[k]?.length || dims[k]).map(([k, label]) => (
                     <QuickSelect key={k} label={label} value={dims[k] ?? ''} options={filters[k] ?? []} onChange={(v) => onFilterChange(k, v)} />
                   ))}
                 </div>
