@@ -2,10 +2,11 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { get, post, useApi } from './api'
 import { monthLabel, monthRange } from './format'
 import ExecutiveDashboard, { ExecShell, NAV } from './ExecutiveDashboard'
+import AgentPanel from './agent/AgentPanel' // AGENT (removable)
 import { BranchRegionPage, CustomerPage, GrowthPage, HealthPage, InvoicePage, MonthlyTrendPage, ParetoPage, ProductBrandPage, ProfilePage, TrendPage, VisitorPage } from './pages'
 
 const CORES = { kg: 'کوپا گستر', ch: 'زنجیره‌ای' }
-const SHARED_KEYS = ['month', 'branch', 'region', 'state', 'city', 'brand', 'group', 'grade', 'sales_type']
+const SHARED_KEYS = ['month', 'branch', 'region', 'state', 'city', 'brand', 'group', 'grade', 'sales_type', 'main_group', 'sub_group']
 const parseHash = () => {
   const [path, query = ''] = location.hash.slice(1).split('?')
   const [rawPage, ...rest] = path.split('/')
@@ -35,7 +36,7 @@ export default function App({ onLogout }) {
   const [error, setError] = useState(null)
   const [ver, setVer] = useState(0)
   const [syncNotice, setSyncNotice] = useState('')
-  const options = useApi('/filters', { core, v: ver, ...(dims.branch && { branch: dims.branch }), ...(dims.region && { region: dims.region }), ...(dims.state && { state: dims.state }), ...(dims.city && { city: dims.city }) })
+  const options = useApi('/filters', { core, v: ver, ...(dims.branch && { branch: dims.branch }), ...(dims.region && { region: dims.region }), ...(dims.state && { state: dims.state }), ...(dims.city && { city: dims.city }), ...(dims.main_group && { main_group: dims.main_group }) })
   const [tick, setTick] = useState(0)
   const sync = useApi('/sync-status', { t: tick })
   const syncState = sync.data?.state
@@ -102,6 +103,7 @@ export default function App({ onLogout }) {
     const n = { ...d }
     if (v) n[k] = v; else delete n[k]
     if (k === 'branch' && d.branch !== v) { delete n.region; delete n.state; delete n.city }
+    if (k === 'main_group' && d.main_group !== v) delete n.sub_group
     return n
   })
   const { page, arg } = route
@@ -132,6 +134,7 @@ export default function App({ onLogout }) {
       {page === 'invoice' && <InvoicePage p={p} />}
       {page === 'customer' && <CustomerPage key={arg} core={core} code={arg} setCode={(c) => go('customer', c)} />}
       {page === 'health' && <HealthPage health={health} meta={meta} quality={quality} />}
+      <AgentPanel /> {/* AGENT (removable) */}
     </ExecShell>
   )
 }

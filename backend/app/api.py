@@ -128,7 +128,8 @@ def _core(core: str) -> str:
 
 # Query-parameter name -> fact_sales column. Only these may be used as filters (allow-list; values are bound params).
 DIMS = {"sales_type": "sales_type", "region": "region", "state": "state", "city": "city_name", "branch": "branch",
-        "brand": "brand", "group": "group_name", "grade": "grade", "visitor": "visitor"}
+        "brand": "brand", "group": "group_name", "grade": "grade", "visitor": "visitor",
+        "main_group": "main_group", "sub_group": "sub_group"}
 
 
 def _dims(request: Request, skip: tuple[str, ...] = ()) -> tuple[str, list]:
@@ -285,11 +286,14 @@ SALES_ONLY = "NOT is_promo AND NOT is_return"
 
 
 GEO_KEYS = ("region", "state", "city")
+# Option lists narrowed by other selected filters: geography by branch and each other; sub group only by its main group.
+NARROWED_BY = {**{k: ("branch", *(g for g in GEO_KEYS if g != k)) for k in GEO_KEYS}, "sub_group": ("main_group",)}
 
 
 @app.get("/api/filters")
 def filters(request: Request, core: str = DEFAULT_CORE):
-    """Option lists. region/state/city are narrowed by the selected branch and by each other (never by themselves)."""
+    """Option lists. region/state/city are narrowed by the selected branch and by each other, and sub_group by the
+    selected main_group (never by themselves)."""
     name = _core(core)
     con = _con()
     try:
@@ -298,8 +302,8 @@ def filters(request: Request, core: str = DEFAULT_CORE):
             if key == "visitor":
                 continue
             where, args = "", []
-            if key in GEO_KEYS:
-                for dep in ("branch", *(k for k in GEO_KEYS if k != key)):
+            if key in NARROWED_BY:
+                for dep in NARROWED_BY[key]:
                     vals = [v for v in request.query_params.getlist(dep) if v]
                     if vals:
                         where += f" AND {DIMS[dep]} IN ({','.join('?' * len(vals))})"
@@ -833,6 +837,12 @@ def data_health():
     finally:
         con.close()
 
+
+# >>> AGENT (optional feature; see backend/app/agent/README.txt for removal)
+from . import agent as _agent  # noqa: E402
+if _agent.enabled():
+    app.include_router(_agent.router)
+# <<< AGENT
 
 DIST = ROOT / "frontend" / "dist"
 if DIST.is_dir():
