@@ -20,13 +20,14 @@ sys.path.insert(0, str(ROOT / "backend"))
 
 from app.config import DATA_DIR, RAW_DIR  # noqa: E402
 from app.ingest import ingest_all  # noqa: E402
-from app.schema import PRODUCT_FILE, TARGET_GLOB  # noqa: E402
+from app.schema import PRODUCT_FILE, RETURN_GLOB, TARGET_GLOB  # noqa: E402
 
 STATUS = DATA_DIR / "sync_status.json"
 
 
 def extracts() -> list[Path]:
-    return sorted([*RAW_DIR.glob("sr_*.tsv"), *RAW_DIR.glob(PRODUCT_FILE), *RAW_DIR.glob(TARGET_GLOB)])
+    return sorted([*RAW_DIR.glob("sr_*.tsv"), *RAW_DIR.glob(PRODUCT_FILE), *RAW_DIR.glob(TARGET_GLOB),
+                   *RAW_DIR.glob(RETURN_GLOB)])
 
 
 def signature() -> list[list]:

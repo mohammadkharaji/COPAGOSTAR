@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import {
   Activity, ArrowDownLeft, BarChart3, Building2, CalendarDays, ChevronDown, ChevronLeft, ChevronRight, CircleDollarSign, FileText,
   Filter, HeartPulse, LayoutDashboard, ListOrdered, LogOut, MapPin, PackageSearch, Percent, PieChart as PieIcon, Printer, RefreshCw, ShoppingBag, Sparkles,
-  Target, TrendingDown, TrendingUp, UserCheck, UserRound, Users, Wallet, X,
+  PackageX, Target, TrendingDown, TrendingUp, Undo2, UserCheck, UserRound, Users, Wallet, X,
 } from 'lucide-react'
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { useApi } from './api'
@@ -19,7 +19,7 @@ export const NAV = [
   ['overview', 'نمای کلی', LayoutDashboard], ['trend', 'روند روزانه', Activity], ['monthly', 'روند ماهانه', BarChart3],
   ['growth', 'آنالیز رشد و افت', Percent], ['target', 'تارگت', Target],
   ['branch', 'شعب و مناطق', MapPin], ['product', 'کالا و برند', ShoppingBag], ['profile', 'تحلیل شعبه و برند', Building2],
-  ['pareto', 'تحلیل پارتو', TrendingUp],
+  ['pareto', 'تحلیل پارتو', TrendingUp], ['returns', 'برگشتی حواله', Undo2],
   ['invoice', 'تحلیل فاکتور', FileText], ['customer', 'پروفایل مشتری', UserRound], ['visitor', 'پروفایل ویزیتور', UserCheck],
   ['health', 'سلامت داده', HeartPulse],
 ]
@@ -28,7 +28,7 @@ export const NAV = [
 // The third field marks a group as an expandable sub-menu.
 const NAV_GROUPS = [
   ['فروش', ['overview', 'trend', 'monthly', 'growth', 'target'], false],
-  ['تحلیل', ['branch', 'product', 'profile', 'pareto'], true],
+  ['تحلیل', ['branch', 'product', 'profile', 'pareto', 'returns'], true],
   ['مشتری و فاکتور', ['invoice', 'customer', 'visitor'], true],
   ['سیستم', ['health'], true],
 ]
@@ -447,6 +447,9 @@ export default function ExecutiveDashboard({ p, cal, month, setMonth }) {
   const monthly = useApi('/monthly', { ...dims })
   const trend = useApi('/trend', p)
   const pace = useApi('/pace', dims)
+  const ret = useApi('/returns/summary', p) // dispatch-order returns; separate from SR sales metrics
+  const retTotal = ret.data?.available ? ret.data.total : null
+  const retNote = ret.error ? 'دریافت داده ناموفق بود' : ret.data?.available === false ? 'داده حواله بارگذاری نشده' : ret.loading && !ret.data ? 'در حال بارگذاری…' : null
   const o = ov.data
   const rows = monthly.data ?? []
   const lastPeriod = growth.data?.periods?.at(-1)
@@ -482,6 +485,8 @@ export default function ExecutiveDashboard({ p, cal, month, setMonth }) {
         <Metric icon={Users} label="مشتری فعال" value={o ? fa(o.active_customers) : '—'} unit="مشتری یکتا" tone="pink" />
         <Metric icon={ArrowDownLeft} label="مجموع پروموشن" value={o ? fa(o.promo_total_rial) : '—'} unit="ریال" tone="red" />
         <Metric icon={Percent} label="درصد کل پروموشن" value={o ? pct(o.promo_percent) : '—'} unit="از فروش ناخالص · دورهٔ انتخاب‌شده" tone="red" />
+        <Metric icon={Undo2} label="حواله‌های برگشتی" value={retTotal ? fa(retTotal.returned_orders) : '—'} unit={retNote ?? `از ${fa(retTotal.orders)} حواله پخش`} tone="amber" />
+        <Metric icon={PackageX} label="درصد برگشتی حواله" value={retTotal ? pct(retTotal.return_percent) : '—'} unit={retNote ?? (ret.data.ignored_filters?.length ? 'مبلغ برگشتی ÷ مبلغ حواله · برخی فیلترها اعمال نشد' : 'مبلغ برگشتی ÷ مبلغ حواله')} tone="red" />
       </section>
 
       <section className="exec-grid">

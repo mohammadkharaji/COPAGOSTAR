@@ -7,7 +7,9 @@ const reject = (res) => {
 }
 
 export async function get(path, params = {}) {
-  const qs = new URLSearchParams(Object.entries(params).filter(([, v]) => v !== '' && v != null)).toString()
+  // array values become repeated query parameters (?visitor=a&visitor=b)
+  const pairs = Object.entries(params).filter(([, v]) => v !== '' && v != null).flatMap(([k, v]) => (Array.isArray(v) ? v.map((x) => [k, x]) : [[k, v]]))
+  const qs = new URLSearchParams(pairs).toString()
   const res = await fetch(`/api${path}${qs ? `?${qs}` : ''}`)
   if (!res.ok) reject(res)
   return res.json()

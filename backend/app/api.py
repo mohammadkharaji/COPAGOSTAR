@@ -12,11 +12,12 @@ from fastapi import FastAPI, HTTPException, Query, Request, Response
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
-from . import auth
+from . import auth, rbac
 from .config import CORES, DB_PATH, DEFAULT_CORE, HOLIDAYS, PROMO_KALA_SOURCES, RAW_DIR, ROOT
 from .db import connect
 from .jalali import (JALALI_MONTHS, JALALI_WEEKDAYS, days_in_jalali_month, format_jdate, gregorian_to_jalali,
                      jalali_to_gregorian, jalali_weekday, parse_jdate)
+from . import returns as _returns
 from .schema import LIMITATIONS
 
 app = FastAPI(title="SR Sales Dashboard API", docs_url=None, redoc_url=None, openapi_url=None)
@@ -29,9 +30,20 @@ limiter = auth.LoginLimiter()
 async def require_login(request: Request, call_next):
     path = request.url.path
     if path.startswith("/api/"):
-        if path not in PUBLIC_API and auth.verify_token(request.cookies.get(auth.COOKIE)) is None:
-            return JSONResponse({"detail": "نیاز به ورود"}, status_code=401, headers={"Cache-Control": "no-store"})
-        response = await call_next(request)
+        principal = None
+        if path not in PUBLIC_API:
+            principal = rbac.principal_from_token(request.cookies.get(auth.COOKIE))
+            if principal is None:
+                return JSONResponse({"detail": "نیاز به ورود"}, status_code=401, headers={"Cache-Control": "no-store"})
+            if not rbac.allowed(principal, request.method, path):
+                return JSONResponse({"detail": "دسترسی به این بخش مجاز نیست"}, status_code=403,
+                                    headers={"Cache-Control": "no-store"})
+        request.state.principal = principal
+        ctx = rbac.CURRENT.set(principal)   # route functions read their core / branch scope from here
+        try:
+            response = await call_next(request)
+        finally:
+            rbac.CURRENT.reset(ctx)
         response.headers["Cache-Control"] = "no-store"
         return response
     return await call_next(request)
@@ -53,20 +65,24 @@ def login(body: LoginBody, request: Request, response: Response):
     key = _client_key(request)
     if limiter.blocked(key):
         raise HTTPException(429, "تلاش ناموفق زیاد بود؛ چند دقیقه بعد دوباره امتحان کنید")
-    if not auth.check_login(body.username, body.password):
+    principal = rbac.authenticate(body.username, body.password)
+    if principal is None:
         limiter.fail(key)
+        rbac.audit(body.username[:100], "login.failed", ip=key)
         time.sleep(0.4)
         raise HTTPException(401, "نام کاربری یا رمز عبور درست نیست")
     limiter.ok(key)
+    rbac.audit(principal.user, "login", ip=key)
     response.set_cookie(
-        auth.COOKIE, auth.make_token(body.username), max_age=auth.SESSION_SECONDS, httponly=True, samesite="strict",
+        auth.COOKIE, auth.make_token(principal.user, version=principal.token_version), max_age=auth.SESSION_SECONDS,
+        httponly=True, samesite="strict",
         secure=request.url.scheme == "https" or os.environ.get("SR_COOKIE_SECURE") == "1", path="/")
-    return {"ok": True}
+    return {"ok": True, **principal.me()}
 
 
 @app.get("/api/auth/me")
 def me():
-    return {"user": auth.username()}
+    return rbac.require().me()
 
 
 @app.post("/api/auth/logout")
@@ -123,6 +139,7 @@ def _con():
 def _core(core: str) -> str:
     if core not in CORES:
         raise HTTPException(400, "هسته فروش نامعتبر است")
+    rbac.check_core(core)
     return CORES[core]
 
 
@@ -141,7 +158,8 @@ def _dims(request: Request, skip: tuple[str, ...] = ()) -> tuple[str, list]:
         if vals:
             sql += f" AND {col} IN ({','.join('?' * len(vals))})"
             args += vals
-    return sql, args
+    scope, sargs = rbac.branch_clause("branch")   # the user's branch scope, applied even when `branch` is skipped
+    return sql + scope, args + sargs
 
 
 def _range(start: str | None, end: str | None) -> tuple[str, list]:
@@ -227,7 +245,9 @@ def start_sync():
 
 @app.get("/api/meta")
 def meta():
-    return {"currency": "rial", "cores": CORES, "default_core": DEFAULT_CORE, "limitations": LIMITATIONS}
+    cores = {k: v for k, v in CORES.items() if k in rbac.require().cores}
+    default = DEFAULT_CORE if DEFAULT_CORE in cores else next(iter(cores), DEFAULT_CORE)
+    return {"currency": "rial", "cores": cores, "default_core": default, "limitations": LIMITATIONS}
 
 
 @app.get("/api/overview")
@@ -295,6 +315,7 @@ def filters(request: Request, core: str = DEFAULT_CORE):
     """Option lists. region/state/city are narrowed by the selected branch and by each other, and sub_group by the
     selected main_group (never by themselves)."""
     name = _core(core)
+    scope, sargs = rbac.branch_clause()
     con = _con()
     try:
         out = {}
@@ -309,10 +330,11 @@ def filters(request: Request, core: str = DEFAULT_CORE):
                         where += f" AND {DIMS[dep]} IN ({','.join('?' * len(vals))})"
                         args += vals
             out[key] = [r[0] for r in con.execute(
-                f"SELECT {col} FROM fact_sales WHERE core=? AND {col} IS NOT NULL{where} GROUP BY 1 ORDER BY COUNT(*) DESC LIMIT 300",
-                [name, *args]).fetchall()]
+                f"SELECT {col} FROM fact_sales WHERE core=? AND {col} IS NOT NULL{where}{scope} GROUP BY 1 ORDER BY COUNT(*) DESC LIMIT 300",
+                [name, *args, *sargs]).fetchall()]
         out["month"] = [r[0] for r in con.execute(
-            "SELECT DISTINCT year_month FROM fact_sales WHERE core=? AND year_month IS NOT NULL ORDER BY 1", [name]).fetchall()]
+            f"SELECT DISTINCT year_month FROM fact_sales WHERE core=? AND year_month IS NOT NULL{scope} ORDER BY 1",
+            [name, *sargs]).fetchall()]
     finally:
         con.close()
     return out
@@ -427,16 +449,18 @@ def visitor_profile(code: str, request: Request, core: str = DEFAULT_CORE, start
     dim, dargs = _dims(request)
     base = f"core=? AND visitor_code=?{rng}{dim}"
     bargs = [name, code, *args, *dargs]
+    scope, sargs = rbac.branch_clause()
     con = _con()
     try:
         names = [r[0] for r in con.execute(
-            "SELECT visitor FROM fact_sales WHERE core=? AND visitor_code=? AND visitor IS NOT NULL "
-            "GROUP BY 1 ORDER BY COUNT(*) DESC", [name, code]).fetchall()]
-        if not con.execute("SELECT COUNT(*) FROM fact_sales WHERE core=? AND visitor_code=?", [name, code]).fetchone()[0]:
+            f"SELECT visitor FROM fact_sales WHERE core=? AND visitor_code=? AND visitor IS NOT NULL{scope} "
+            "GROUP BY 1 ORDER BY COUNT(*) DESC", [name, code, *sargs]).fetchall()]
+        if not con.execute(f"SELECT COUNT(*) FROM fact_sales WHERE core=? AND visitor_code=?{scope}",
+                           [name, code, *sargs]).fetchone()[0]:
             raise HTTPException(404, "ویزیتور یافت نشد")
         all_branches = [r[0] for r in con.execute(
-            "SELECT branch FROM fact_sales WHERE core=? AND visitor_code=? AND branch IS NOT NULL "
-            "GROUP BY 1 ORDER BY COUNT(*) DESC", [name, code]).fetchall()]
+            f"SELECT branch FROM fact_sales WHERE core=? AND visitor_code=? AND branch IS NOT NULL{scope} "
+            "GROUP BY 1 ORDER BY COUNT(*) DESC", [name, code, *sargs]).fetchall()]
         row = con.execute(
             f"""SELECT {METRICS_SQL},
                        COALESCE(SUM(rial_vat) FILTER (WHERE {SALES_ONLY}), 0),
@@ -470,6 +494,7 @@ def visitor_profile(code: str, request: Request, core: str = DEFAULT_CORE, start
             f"""SELECT customer_code, ANY_VALUE(customer_name), SUM(rial_vat), COUNT(DISTINCT invoice_code)
                 FROM fact_sales WHERE {base} AND {SALES_ONLY} AND customer_code IS NOT NULL
                 GROUP BY 1 HAVING SUM(rial_vat) > 0 ORDER BY 3 DESC LIMIT 20""", bargs).fetchall()
+        dispatch_returns = _returns.visitor_returns(con, name, code, start, end)
     finally:
         con.close()
     m = _metrics(row[:9])
@@ -493,6 +518,7 @@ def visitor_profile(code: str, request: Request, core: str = DEFAULT_CORE, start
         days=[{"date": _jdate(k), "sales_rial": s or 0, "customers": c} for k, s, c in days],
         products=[{"name": n, "sales_rial": s, "qty": q} for n, s, q in products],
         customers=[{"code": c, "name": n, "sales_rial": s, "invoices": i} for c, n, s, i in customers],
+        dispatch_returns=dispatch_returns,
         **splits)
     return m
 
@@ -531,10 +557,12 @@ def growth(request: Request, kind: str = "month", core: str = DEFAULT_CORE):
     length = GROWTH_KINDS[kind]
     name = _core(core)
     dim, dargs = _dims(request)
+    scope, sargs = rbac.branch_clause()
     con = _con()
     try:
         first, last = con.execute(
-            "SELECT MIN(jdate_key), MAX(jdate_key) FROM fact_sales WHERE core=? AND jdate_key IS NOT NULL", [name]).fetchone()
+            f"SELECT MIN(jdate_key), MAX(jdate_key) FROM fact_sales WHERE core=? AND jdate_key IS NOT NULL{scope}",
+            [name, *sargs]).fetchone()
         if not last:
             return {"kind": kind, "last_date": None, "periods": []}
         mi = lambda k: (k // 10000) * 12 + (k // 100 % 100 - 1)
@@ -586,11 +614,13 @@ def dimension_profile(by: str, key: str, request: Request, core: str = DEFAULT_C
     dim, dargs = _dims(request, skip=(by,))
     base = f"core=? AND {col}=?{rng}{dim}"
     bargs = [name, key, *args, *dargs]
+    scope, sargs = rbac.branch_clause()
     con = _con()
     try:
-        if not con.execute(f"SELECT COUNT(*) FROM fact_sales WHERE core=? AND {col}=?", [name, key]).fetchone()[0]:
+        if not con.execute(f"SELECT COUNT(*) FROM fact_sales WHERE core=? AND {col}=?{scope}",
+                           [name, key, *sargs]).fetchone()[0]:
             raise HTTPException(404, "مورد یافت نشد")
-        last = con.execute("SELECT MAX(jdate_key) FROM fact_sales WHERE core=?", [name]).fetchone()[0]
+        last = con.execute(f"SELECT MAX(jdate_key) FROM fact_sales WHERE core=?{scope}", [name, *sargs]).fetchone()[0]
         row = con.execute(
             f"""SELECT {METRICS_SQL},
                        COALESCE(SUM(rial_vat) FILTER (WHERE {SALES_ONLY}), 0),
@@ -656,26 +686,28 @@ def dimension_profile(by: str, key: str, request: Request, core: str = DEFAULT_C
 @app.get("/api/customer/{code}")
 def customer_profile(code: str, core: str = DEFAULT_CORE):
     name = _core(core)
+    scope, sargs = rbac.branch_clause()
     con = _con()
     try:
         head = con.execute(
-            """SELECT ANY_VALUE(customer_name), ANY_VALUE(branch), ANY_VALUE(sales_point_name), ANY_VALUE(grade),
+            f"""SELECT ANY_VALUE(customer_name), ANY_VALUE(branch), ANY_VALUE(sales_point_name), ANY_VALUE(grade),
                       ANY_VALUE(visitor), ANY_VALUE(region), ANY_VALUE(city_name), MAX(jdate_key)
-               FROM fact_sales WHERE core=? AND customer_code=?""", [name, code]).fetchone()
+               FROM fact_sales WHERE core=? AND customer_code=?{scope}""", [name, code, *sargs]).fetchone()
         if head is None or head[0] is None and head[7] is None:
             raise HTTPException(404, "مشتری یافت نشد")
         months = con.execute(
             f"""SELECT year_month, SUM(rial_vat) FILTER (WHERE {SALES_ONLY}), COUNT(DISTINCT invoice_code),
                        COALESCE(SUM(total_discount),0)+COALESCE(SUM(discount),0)
-                FROM fact_sales WHERE core=? AND customer_code=? AND year_month IS NOT NULL GROUP BY 1 ORDER BY 1""",
-            [name, code]).fetchall()
+                FROM fact_sales WHERE core=? AND customer_code=? AND year_month IS NOT NULL{scope}
+                GROUP BY 1 ORDER BY 1""", [name, code, *sargs]).fetchall()
         products = con.execute(
             f"""SELECT product_name, SUM(rial_vat), SUM(qty) FROM fact_sales
-                WHERE core=? AND customer_code=? AND {SALES_ONLY} GROUP BY 1 ORDER BY 2 DESC LIMIT 15""",
-            [name, code]).fetchall()
+                WHERE core=? AND customer_code=? AND {SALES_ONLY}{scope} GROUP BY 1 ORDER BY 2 DESC LIMIT 15""",
+            [name, code, *sargs]).fetchall()
         brands = con.execute(
             f"""SELECT brand, SUM(rial_vat) FROM fact_sales WHERE core=? AND customer_code=? AND {SALES_ONLY}
-                AND brand IS NOT NULL GROUP BY 1 ORDER BY 2 DESC""", [name, code]).fetchall()
+                AND brand IS NOT NULL{scope} GROUP BY 1 ORDER BY 2 DESC""", [name, code, *sargs]).fetchall()
+        dispatch_returns = _returns.customer_returns(con, name, code)
     finally:
         con.close()
     last = head[7]
@@ -686,6 +718,7 @@ def customer_profile(code: str, core: str = DEFAULT_CORE):
         "months": [{"year_month": m, "sales_rial": s or 0, "invoices": i, "discount_rial": d} for m, s, i, d in months],
         "products": [{"name": n, "sales_rial": s, "qty": q} for n, s, q in products],
         "brands": [{"name": n, "sales_rial": s} for n, s in brands],
+        "dispatch_returns": dispatch_returns,
     }
 
 
@@ -794,9 +827,10 @@ def calendar(on: str | None = Query(None, description="تاریخ شمسی، م�
 def pace(request: Request, core: str = DEFAULT_CORE):
     name = _core(core)
     dim, dargs = _dims(request)
+    scope, sargs = rbac.branch_clause()
     con = _con()
     try:
-        last = con.execute("SELECT MAX(jdate_key) FROM fact_sales WHERE core=?", [name]).fetchone()[0]
+        last = con.execute(f"SELECT MAX(jdate_key) FROM fact_sales WHERE core=?{scope}", [name, *sargs]).fetchone()[0]
         if not last:
             return {"available": False}
         row = con.execute(
@@ -824,14 +858,17 @@ def pace(request: Request, core: str = DEFAULT_CORE):
 
 @app.get("/api/data-health")
 def data_health():
+    c_sql, c_args = rbac.core_clause()
+    b_sql, b_args = rbac.branch_clause()
+    scope, sargs = c_sql + b_sql, [*c_args, *b_args]    # counts cover only what the user may see
     con = _con()
     try:
-        q = lambda s: con.execute(s).fetchone()[0]
+        q = lambda s: con.execute(f"SELECT COUNT(*) FROM fact_sales WHERE 1=1{scope}{s}", sargs).fetchone()[0]
         return {
-            "rows": q("SELECT COUNT(*) FROM fact_sales"),
-            "null_customer_code": q("SELECT COUNT(*) FROM fact_sales WHERE customer_code IS NULL"),
-            "null_invoice_date": q("SELECT COUNT(*) FROM fact_sales WHERE jdate_key IS NULL"),
-            "negative_rows_non_return": q("SELECT COUNT(*) FROM fact_sales WHERE rial_vat<0 AND NOT is_return"),
+            "rows": q(""),
+            "null_customer_code": q(" AND customer_code IS NULL"),
+            "null_invoice_date": q(" AND jdate_key IS NULL"),
+            "negative_rows_non_return": q(" AND rial_vat<0 AND NOT is_return"),
             "limitations": LIMITATIONS,
         }
     finally:
@@ -840,12 +877,10 @@ def data_health():
 
 from . import target as _target  # noqa: E402  (monthly sales target vs actual; routes under /api/target)
 app.include_router(_target.router)
+app.include_router(_returns.router)
 
-# >>> AGENT (optional feature; see backend/app/agent/README.txt for removal)
-from . import agent as _agent  # noqa: E402
-if _agent.enabled():
-    app.include_router(_agent.router)
-# <<< AGENT
+from . import admin as _admin  # noqa: E402  (users, roles, audit log; admin-only, see rbac.access_for)
+app.include_router(_admin.router)
 
 DIST = ROOT / "frontend" / "dist"
 if DIST.is_dir():

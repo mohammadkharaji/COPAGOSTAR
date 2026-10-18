@@ -31,9 +31,19 @@ TARGET_GLOB = "target_*_*.tsv"
 TARGET_COLS = ("month", "branch", "line", "target_category", "product_group", "visitor_code", "visitor_name",
                "supervisor", "manager", "target_rial")
 
+# Distribution-order returns (one row per dispatch order, written by tools/returns/convert_returns.py):
+#   ret_<core>_<YYYYMMDD>_<HHMM>.tsv, \x1f/\x1e delimited. Each file holds only the new or changed orders since the
+#   last publish; rows are upserted by (core, branch, dispatch_no). Names sort in publish order, which is the load order.
+#   jdate_key / year_month / return_rial / return_status are derived on load, not in the file.
+RETURN_GLOB = "ret_*.tsv"
+RETURN_TEXT = ("branch", "dispatch_no", "tour_no", "tour_date", "customer_code", "customer_name", "supervisor", "visitor",
+               "distributor", "driver", "order_date", "invoice_no", "settle_method", "return_reason")
+RETURN_NUMERIC = ("order_rial", "invoice_rial", "full_return_rial", "part_return_rial")
+RETURN_COLS = (*RETURN_TEXT, *RETURN_NUMERIC)
+
 LIMITATIONS = [
     {"code": "NO_COGS", "severity": "blocked", "label": "بهای تمام‌شده در مدل داده وجود ندارد؛ سود ناخالص قابل محاسبه نیست"},
-    {"code": "NO_RETURNS_140501_140502", "severity": "warning", "label": "مرجوعی فروردین و اردیبهشت در منبع وجود ندارد"},
+    {"code": "NO_RETURNS_140501_140502", "severity": "warning", "label": "مرجوعی فروش فروردین و اردیبهشت در منبع وجود ندارد"},
     {"code": "STALE_PROMO_MEASURE", "severity": "warning", "label": "Measure پروموشن در مدل به منبع ۱۴۰۴ اشاره می‌کند"},
     {"code": "PII_EXCLUDED", "severity": "info", "label": "تلفن و نشانی مشتری وارد لایه تحلیلی نشده است"},
 ]

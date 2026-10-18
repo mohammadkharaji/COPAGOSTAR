@@ -3,6 +3,9 @@ import { Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, Legend, Pie, PieCh
 import { useApi } from './api'
 import { dayLabel, fa, fa2, monthLabel, monthName } from './format'
 import { ChartTip, Kpi, Panel, Status, Table, Toggle, pct, rial } from './ui'
+import { ReturnsProfileCard, returnsArg } from './ReturnsPage'
+
+export { ReturnsPage } from './ReturnsPage'
 
 const faDate = (k) => (/^\d{8}$/.test(String(k)) ? `${String(k).slice(0, 4)}/${String(k).slice(4, 6)}/${String(k).slice(6)}` : k)
 const billions = (v) => v / 1e9
@@ -361,7 +364,7 @@ function InvoiceLinesSection({ p }) {
 }
 
 /* ---------- پروفایل مشتری ---------- */
-export function CustomerPage({ core, code, setCode }) {
+export function CustomerPage({ core, code, setCode, openReturns }) {
   const [draft, setDraft] = useState(code ?? '')
   const r = useApi(`/customer/${encodeURIComponent(code ?? '')}`, { core }, Boolean(code))
   return (
@@ -408,6 +411,7 @@ export function CustomerPage({ core, code, setCode }) {
                   { label: 'برند', render: (x) => x.name, value: (x) => String(x.name ?? '') },
                   { label: 'فروش (ریال)', render: (x) => rial(x.sales_rial), value: (x) => x.sales_rial }]} />
               </Panel>
+              <ReturnsProfileCard data={j.dispatch_returns} entity="مشتری" onOpen={() => openReturns(returnsArg('customer', code))} />
             </section>
           </>
         )
@@ -597,7 +601,7 @@ function VisitorList({ p, openVisitor }) {
   )
 }
 
-function VisitorProfile({ p, code, back, openCustomer }) {
+function VisitorProfile({ p, code, back, openCustomer, openReturns }) {
   const r = useApi(`/visitor/${encodeURIComponent(code)}`, p)
   if (r.error) return <div className="banner err" role="alert">ویزیتوری با این کد در این هسته فروش پیدا نشد. <button className="btn" type="button" onClick={back}>بازگشت به فهرست</button></div>
   return (
@@ -672,6 +676,8 @@ function VisitorProfile({ p, code, back, openCustomer }) {
                 { label: 'تعداد', render: (x) => fa(x.qty), value: (x) => x.qty },
               ]} />
             </Panel>
+            <ReturnsProfileCard data={j.dispatch_returns} entity="ویزیتور"
+              onOpen={j.dispatch_returns?.matched_names?.length ? () => openReturns(returnsArg('visitor', j.dispatch_returns.matched_names)) : undefined} />
           </section>
         </>
       )
@@ -679,9 +685,9 @@ function VisitorProfile({ p, code, back, openCustomer }) {
   )
 }
 
-export function VisitorPage({ p, code, setCode, openCustomer }) {
+export function VisitorPage({ p, code, setCode, openCustomer, openReturns }) {
   return code
-    ? <VisitorProfile key={code} p={p} code={code} back={() => setCode('')} openCustomer={openCustomer} />
+    ? <VisitorProfile key={code} p={p} code={code} back={() => setCode('')} openCustomer={openCustomer} openReturns={openReturns} />
     : <VisitorList p={p} openVisitor={setCode} />
 }
 

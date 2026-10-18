@@ -3,8 +3,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { get, post, useApi } from './api'
 import { monthLabel, monthRange } from './format'
 import ExecutiveDashboard, { ExecShell, NAV } from './ExecutiveDashboard'
-import AgentPanel from './agent/AgentPanel' // AGENT (removable)
-import { BranchRegionPage, CustomerPage, GrowthPage, HealthPage, InvoicePage, MonthlyTrendPage, ParetoPage, ProductBrandPage, ProfilePage, TrendPage, VisitorPage } from './pages'
+import { BranchRegionPage, CustomerPage, GrowthPage, HealthPage, InvoicePage, MonthlyTrendPage, ParetoPage, ProductBrandPage, ProfilePage, ReturnsPage, TrendPage, VisitorPage } from './pages'
 
 const CORES = { kg: 'کوپا گستر', ch: 'زنجیره‌ای' }
 const SHARED_KEYS = ['month', 'branch', 'region', 'state', 'city', 'brand', 'group', 'grade', 'sales_type', 'main_group', 'sub_group']
@@ -117,7 +116,9 @@ export default function App({ onLogout }) {
   const title = NAV.find(([k]) => k === page)[1]
   const subtitle = page === 'target'
     ? 'پیشرفت فروش نسبت به تارگت ماهانه · مبالغ به ریال و شامل مالیات و عوارض'
-    : `دوره: ${month ? monthLabel(month) : 'همه ماه‌ها'} · مبالغ به ریال و شامل مالیات و عوارض`
+    : page === 'returns'
+      ? `دوره: ${month ? monthLabel(month) : 'همه ماه‌ها'} · حواله‌های پخش، مبالغ به ریال · جدا از ردیف‌های مرجوعی فروش (SR)`
+      : `دوره: ${month ? monthLabel(month) : 'همه ماه‌ها'} · مبالغ به ریال و شامل مالیات و عوارض`
 
   return (
     <ExecShell
@@ -135,11 +136,11 @@ export default function App({ onLogout }) {
       {page === 'product' && <ProductBrandPage p={p} openProfile={openProfile} />}
       {page === 'profile' && <ProfilePage p={p} arg={arg} openProfile={openProfile} back={() => go('profile')} openCustomer={(c) => go('customer', c)} openVisitor={(c) => go('visitor', c)} />}
       {page === 'pareto' && <ParetoPage p={p} openCustomer={(c) => go('customer', c)} openVisitor={(c) => go('visitor', c)} openProfile={openProfile} />}
-      {page === 'visitor' && <VisitorPage p={p} code={arg} setCode={(c) => go('visitor', c)} openCustomer={(c) => go('customer', c)} />}
+      {page === 'visitor' && <VisitorPage p={p} code={arg} setCode={(c) => go('visitor', c)} openCustomer={(c) => go('customer', c)} openReturns={(a) => go('returns', a)} />}
+      {page === 'returns' && <ReturnsPage p={p} arg={arg} setArg={(a) => go('returns', a)} openCustomer={(c) => go('customer', c)} />}
       {page === 'invoice' && <InvoicePage p={p} />}
-      {page === 'customer' && <CustomerPage key={arg} core={core} code={arg} setCode={(c) => go('customer', c)} />}
+      {page === 'customer' && <CustomerPage key={arg} core={core} code={arg} setCode={(c) => go('customer', c)} openReturns={(a) => go('returns', a)} />}
       {page === 'health' && <HealthPage health={health} meta={meta} quality={quality} />}
-      <AgentPanel /> {/* AGENT (removable) */}
     </ExecShell>
   )
 }

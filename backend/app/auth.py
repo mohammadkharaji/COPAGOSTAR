@@ -1,6 +1,6 @@
 """Login for the dashboard: scrypt-hashed password, HMAC-signed session cookie, brute-force lockout.
 
-Credentials come from the environment (never from the repository):
+Credentials of the superadmin come from the environment (never from the repository); other users live in app.rbac:
   SR_AUTH_USER       login name (default: admin)
   SR_AUTH_PASS_HASH  output of `python -m app.auth hash`
   SR_AUTH_SECRET     random string, >= 32 chars, signs session cookies
@@ -76,24 +76,37 @@ def _sign(payload: str) -> str:
     return _b64(hmac.new(secret().encode(), payload.encode(), hashlib.sha256).digest())
 
 
-def make_token(user: str, now: float | None = None) -> str:
-    payload = _b64(f"{user}|{int((now or time.time()) + SESSION_SECONDS)}".encode())
+def make_token(user: str, now: float | None = None, version: int | None = None) -> str:
+    """Session token. Env-superadmin tokens carry `user|exp`; database users add `|version` so a password reset or
+    deactivation (which bumps the version) ends their old sessions."""
+    parts = [user, str(int((now or time.time()) + SESSION_SECONDS))] + ([] if version is None else [str(version)])
+    payload = _b64("|".join(parts).encode())
     return f"{payload}.{_sign(payload)}"
 
 
-def verify_token(token: str | None, now: float | None = None) -> str | None:
+def verify_signed(token: str | None, now: float | None = None) -> tuple[str, int | None] | None:
+    """(user, version) of a correctly signed, unexpired token, whoever the user is; None otherwise.
+    Whether the user still exists is for the caller (app.rbac) to decide."""
     if not token or not configured() or token.count(".") != 1:
         return None
     payload, sig = token.split(".")
     if not hmac.compare_digest(sig.encode(), _sign(payload).encode()):
         return None
     try:
-        user, exp = _unb64(payload).decode().rsplit("|", 1)
-        if int(exp) < (now or time.time()):
+        parts = _unb64(payload).decode().split("|")
+        if len(parts) not in (2, 3) or int(parts[1]) < (now or time.time()):
             return None
+        return parts[0], (int(parts[2]) if len(parts) == 3 else None)
     except (ValueError, UnicodeDecodeError):
         return None
-    return user if hmac.compare_digest(user.encode(), username().encode()) else None
+
+
+def verify_token(token: str | None, now: float | None = None) -> str | None:
+    """The env superadmin's user name if the token is a valid env-user token, else None."""
+    got = verify_signed(token, now)
+    if got is None or got[1] is not None:
+        return None
+    return got[0] if hmac.compare_digest(got[0].encode(), username().encode()) else None
 
 
 class LoginLimiter:

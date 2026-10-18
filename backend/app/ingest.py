@@ -11,8 +11,8 @@ from pathlib import Path
 from .config import CORES, RAW_DIR
 from .db import connect
 from .normalize import normalize_text
-from .schema import (COLUMN_MAP, NUMERIC, PRODUCT_DIM_COLS, PRODUCT_DIMS, PRODUCT_FILE, PRODUCT_MAP, TARGET_COLS,
-                     TARGET_GLOB, TEXT)
+from .schema import (COLUMN_MAP, NUMERIC, PRODUCT_DIM_COLS, PRODUCT_DIMS, PRODUCT_FILE, PRODUCT_MAP, RETURN_COLS,
+                     RETURN_GLOB, RETURN_NUMERIC, RETURN_TEXT, TARGET_COLS, TARGET_GLOB, TEXT)
 
 FACT_DDL = (
     "CREATE TABLE IF NOT EXISTS fact_sales (chunk_id VARCHAR, jdate_key INTEGER, is_promo BOOLEAN, is_return BOOLEAN, "
@@ -24,6 +24,10 @@ PRODUCT_DDL = ("CREATE TABLE IF NOT EXISTS dim_product (unique_product_code VARC
 # One row per visitor x target category for a core and month; chunk_id is the file stem (target_kg_140507).
 TARGET_DDL = ("CREATE TABLE IF NOT EXISTS fact_target (chunk_id VARCHAR, core VARCHAR, "
               + ", ".join(f"{c} VARCHAR" for c in TARGET_COLS if c != "target_rial") + ", target_rial DOUBLE)")
+# One row per distribution (dispatch) order; upserted by (core, branch, dispatch_no) from the ret_*.tsv delta files.
+RETURNS_DDL = ("CREATE TABLE IF NOT EXISTS fact_returns (core VARCHAR, " + ", ".join(f"{c} VARCHAR" for c in RETURN_TEXT)
+               + ", " + ", ".join(f"{c} DOUBLE" for c in RETURN_NUMERIC)
+               + ", jdate_key INTEGER, year_month VARCHAR, return_rial DOUBLE, return_status VARCHAR, source_file VARCHAR)")
 MANIFEST_DDL = ("CREATE TABLE IF NOT EXISTS ingest_manifest (file_name VARCHAR PRIMARY KEY, sha256 VARCHAR, "
                 "row_count BIGINT, loaded_at VARCHAR)")
 
@@ -68,6 +72,7 @@ def initialize(con) -> None:
     con.execute(MANIFEST_DDL)
     con.execute(PRODUCT_DDL)
     con.execute(TARGET_DDL)
+    con.execute(RETURNS_DDL)
     have = {r[0] for r in con.execute(
         "SELECT column_name FROM information_schema.columns WHERE table_name='dim_product'").fetchall()}
     for c in PRODUCT_DIM_COLS:  # product table from before a column existed: add it and force product.tsv to reload
@@ -223,6 +228,76 @@ def ingest_target(con, path: Path) -> dict:
     return {"file": path.name, "status": "loaded", "rows": 0, "target_rows": len(out)}
 
 
+def ingest_returns(con, path: Path) -> dict:
+    """Upsert one returns delta file (ret_<core>_<YYYYMMDD>_<HHMM>.tsv) by (core, branch, dispatch_no).
+
+    Files hold only new or changed orders, so rows already loaded and absent from the file are kept. A bad file is
+    rejected as a whole and leaves the loaded data untouched."""
+    m = re.fullmatch(r"ret_([a-z]+)_(\d{8})_(\d{4})", path.stem)
+    if not m or m.group(1) not in CORES:
+        raise ValueError(f"{path.name}: unexpected returns file name (expected ret_<core>_<YYYYMMDD>_<HHMM>.tsv)")
+    core = CORES[m.group(1)]
+    sha = _sha256(path)
+    prev = con.execute("SELECT sha256 FROM ingest_manifest WHERE file_name=?", [path.name]).fetchone()
+    if prev and prev[0] == sha:
+        return {"file": path.name, "status": "skipped", "rows": 0}
+    header, sep, body = path.read_text(encoding="utf-8").partition("")
+    cols = header.split("")
+    if not sep or sorted(cols) != sorted(RETURN_COLS):
+        raise ValueError(f"{path.name}: truncated extract or unexpected columns {cols}")
+    idx = {c: cols.index(c) for c in RETURN_COLS}
+    out, seen = [], set()
+    for line in body.split(""):
+        if not line:
+            continue
+        vals = line.split("")
+        if len(vals) != len(cols):
+            raise ValueError(f"{path.name}: row has {len(vals)} fields, expected {len(cols)}")
+        r = {c: normalize_text(vals[idx[c]]) or "" for c in RETURN_TEXT}
+        try:
+            n = {c: float(vals[idx[c]] or 0) for c in RETURN_NUMERIC}
+        except ValueError:
+            raise ValueError(f"{path.name}: non-numeric amount in dispatch order {r['dispatch_no']!r}") from None
+        date = r["order_date"]
+        if not (r["branch"] and r["dispatch_no"] and re.fullmatch(r"\d{4}/\d{2}/\d{2}", date)) or n["order_rial"] <= 0:
+            raise ValueError(f"{path.name}: incomplete or invalid returns row {r['branch']!r}/{r['dispatch_no']!r}")
+        key = (r["branch"], r["dispatch_no"])
+        if key in seen:
+            raise ValueError(f"{path.name}: duplicate dispatch order {key}")
+        seen.add(key)
+        jdate = int(date.replace("/", ""))
+        total = n["full_return_rial"] + n["part_return_rial"]
+        status = "full" if n["full_return_rial"] > 0 else "partial" if n["part_return_rial"] != 0 else "none"
+        out.append([core, *(r[c] for c in RETURN_TEXT), *(repr(n[c]) for c in RETURN_NUMERIC),
+                    jdate, str(jdate // 100), repr(total), status, path.name])
+    if not out:
+        raise ValueError(f"{path.name}: no returns rows")
+    names = ["core", *RETURN_TEXT, *RETURN_NUMERIC, "jdate_key", "year_month", "return_rial", "return_status", "source_file"]
+    with tempfile.NamedTemporaryFile("w", suffix=".csv", delete=False, newline="", encoding="utf-8") as tmp:
+        csv.writer(tmp).writerows(out)
+        tmp_name = tmp.name
+    typed = {c: "TRY_CAST({0} AS DOUBLE)" for c in (*RETURN_NUMERIC, "return_rial")}
+    typed["jdate_key"] = "TRY_CAST(jdate_key AS INTEGER)"
+    select = ", ".join((typed[c].format(c) if c in typed else f"NULLIF({c},'')") + f" AS {c}" for c in names)
+    try:
+        con.execute("BEGIN")
+        con.execute("CREATE TEMP TABLE _ret_in AS SELECT " + select + " FROM read_csv(?, header=false, all_varchar=true, columns={"
+                    + ", ".join(f"'{c}': 'VARCHAR'" for c in names) + "})", [tmp_name])
+        con.execute("DELETE FROM fact_returns USING _ret_in i WHERE i.core=fact_returns.core "
+                    "AND i.branch=fact_returns.branch AND i.dispatch_no=fact_returns.dispatch_no")
+        con.execute("INSERT INTO fact_returns SELECT " + ", ".join(names) + " FROM _ret_in")
+        con.execute("DROP TABLE _ret_in")
+        con.execute("INSERT OR REPLACE INTO ingest_manifest VALUES (?,?,?,?)",
+                    [path.name, sha, len(out), time.strftime("%Y-%m-%d %H:%M:%S")])
+        con.execute("COMMIT")
+    except Exception:
+        con.execute("ROLLBACK")
+        raise
+    finally:
+        Path(tmp_name).unlink(missing_ok=True)
+    return {"file": path.name, "status": "loaded", "rows": 0, "return_rows": len(out)}
+
+
 def ingest_all(raw_dir: Path = RAW_DIR) -> list[dict]:
     con = connect()
     try:
@@ -236,6 +311,7 @@ def ingest_all(raw_dir: Path = RAW_DIR) -> list[dict]:
         sales = [ingest_file(con, p) for p in sorted(raw_dir.glob("sr_*.tsv"))]
         results += sales
         results += [ingest_target(con, p) for p in sorted(raw_dir.glob(TARGET_GLOB))]
+        results += [ingest_returns(con, p) for p in sorted(raw_dir.glob(RETURN_GLOB))]
         apply_product_groups(con, None if product_changed else [Path(r["file"]).stem for r in sales if r["status"] == "loaded"])
         return results
     finally:

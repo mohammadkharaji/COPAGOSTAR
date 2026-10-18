@@ -11,6 +11,7 @@ from collections import defaultdict, namedtuple
 
 from fastapi import APIRouter, HTTPException, Query, Request
 
+from . import rbac
 from .config import CORES, DB_PATH, HOLIDAYS
 from .db import connect
 from .jalali import days_in_jalali_month, format_jdate, jalali_to_gregorian, jalali_weekday
@@ -63,6 +64,7 @@ def target_report(request: Request, core: str = "kg", month: str | None = Query(
         raise HTTPException(400, "بعد گزارش نامعتبر است")
     if month is not None and not re.fullmatch(r"\d{6}", month):
         raise HTTPException(400, "ماه باید به شکل 140507 باشد")
+    rbac.check_core(core)
     if core not in TARGET_CORES:
         return {"available": False, "core": core, "months": [], "reason": "تارگت این هسته هنوز تعریف نشده است."}
     if not DB_PATH.exists():
@@ -73,26 +75,29 @@ def target_report(request: Request, core: str = "kg", month: str | None = Query(
     try:
         if not _table_exists(con, "fact_target"):
             return {"available": False, "core": core, "months": [], "reason": "هنوز هیچ تارگتی بارگذاری نشده است."}
+        t_scope, t_sargs = rbac.branch_clause("t.branch")
         months = [{"month": m, "rows": n, "target_rial": s, "loaded_at": at} for m, n, s, at in con.execute(
-            """SELECT t.month, COUNT(*), SUM(t.target_rial), MAX(m.loaded_at) FROM fact_target t
+            f"""SELECT t.month, COUNT(*), SUM(t.target_rial), MAX(m.loaded_at) FROM fact_target t
                LEFT JOIN ingest_manifest m ON m.file_name = t.chunk_id || '.tsv'
-               WHERE t.core=? GROUP BY 1 ORDER BY 1 DESC""", [name]).fetchall()]
+               WHERE t.core=?{t_scope} GROUP BY 1 ORDER BY 1 DESC""", [name, *t_sargs]).fetchall()]
         if not months:
             return {"available": False, "core": core, "months": [], "reason": "هنوز هیچ تارگتی بارگذاری نشده است."}
         ym = month or months[0]["month"]
         if ym not in {m["month"] for m in months}:
             raise HTTPException(404, "تارگت این ماه بارگذاری نشده است")
+        b_scope, b_sargs = rbac.branch_clause("branch")
         trows = [T(*r) for r in con.execute(
-            """SELECT branch, line, target_category, product_group, visitor_code, visitor_name, supervisor, manager, target_rial
-               FROM fact_target WHERE core=? AND month=?""", [name, ym]).fetchall()]
+            f"""SELECT branch, line, target_category, product_group, visitor_code, visitor_name, supervisor, manager, target_rial
+               FROM fact_target WHERE core=? AND month=?{b_scope}""", [name, ym, *b_sargs]).fetchall()]
         by_name = {n: (c, k) for n, c, k in con.execute(
             """SELECT visitor, ANY_VALUE(visitor_code), COUNT(DISTINCT visitor_code) FROM fact_sales
                WHERE core=? AND visitor IS NOT NULL AND visitor_code IS NOT NULL GROUP BY 1""", [name]).fetchall()}
+        s_scope, s_sargs = rbac.branch_clause("s.branch")
         sales = con.execute(
-            """SELECT s.branch, s.group_name, s.visitor_code, d.target_category, COALESCE(s.jdate_key, 0) % 100, SUM(s.rial_vat)
+            f"""SELECT s.branch, s.group_name, s.visitor_code, d.target_category, COALESCE(s.jdate_key, 0) % 100, SUM(s.rial_vat)
                FROM fact_sales s LEFT JOIN dim_product d ON d.unique_product_code = s.unique_product_code
-               WHERE s.core=? AND s.year_month=? GROUP BY 1, 2, 3, 4, 5""", [name, ym]).fetchall()
-        last = con.execute("SELECT MAX(jdate_key) FROM fact_sales WHERE core=?", [name]).fetchone()[0]
+               WHERE s.core=? AND s.year_month=?{s_scope} GROUP BY 1, 2, 3, 4, 5""", [name, ym, *s_sargs]).fetchall()
+        last = con.execute(f"SELECT MAX(jdate_key) FROM fact_sales WHERE core=?{b_scope}", [name, *b_sargs]).fetchone()[0]
     finally:
         con.close()
 
