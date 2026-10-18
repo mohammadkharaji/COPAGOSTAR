@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import {
   Activity, ArrowDownLeft, BarChart3, Building2, CalendarDays, ChevronDown, ChevronLeft, ChevronRight, CircleDollarSign, FileText,
   Filter, HeartPulse, LayoutDashboard, ListOrdered, LogOut, MapPin, PackageSearch, Percent, PieChart as PieIcon, Printer, RefreshCw, ShoppingBag, Sparkles,
-  Target, TrendingDown, TrendingUp, UserCheck, UserRound, Users, X,
+  Target, TrendingDown, TrendingUp, UserCheck, UserRound, Users, Wallet, X,
 } from 'lucide-react'
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { useApi } from './api'
@@ -24,6 +24,50 @@ export const NAV = [
   ['health', 'سلامت داده', HeartPulse],
 ]
 
+// Sidebar grouping only; NAV keeps its [id, label, Icon] shape for App.jsx routing.
+// The third field marks a group as an expandable sub-menu.
+const NAV_GROUPS = [
+  ['فروش', ['overview', 'trend', 'monthly', 'growth', 'target'], false],
+  ['تحلیل', ['branch', 'product', 'profile', 'pareto'], true],
+  ['مشتری و فاکتور', ['invoice', 'customer', 'visitor'], true],
+  ['سیستم', ['health'], true],
+]
+const NAV_SECTIONS = (() => {
+  const grouped = NAV_GROUPS.map(([label, ids, collapsible]) => [label, NAV.filter(([id]) => ids.includes(id)), collapsible])
+  const rest = NAV.filter(([id]) => !NAV_GROUPS.some(([, ids]) => ids.includes(id)))
+  return rest.length ? [...grouped, ['سایر', rest, true]] : grouped
+})()
+
+function NavGroup({ label, items, collapsible, page, onNavigate, open, onToggle, index }) {
+  const hasActive = items.some(([id]) => id === page)
+  const listId = `exec-nav-items-${index}`
+  return (
+    <div className={`exec-nav-group ${collapsible ? 'collapsible' : ''} ${collapsible && !open ? 'closed' : ''}`} role="group" aria-label={label}>
+      {collapsible ? (
+        <button type="button" className="exec-nav-toggle" aria-expanded={open} aria-controls={listId} onClick={onToggle}>
+          <span>{label}</span>
+          {!open && hasActive && <em className="exec-nav-marker" aria-label="صفحهٔ فعلی در این بخش است" />}
+          <ChevronDown size={15} className="exec-nav-chevron" aria-hidden="true" />
+        </button>
+      ) : <div className="exec-nav-label">{label}</div>}
+      <div className="exec-nav-items" id={listId}>
+        <div>
+          {items.map(([id, itemLabel, Icon]) => (
+            <button type="button" key={id} className={id === page ? 'active' : ''} onClick={() => onNavigate(id)} title={itemLabel} aria-current={id === page ? 'page' : undefined}>
+              <i className="exec-nav-icon" aria-hidden="true"><Icon size={16} /></i><span>{itemLabel}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
+const TIP = {
+  contentStyle: { background: '#0f1d3a', border: 0, borderRadius: 12, boxShadow: '0 14px 30px -10px rgba(15,29,58,.6)', direction: 'rtl', fontFamily: 'Vazirmatn, sans-serif', fontSize: 12 },
+  itemStyle: { color: '#fff' },
+  labelStyle: { color: '#93a7c9', marginBottom: 4 },
+}
+
 function QuickSelect({ label, value, options, onChange, format = (x) => x }) {
   return (
     <label className="exec-select"><span>{label}</span>
@@ -43,6 +87,7 @@ export function ExecShell({
 }) {
   const [collapsed, setCollapsed] = useState(false)
   const [advanced, setAdvanced] = useState(false)
+  const [openGroups, setOpenGroups] = useState({})
   const running = syncState === 'running'
   const hasFilters = Boolean(month) || Object.keys(dims).length > 0
   return (
@@ -55,13 +100,17 @@ export function ExecShell({
             {collapsed ? <ChevronLeft size={17} /> : <ChevronRight size={17} />}
           </button>
         </div>
-        <div className="exec-nav-label">گزارش‌ها</div>
-        <nav className="exec-nav">
-          {NAV.map(([id, label, Icon]) => (
-            <button type="button" key={id} className={id === page ? 'active' : ''} onClick={() => onNavigate(id)} title={label} aria-current={id === page ? 'page' : undefined}>
-              <Icon size={18} /><span>{label}</span>
-            </button>
-          ))}
+        <nav className="exec-nav" aria-label="گزارش‌ها">
+          {NAV_SECTIONS.map(([group, items, collapsible], i) => {
+            // A group the user has not toggled opens when it holds the current page.
+            const open = openGroups[group] ?? items.some(([id]) => id === page)
+            return (
+              <NavGroup
+                key={group} index={i} label={group} items={items} collapsible={collapsible} page={page} onNavigate={onNavigate}
+                open={open} onToggle={() => setOpenGroups((s) => ({ ...s, [group]: !open }))}
+              />
+            )
+          })}
         </nav>
         <div className="exec-sidebar-bottom">
           <div className="exec-system">
@@ -156,9 +205,55 @@ export function ExecShell({
 function Metric({ icon: Icon, label, value, unit, tone = 'blue' }) {
   return (
     <article className={`exec-metric ${tone}`}>
-      <div className="exec-metric-top"><span>{label}</span><Icon size={18} /></div>
+      <div className="exec-metric-top"><i aria-hidden="true"><Icon size={18} /></i></div>
+      <span className="exec-metric-label">{label}</span>
       <strong>{value}</strong>
       <small>{unit}</small>
+    </article>
+  )
+}
+
+// Net-rial trend line for the hero, built from the real /monthly rows; latest month on the left (RTL time axis).
+function sparkPaths(values) {
+  if (values.length < 2) return null
+  const min = Math.min(...values)
+  const range = Math.max(...values) - min || 1
+  const pts = values.map((v, i) => [600 - (i * 600) / (values.length - 1), 82 - ((v - min) / range) * 70])
+  const line = pts.map(([x, y], i) => `${i ? 'L' : 'M'}${x.toFixed(1)} ${y.toFixed(1)}`).join(' ')
+  return { line, area: `${line} L0 90 L600 90 Z` }
+}
+
+function HeroCard({ o, rows, period, growth, growthLabel }) {
+  const spark = useMemo(() => sparkPaths(rows.map((r) => r.net_rial)), [rows])
+  return (
+    <article className="exec-hero exec-span-7">
+      {spark && (
+        <svg className="exec-hero-spark" viewBox="0 0 600 90" preserveAspectRatio="none" aria-hidden="true">
+          <defs>
+            <linearGradient id="execHeroFill" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0" stopColor="#fff" stopOpacity=".4" />
+              <stop offset="1" stopColor="#fff" stopOpacity="0" />
+            </linearGradient>
+          </defs>
+          <path d={spark.area} fill="url(#execHeroFill)" />
+          <path d={spark.line} fill="none" stroke="#fff" strokeWidth="2.5" vectorEffect="non-scaling-stroke" />
+        </svg>
+      )}
+      <div className="exec-hero-head">
+        <span className="exec-hero-title"><i aria-hidden="true"><Wallet size={18} /></i>فروش خالص (ریال خالص)</span>
+        {growth != null && (
+          <span className={`exec-hero-pill ${growth < 0 ? 'down' : ''}`} title="نسبت به دورهٔ مشابه ماه قبل">
+            {growth < 0 ? <TrendingDown size={14} /> : <TrendingUp size={14} />}{pct(Math.abs(growth))} {growth < 0 ? 'افت' : 'رشد'} {growthLabel}
+          </span>
+        )}
+      </div>
+      <div className="exec-hero-value"><strong>{o ? fa(o.net_rial) : '—'}</strong><small>ریال</small></div>
+      <div className="exec-hero-sub">پس از کسر پروموشن · {period}</div>
+      <div className="exec-hero-stats">
+        <div><small>فروش ناخالص</small><b>{o ? `${fa(o.sum_rial_vat / 1e9)} میلیارد` : '—'}</b></div>
+        <div><small>مجموع پروموشن</small><b>{o ? `${fa(o.promo_total_rial / 1e9)} میلیارد` : '—'}</b></div>
+        <div><small>درصد پروموشن</small><b>{o ? pct(o.promo_percent) : '—'}</b></div>
+      </div>
     </article>
   )
 }
@@ -177,13 +272,17 @@ function SalesChart({ rows }) {
   return (
     <div className="exec-chart">
       <ResponsiveContainer width="100%" height="100%">
-        <BarChart data={data} margin={{ top: 12, right: 4, left: 4, bottom: 0 }} barGap={4}>
-          <CartesianGrid vertical={false} stroke="#e2e8f0" />
+        <BarChart data={data} margin={{ top: 12, right: 4, left: 4, bottom: 0 }} barGap={6}>
+          <defs>
+            <linearGradient id="execNetBar" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#3b82f6" /><stop offset="1" stopColor="#1d4ed8" /></linearGradient>
+            <linearGradient id="execGrossBar" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#5eead4" /><stop offset="1" stopColor="#14b8a6" /></linearGradient>
+          </defs>
+          <CartesianGrid vertical={false} stroke="#e5eaf3" strokeDasharray="4 4" />
           <XAxis dataKey="year_month" reversed tickFormatter={monthName} axisLine={false} tickLine={false} />
           <YAxis orientation="right" axisLine={false} tickLine={false} tickFormatter={(v) => fa(v)} width={50} />
-          <Tooltip formatter={(v, n) => [`${fa(v)} میلیارد ریال`, n]} labelFormatter={monthLabel} cursor={{ fill: '#f1f5f9' }} />
-          <Bar dataKey="value" name="فروش ناخالص" fill="#2563eb" radius={[6, 6, 0, 0]} maxBarSize={34} />
-          <Bar dataKey="net" name="ریال خالص" fill="#14b8a6" radius={[6, 6, 0, 0]} maxBarSize={34} />
+          <Tooltip {...TIP} formatter={(v, n) => [`${fa(v)} میلیارد ریال`, n]} labelFormatter={monthLabel} cursor={{ fill: '#f1f5ff', radius: 10 }} />
+          <Bar dataKey="net" name="ریال خالص" fill="url(#execNetBar)" radius={[8, 8, 3, 3]} maxBarSize={26} />
+          <Bar dataKey="value" name="فروش ناخالص" fill="url(#execGrossBar)" radius={[8, 8, 3, 3]} maxBarSize={26} />
         </BarChart>
       </ResponsiveContainer>
     </div>
@@ -202,11 +301,11 @@ function DailyChart({ rows }) {
               <stop offset="1" stopColor="#2563eb" stopOpacity=".02" />
             </linearGradient>
           </defs>
-          <CartesianGrid vertical={false} stroke="#e2e8f0" />
+          <CartesianGrid vertical={false} stroke="#e5eaf3" strokeDasharray="4 4" />
           <XAxis dataKey="date" reversed tickFormatter={dayLabel} axisLine={false} tickLine={false} minTickGap={32} />
           <YAxis orientation="right" axisLine={false} tickLine={false} tickFormatter={(v) => fa(v)} width={50} />
-          <Tooltip formatter={(v) => [`${fa(v)} میلیارد ریال`, 'فروش']} labelFormatter={dayLabel} />
-          <Area type="monotone" dataKey="value" stroke="#2563eb" fill="url(#execFill)" strokeWidth={2.4} />
+          <Tooltip {...TIP} formatter={(v) => [`${fa(v)} میلیارد ریال`, 'فروش']} labelFormatter={dayLabel} />
+          <Area type="monotone" dataKey="value" stroke="#2563eb" fill="url(#execFill)" strokeWidth={2.5} strokeLinejoin="round" activeDot={{ r: 5, fill: '#fff', stroke: '#2563eb', strokeWidth: 2.5 }} />
         </AreaChart>
       </ResponsiveContainer>
     </div>
@@ -235,24 +334,27 @@ function SharePieCard({ p }) {
       </div>
       {r.error ? <div className="exec-empty">دریافت داده ناموفق بود.</div>
         : !slices.length ? <div className="exec-empty">{r.loading ? 'در حال بارگذاری…' : 'داده‌ای برای این فیلترها وجود ندارد.'}</div> : (
-          <>
+          <div className="exec-pie-wrap">
+            <ul className="exec-legend">
+              {slices.map((s, i) => (
+                <li key={s.name}>
+                  <i style={{ background: PIE_COLORS[i % PIE_COLORS.length] }} /><span>{s.name}</span><b>{pct(s.value / total)}</b>
+                  <em className="exec-legend-bar" aria-hidden="true"><u style={{ width: `${(s.value / total) * 100}%`, background: PIE_COLORS[i % PIE_COLORS.length] }} /></em>
+                </li>
+              ))}
+            </ul>
             <div className="exec-pie">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
-                  <Pie data={slices} dataKey="value" nameKey="name" innerRadius="62%" outerRadius="92%" paddingAngle={2} stroke="none">
+                  <Pie data={slices} dataKey="value" nameKey="name" innerRadius="66%" outerRadius="96%" paddingAngle={2} stroke="none">
                     {slices.map((_, i) => <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />)}
                   </Pie>
-                  <Tooltip formatter={(v, n) => [`${fa(v / 1e9)} میلیارد ریال (${pct(v / total)})`, n]} />
+                  <Tooltip {...TIP} formatter={(v, n) => [`${fa(v / 1e9)} میلیارد ریال (${pct(v / total)})`, n]} />
                 </PieChart>
               </ResponsiveContainer>
-              <div className="exec-pie-center"><small>جمع</small><b>{fa(total / 1e9)}</b><small>میلیارد ریال</small></div>
+              <div className="exec-pie-center"><b>{fa(total / 1e9)}</b><small>میلیارد ریال</small></div>
             </div>
-            <ul className="exec-legend">
-              {slices.map((s, i) => (
-                <li key={s.name}><i style={{ background: PIE_COLORS[i % PIE_COLORS.length] }} /><span>{s.name}</span><b>{pct(s.value / total)}</b></li>
-              ))}
-            </ul>
-          </>
+          </div>
         )}
     </article>
   )
@@ -270,24 +372,30 @@ function Delta({ cur, prev }) {
 
 function ForecastCard({ pace }) {
   const d = pace.data?.available ? pace.data : null
+  const done = d?.remaining_working_days === 0
+  const share = d?.working_days ? Math.min(1, d.elapsed_working_days / d.working_days) : 0
   return (
-    <article className="exec-card exec-span-5">
+    <article className="exec-card exec-forecast exec-span-5">
       <CardHead title={d ? `پیش‌بینی پایان ${monthLabel(d.year_month)}` : 'پیش‌بینی پایان ماه'}
         note="برآورد بر اساس میانگین فروش هر روز کاری" chip={<span className="exec-chip amber"><Target size={14} /> برآورد</span>} />
       {!d ? <div className="exec-empty">{pace.loading ? 'در حال بارگذاری…' : 'داده‌ای برای برآورد وجود ندارد.'}</div> : (
         <>
-          <div className="exec-forecast-value">
-            <small>{d.remaining_working_days === 0 ? 'فروش ناخالص ماه (کامل)' : 'فروش ناخالص برآوردی پایان ماه'}</small>
-            <strong>{fa(d.remaining_working_days === 0 ? d.sum_rial_vat : d.projected_sum_rial_vat)}</strong>
-            <small>ریال</small>
+          <div className="exec-forecast-body">
+            <div className="exec-ring" style={{ '--p': `${share * 360}deg` }} role="img"
+              aria-label={`${fa(d.elapsed_working_days)} از ${fa(d.working_days)} روز کاری سپری‌شده`}>
+              <div><b>{fa(d.elapsed_working_days)} از {fa(d.working_days)}</b><small>روز کاری سپری‌شده</small></div>
+            </div>
+            <div className="exec-forecast-value">
+              <small>{done ? 'ریال خالص ماه (کامل)' : 'ریال خالص برآوردی پایان ماه'}</small>
+              <strong>{fa(done ? d.net_rial : d.projected_net_rial)}</strong>
+              <small>ریال · خالص واقعی تا {dayLabel(d.last_date)}: {fa(d.net_rial)}</small>
+            </div>
           </div>
           <dl className="exec-facts">
-            <div><dt>فروش واقعی تا {dayLabel(d.last_date)}</dt><dd>{fa(d.sum_rial_vat)}</dd></div>
-            <div><dt>ریال خالص {d.remaining_working_days === 0 ? 'ماه' : 'برآوردی'}</dt><dd>{fa(d.remaining_working_days === 0 ? d.net_rial : d.projected_net_rial)}</dd></div>
-            <div><dt>روز کاری سپری‌شده</dt><dd>{fa(d.elapsed_working_days)} از {fa(d.working_days)}</dd></div>
-            <div><dt>روز کاری باقی‌مانده</dt><dd>{fa(d.remaining_working_days)}</dd></div>
+            <div><dt>ناخالص {done ? 'ماه' : 'برآوردی'}</dt><dd>{fa(done ? d.sum_rial_vat : d.projected_sum_rial_vat)}</dd></div>
+            <div><dt>ناخالص واقعی تا {dayLabel(d.last_date)}</dt><dd>{fa(d.sum_rial_vat)}</dd></div>
+            <div><dt>روز کاری باقی‌مانده</dt><dd>{fa(d.remaining_working_days)} روز</dd></div>
           </dl>
-          <div className="exec-progress flat"><i style={{ width: `${(d.elapsed_working_days / d.working_days) * 100}%` }} /></div>
           <p className="exec-footnote">{d.method}. این عدد پیش‌بینی است، نه فروش ثبت‌شده.</p>
         </>
       )}
@@ -307,9 +415,9 @@ function CompareCard({ dims, month, pace, months }) {
   const c = ready ? cur.data : null
   const b = ready ? prev.data : null
   const span = partial ? ` (۱ تا ${fa(lastDay)})` : ''
-  const items = [['فروش ناخالص', 'sum_rial_vat'], ['ریال خالص', 'net_rial'], ['تعداد کالا', 'sum_qty'], ['تعداد فاکتور', 'invoice_count'], ['مشتری فعال', 'active_customers']]
+  const items = [['ریال خالص', 'net_rial'], ['فروش ناخالص', 'sum_rial_vat'], ['تعداد کالا', 'sum_qty'], ['تعداد فاکتور', 'invoice_count'], ['مشتری فعال', 'active_customers']]
   return (
-    <article className="exec-card exec-span-7">
+    <article className="exec-card exec-compare exec-span-7">
       <CardHead title="مقایسه با ماه قبل"
         note={ready ? `${monthLabel(ym)}${span} در برابر ${monthLabel(pym)}${span}` : 'برای مقایسه به دو ماه متوالی داده نیاز است'}
         chip={<span className="exec-chip blue">{partial ? 'هم‌بازه' : 'ماه کامل'}</span>} />
@@ -344,6 +452,7 @@ export default function ExecutiveDashboard({ p, cal, month, setMonth }) {
   const lastPeriod = growth.data?.periods?.at(-1)
   const selectedPeriod = growth.data?.periods?.find((r) => r.key === month)
   const invoiceGrowth = (month ? selectedPeriod : lastPeriod)?.compare?.growth?.invoice_count
+  const netGrowth = (month ? selectedPeriod : lastPeriod)?.compare?.growth?.net_rial
   const growthLabel = (month ? selectedPeriod : lastPeriod)?.label
   const days = trend.data ?? []
   const toggle = (ym) => setMonth(ym === month ? '' : ym)
@@ -359,32 +468,34 @@ export default function ExecutiveDashboard({ p, cal, month, setMonth }) {
         <div className="exec-progress"><i style={{ width: cal ? `${(cal.days_passed / cal.working_days) * 100}%` : 0 }} /></div>
       </section>
 
-      <section className="exec-kpis">
+      <section className="exec-grid exec-hero-row">
+        <HeroCard o={o} rows={rows} period={month ? monthLabel(month) : 'همه ماه‌ها'} growth={netGrowth} growthLabel={growthLabel} />
+        <ForecastCard pace={pace} />
+      </section>
+
+      <section className="exec-kpis exec-kpis-overview">
         <Metric icon={CircleDollarSign} label="فروش ناخالص" value={o ? fa(o.sum_rial_vat) : '—'} unit="ریال · شامل مالیات و عوارض" tone="blue" />
-        <Metric icon={CircleDollarSign} label="ریال خالص" value={o ? fa(o.net_rial) : '—'} unit="پس از کسر پروموشن" tone="teal" />
         <Metric icon={PackageSearch} label="تعداد کالا" value={o ? fa(o.sum_qty) : '—'} unit="عدد" tone="violet" />
         <Metric icon={FileText} label="تعداد فاکتور" value={o ? fa(o.invoice_count) : '—'} unit="فقره" tone="amber" />
         <Metric icon={TrendingUp} label="درصد رشد فاکتور" value={pct(invoiceGrowth)} unit={growthLabel ? `${growthLabel} نسبت به دورهٔ مشابه ماه قبل` : 'مقایسه با ماه قبل'} tone="teal" />
-        <Metric icon={ListOrdered} label="میانگین سطر فاکتور" value={invoiceLines.data ? fa2(invoiceLines.data.avg_lines_per_invoice) : '—'} unit="سطر در هر فاکتور · فقط فروش عادی" tone="blue" />
+        <Metric icon={ListOrdered} label="میانگین سطر فاکتور" value={invoiceLines.data ? fa2(invoiceLines.data.avg_lines_per_invoice) : '—'} unit="سطر در هر فاکتور · فقط فروش عادی" tone="sky" />
         <Metric icon={Users} label="مشتری فعال" value={o ? fa(o.active_customers) : '—'} unit="مشتری یکتا" tone="pink" />
         <Metric icon={ArrowDownLeft} label="مجموع پروموشن" value={o ? fa(o.promo_total_rial) : '—'} unit="ریال" tone="red" />
-        <Metric icon={Percent} label="درصد کل پروموشن" value={o ? pct(o.promo_percent) : '—'} unit="از فروش ناخالص · دورهٔ انتخاب‌شده" tone="pink" />
+        <Metric icon={Percent} label="درصد کل پروموشن" value={o ? pct(o.promo_percent) : '—'} unit="از فروش ناخالص · دورهٔ انتخاب‌شده" tone="red" />
       </section>
 
       <section className="exec-grid">
-        <ForecastCard pace={pace} />
-        <CompareCard dims={dims} month={month} pace={pace} months={rows.map((r) => r.year_month)} />
-
         <article className="exec-card exec-span-8">
-          <CardHead title="روند فروش ماهانه" note="فروش ناخالص و ریال خالص به میلیارد ریال"
-            chip={<span className="exec-legend-inline"><i style={{ background: '#2563eb' }} />ناخالص<i style={{ background: '#14b8a6' }} />خالص</span>} />
+          <CardHead title="روند فروش ماهانه" note="ریال خالص و فروش ناخالص · میلیارد ریال"
+            chip={<span className="exec-legend-inline"><i style={{ background: '#2563eb' }} />خالص<i style={{ background: '#14b8a6' }} />ناخالص</span>} />
           <SalesChart rows={rows} />
         </article>
         <div className="exec-span-4"><SharePieCard p={p} /></div>
 
-        <article className="exec-card exec-span-12">
-          <CardHead title="روند فروش روزانه" note={month ? `روزهای ${monthLabel(month)}` : 'روزهای دورهٔ انتخاب‌شده، میلیارد ریال'}
-            chip={<span className="exec-chip teal">Rial+Vat</span>} />
+        <CompareCard dims={dims} month={month} pace={pace} months={rows.map((r) => r.year_month)} />
+        <article className="exec-card exec-daily exec-span-5">
+          <CardHead title="روند فروش روزانه" note={month ? `روزهای ${monthLabel(month)} · میلیارد ریال` : 'روزهای دورهٔ انتخاب‌شده · میلیارد ریال'}
+            chip={<span className="exec-chip blue">Rial+Vat</span>} />
           <DailyChart rows={days} />
         </article>
 
