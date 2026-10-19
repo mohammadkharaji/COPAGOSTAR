@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { fa } from './format'
 
 export const pct = (v, d = 1) => (v == null ? '—' : `${new Intl.NumberFormat('fa-IR', { maximumFractionDigits: d }).format(v * 100)}٪`)
@@ -68,9 +68,10 @@ function downloadCsv(name, columns, rows) {
 }
 
 // columns: { label, render, value?, unit? } — value is the raw sortable/exportable number (or text); unit is added to the CSV header.
-export function Table({ columns, rows, onRow, highlight, name = 'گزارش' }) {
+export function Table({ columns, rows, onRow, highlight, name = 'گزارش', pageSize }) {
   const [q, setQ] = useState('')
   const [sort, setSort] = useState(null)
+  const [page, setPage] = useState(0)
   const shown = useMemo(() => {
     const needle = q.trim().toLowerCase()
     let out = needle
@@ -86,6 +87,11 @@ export function Table({ columns, rows, onRow, highlight, name = 'گزارش' }) 
     }
     return out
   }, [rows, columns, q, sort])
+  // Optional client-side paging: search, sort and CSV still work on all rows; only the rendered slice is paged.
+  useEffect(() => { setPage(0) }, [rows, q, sort])
+  const pages = pageSize ? Math.max(1, Math.ceil(shown.length / pageSize)) : 1
+  const cur = Math.min(page, pages - 1)
+  const visible = pageSize ? shown.slice(cur * pageSize, (cur + 1) * pageSize) : shown
   const nextSort = (i) => setSort((s) => (!s || s.i !== i ? { i, dir: 'desc' } : s.dir === 'desc' ? { i, dir: 'asc' } : null))
   if (!rows.length) return <div className="empty">داده‌ای برای این فیلترها وجود ندارد.</div>
   return (
@@ -109,7 +115,7 @@ export function Table({ columns, rows, onRow, highlight, name = 'گزارش' }) 
             </tr>
           </thead>
           <tbody>
-            {shown.map((r, i) => (
+            {visible.map((r, i) => (
               <tr key={i} className={highlight?.(r) ? 'sel' : ''} onClick={onRow ? () => onRow(r) : undefined} style={onRow ? undefined : { cursor: 'default' }}>
                 {columns.map((c) => <td key={c.label}>{c.render(r)}</td>)}
               </tr>
@@ -118,6 +124,15 @@ export function Table({ columns, rows, onRow, highlight, name = 'گزارش' }) 
         </table>
         {!shown.length && <div className="empty">ردیفی با این جستجو پیدا نشد.</div>}
       </div>
+      {pageSize && shown.length > pageSize && (
+        <div className="toolbar" style={{ justifyContent: 'space-between', alignItems: 'center' }}>
+          <button className="btn ghost" type="button" disabled={cur === 0} onClick={() => setPage(cur - 1)}>صفحهٔ قبل</button>
+          <span className="tbl-count" role="status" aria-live="polite">
+            صفحهٔ {fa(cur + 1)} از {fa(pages)} · ردیف {fa(cur * pageSize + 1)} تا {fa(Math.min((cur + 1) * pageSize, shown.length))} از {fa(shown.length)}
+          </span>
+          <button className="btn ghost" type="button" disabled={cur + 1 >= pages} onClick={() => setPage(cur + 1)}>صفحهٔ بعد</button>
+        </div>
+      )}
     </>
   )
 }

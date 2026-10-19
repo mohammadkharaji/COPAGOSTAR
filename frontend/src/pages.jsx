@@ -282,6 +282,7 @@ export function ParetoPage({ p, openCustomer, openVisitor, openProfile }) {
 }
 
 /* ---------- مشتریان غیرفعال ---------- */
+const INACTIVE_PAGE_SIZE = 50
 const INACTIVE_DAYS = [['30', '۳۰ روز'], ['45', '۴۵ روز'], ['60', '۶۰ روز'], ['90', '۹۰ روز']]
 
 function ProfileLink({ onClick, children }) {
@@ -313,7 +314,7 @@ export function InactiveCustomersPage({ p, openCustomer, openVisitor }) {
               <Kpi label="بازهٔ بررسی" value={`${fa(j.days)} روز`} unit={`${faDate(j.window_start.replace(/\//g, ''))} تا ${faDate(j.as_of.replace(/\//g, ''))}`} hint="نسبت به آخرین تاریخ دادهٔ بارگذاری‌شده، نه امروز" />
             </section>
             <Panel title="ویزیتورها با بیشترین مشتری غیرفعال" note="ویزیتور = آخرین ویزیتور خرید مشتری · فروش قبلی ریال" full>
-              <Table name="غیرفعال-ویزیتور" rows={j.by_visitor} onRow={(x) => x.code && openVisitor(x.code)} columns={[
+              <Table name="غیرفعال-ویزیتور" rows={j.by_visitor} pageSize={INACTIVE_PAGE_SIZE} onRow={(x) => x.code && openVisitor(x.code)} columns={[
                 { label: 'کد', render: (x) => x.code ?? '—', value: (x) => String(x.code ?? '') },
                 { label: 'ویزیتور', render: (x) => x.name ?? '—', value: (x) => String(x.name ?? '') },
                 { label: 'مشتری غیرفعال', render: (x) => fa(x.customers), value: (x) => x.customers },
@@ -321,7 +322,7 @@ export function InactiveCustomersPage({ p, openCustomer, openVisitor }) {
               ]} />
             </Panel>
             <Panel title="فهرست مشتریان غیرفعال" note="مرتب‌شده بر اساس فروش قبلی · با کلیک روی ردیف، پروفایل مشتری باز می‌شود" full>
-              <Table name={`مشتریان-غیرفعال-${days}روز`} rows={j.items} onRow={(x) => openCustomer(x.code)} columns={[
+              <Table name={`مشتریان-غیرفعال-${days}روز`} rows={j.items} pageSize={INACTIVE_PAGE_SIZE} onRow={(x) => openCustomer(x.code)} columns={[
                 { label: 'رتبه', render: (x) => fa(x.rank), value: (x) => x.rank },
                 { label: 'کد مشتری', render: (x) => x.code, value: (x) => String(x.code) },
                 { label: 'مشتری', render: (x) => <ProfileLink onClick={() => openCustomer(x.code)}>{x.name ?? x.code}</ProfileLink>, value: (x) => String(x.name ?? '') },
