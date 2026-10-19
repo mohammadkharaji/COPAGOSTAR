@@ -4,7 +4,7 @@ import json
 import subprocess
 import sys
 import time
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 
 import os
 
@@ -18,6 +18,7 @@ from .db import connect
 from .jalali import (JALALI_MONTHS, JALALI_WEEKDAYS, days_in_jalali_month, format_jdate, gregorian_to_jalali,
                      jalali_to_gregorian, jalali_weekday, parse_jdate)
 from . import returns as _returns
+from . import xlsx as _xlsx
 from .schema import LIMITATIONS
 
 app = FastAPI(title="SR Sales Dashboard API", docs_url=None, redoc_url=None, openapi_url=None)
@@ -720,6 +721,104 @@ def customer_profile(code: str, core: str = DEFAULT_CORE):
         "brands": [{"name": n, "sales_rial": s} for n, s in brands],
         "dispatch_returns": dispatch_returns,
     }
+
+
+INACTIVE_DAYS = 60
+
+
+def _jtuple(key: int):
+    return key // 10000, key // 100 % 100, key % 100
+
+
+def _inactive_report(request: Request, core: str, days: int) -> dict:
+    """Customers with paid sales before the window and none inside it.
+
+    The window is the `days` days ending at the latest date loaded for the core (not today), so a late import does not
+    turn everyone inactive. A purchase is a sales row (not promotion, not return) with a positive Rial+Vat.
+    """
+    name = _core(core)
+    dim, dargs = _dims(request)
+    con = _con()
+    try:
+        latest = con.execute("SELECT MAX(jdate_key) FROM fact_sales WHERE core=? AND jdate_key IS NOT NULL", [name]).fetchone()[0]
+        if latest is None:
+            return {"available": False, "days": days, "reason": "داده‌ای برای این هسته بارگذاری نشده است."}
+        latest_g = jalali_to_gregorian(*_jtuple(latest))
+        cutoff_key = int(format_jdate(*gregorian_to_jalali(latest_g - timedelta(days=days - 1))).replace("/", ""))
+        rows = con.execute(
+            f"""WITH paid AS (
+                    SELECT customer_code, customer_name, visitor_code, visitor, branch, city_name, grade, invoice_code,
+                           jdate_key, rial_vat,
+                           ROW_NUMBER() OVER (PARTITION BY customer_code ORDER BY jdate_key DESC, invoice_code DESC) AS rn
+                    FROM fact_sales
+                    WHERE core=? AND {SALES_ONLY} AND rial_vat > 0 AND customer_code IS NOT NULL
+                          AND jdate_key IS NOT NULL{dim}),
+                agg AS (
+                    SELECT customer_code, SUM(rial_vat) AS sales, COUNT(DISTINCT invoice_code) AS invoices,
+                           MIN(jdate_key) AS first_key, MAX(jdate_key) AS last_key
+                    FROM paid GROUP BY 1)
+                SELECT a.customer_code, p.customer_name, p.visitor_code, p.visitor, p.branch, p.city_name, p.grade,
+                       a.sales, a.invoices, a.first_key, a.last_key
+                FROM agg a JOIN paid p ON p.customer_code = a.customer_code AND p.rn = 1
+                ORDER BY a.sales DESC, a.customer_code""", [name, *dargs]).fetchall()
+    finally:
+        con.close()
+    total_customers = len(rows)
+    inactive = [r for r in rows if r[10] < cutoff_key]
+    lost = sum(r[7] for r in inactive)
+    items, by_visitor, by_branch = [], {}, {}
+    for rank, r in enumerate(inactive, 1):
+        code, cname, vcode, vname, branch, city, grade, sales, invoices, first_key, last_key = r
+        since = (latest_g - jalali_to_gregorian(*_jtuple(last_key))).days
+        items.append({"rank": rank, "code": code, "name": cname, "visitor_code": vcode, "visitor": vname, "branch": branch,
+                      "city": city, "grade": grade, "first_purchase": _jdate(first_key), "last_purchase": _jdate(last_key),
+                      "days_since": since, "invoices": invoices, "sales_rial": sales,
+                      "avg_invoice_rial": (sales / invoices) if invoices else None,
+                      "share": (sales / lost) if lost else 0})
+        v = by_visitor.setdefault(vcode or "", {"code": vcode, "name": vname, "customers": 0, "sales_rial": 0})
+        v["customers"] += 1
+        v["sales_rial"] += sales
+        b = by_branch.setdefault(branch or "", {"name": branch, "customers": 0, "sales_rial": 0})
+        b["customers"] += 1
+        b["sales_rial"] += sales
+    return {
+        "available": True, "days": days, "as_of": _jdate(latest), "window_start": _jdate(cutoff_key),
+        "total_customers": total_customers, "active_customers": total_customers - len(inactive),
+        "inactive_customers": len(inactive), "inactive_percent": (len(inactive) / total_customers) if total_customers else 0,
+        "lost_sales_rial": lost, "items": items,
+        "by_visitor": sorted(by_visitor.values(), key=lambda x: -x["sales_rial"]),
+        "by_branch": sorted(by_branch.values(), key=lambda x: -x["sales_rial"]),
+    }
+
+
+@app.get("/api/inactive-customers")
+def inactive_customers(request: Request, core: str = DEFAULT_CORE, days: int = Query(INACTIVE_DAYS, ge=7, le=365)):
+    return _inactive_report(request, core, days)
+
+
+@app.get("/api/inactive-customers/export")
+def inactive_customers_export(request: Request, core: str = DEFAULT_CORE, days: int = Query(INACTIVE_DAYS, ge=7, le=365)):
+    j = _inactive_report(request, core, days)
+    if not j["available"]:
+        raise HTTPException(404, j["reason"])
+    header = ["رتبه", "کد مشتری", "نام مشتری", "کد ویزیتور", "ویزیتور", "شعبه", "شهر", "گرید", "اولین خرید", "آخرین خرید",
+              "روز بدون خرید", "تعداد فاکتور", "فروش قبلی (ریال)", "میانگین فاکتور (ریال)", "سهم از فروش از دست‌رفته (٪)"]
+    rows = [[i["rank"], i["code"], i["name"], i["visitor_code"], i["visitor"], i["branch"], i["city"], i["grade"],
+             i["first_purchase"], i["last_purchase"], i["days_since"], i["invoices"], round(i["sales_rial"]),
+             round(i["avg_invoice_rial"]) if i["avg_invoice_rial"] is not None else None, round(i["share"] * 100, 2)]
+            for i in j["items"]]
+    summary = [["هسته", CORES[core] if core in CORES else core], ["بازه بدون خرید (روز)", j["days"]],
+               ["آخرین تاریخ دادهٔ بارگذاری‌شده", j["as_of"]], ["شروع بازه", j["window_start"]],
+               ["مشتریان دارای سابقهٔ خرید", j["total_customers"]], ["مشتریان فعال در بازه", j["active_customers"]],
+               ["مشتریان غیرفعال", j["inactive_customers"]], ["درصد غیرفعال (٪)", round(j["inactive_percent"] * 100, 2)],
+               ["فروش قبلی مشتریان غیرفعال (ریال)", round(j["lost_sales_rial"])],
+               ["تعریف خرید", "ردیف فروش عادی با مبلغ مثبت؛ پروموشن و مرجوعی خرید حساب نمی‌شود"]]
+    body = _xlsx.build_xlsx([
+        ("مشتریان غیرفعال", header, rows, [7, 14, 30, 12, 22, 18, 14, 10, 13, 13, 12, 11, 20, 20, 16]),
+        ("خلاصه", ["شاخص", "مقدار"], summary, [40, 60])])
+    stamp = (j["as_of"] or "").replace("/", "-")
+    return Response(body, media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    headers={"Content-Disposition": f'attachment; filename="inactive-customers-{core}-{stamp}.xlsx"'})
 
 
 @app.get("/api/invoice-bands")

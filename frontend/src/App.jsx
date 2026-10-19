@@ -3,7 +3,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { get, post, useApi } from './api'
 import { monthLabel, monthRange } from './format'
 import ExecutiveDashboard, { ExecShell, NAV } from './ExecutiveDashboard'
-import { BranchRegionPage, CustomerPage, GrowthPage, HealthPage, InvoicePage, MonthlyTrendPage, ParetoPage, ProductBrandPage, ProfilePage, ReturnsPage, TrendPage, VisitorPage } from './pages'
+import { BranchRegionPage, CustomerPage, GrowthPage, HealthPage, InactiveCustomersPage, InvoicePage, MonthlyTrendPage, ParetoPage, ProductBrandPage, ProfilePage, ReturnsPage, TrendPage, VisitorPage } from './pages'
 
 const CORES = { kg: 'کوپا گستر', ch: 'زنجیره‌ای' }
 const SHARED_KEYS = ['month', 'branch', 'region', 'state', 'city', 'brand', 'group', 'grade', 'sales_type', 'main_group', 'sub_group']
@@ -124,7 +124,7 @@ export default function App({ onLogout }) {
     <ExecShell
       page={page} onNavigate={go} core={core} cores={CORES} setCore={setCore} title={title} subtitle={subtitle}
       month={month} setMonth={setMonth} filters={options.data ?? {}} dims={dims} onFilterChange={setDim}
-      onReset={() => { setMonth(''); setDims({}) }} showFilters={page !== 'health' && page !== 'customer' && page !== 'target'} hideMonth={page === 'monthly' || page === 'growth'}
+      onReset={() => { setMonth(''); setDims({}) }} showFilters={page !== 'health' && page !== 'customer' && page !== 'target'} hideMonth={page === 'monthly' || page === 'growth' || page === 'inactive'}
       error={error} partial={partial} lastDataDate={health?.last_data_date} syncState={syncState} syncNotice={syncNotice} onDismissNotice={() => setSyncNotice('')} onRefresh={startSync} onLogout={onLogout} user={me.data?.user}
     >
       {page === 'overview' && <ExecutiveDashboard p={p} cal={cal} month={month} setMonth={setMonth} />}
@@ -139,6 +139,7 @@ export default function App({ onLogout }) {
       {page === 'visitor' && <VisitorPage p={p} code={arg} setCode={(c) => go('visitor', c)} openCustomer={(c) => go('customer', c)} openReturns={(a) => go('returns', a)} />}
       {page === 'returns' && <ReturnsPage p={p} arg={arg} setArg={(a) => go('returns', a)} openCustomer={(c) => go('customer', c)} />}
       {page === 'invoice' && <InvoicePage p={p} />}
+      {page === 'inactive' && <InactiveCustomersPage p={p} openCustomer={(c) => go('customer', c)} openVisitor={(c) => go('visitor', c)} />}
       {page === 'customer' && <CustomerPage key={arg} core={core} code={arg} setCode={(c) => go('customer', c)} openReturns={(a) => go('returns', a)} />}
       {page === 'health' && <HealthPage health={health} meta={meta} quality={quality} />}
     </ExecShell>

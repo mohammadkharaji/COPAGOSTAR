@@ -281,6 +281,69 @@ export function ParetoPage({ p, openCustomer, openVisitor, openProfile }) {
   )
 }
 
+/* ---------- مشتریان غیرفعال ---------- */
+const INACTIVE_DAYS = [['30', '۳۰ روز'], ['45', '۴۵ روز'], ['60', '۶۰ روز'], ['90', '۹۰ روز']]
+
+function ProfileLink({ onClick, children }) {
+  return (
+    <button type="button" className="th-sort" style={{ textDecoration: 'underline', textAlign: 'start' }}
+      onClick={(e) => { e.stopPropagation(); onClick() }}>{children}</button>
+  )
+}
+
+export function InactiveCustomersPage({ p, openCustomer, openVisitor }) {
+  const [days, setDays] = useState('60')
+  const { month: _m, start: _s, end: _e, v: _v, ...query } = p
+  const r = useApi('/inactive-customers', { ...query, days, v: p.v })
+  const exportQs = new URLSearchParams(Object.entries({ ...query, days }).flatMap(([k, v]) => (Array.isArray(v) ? v.map((x) => [k, x]) : v ? [[k, v]] : []))).toString()
+  return (
+    <>
+      <div className="toolbar">
+        <Toggle label="بازه بدون خرید" value={days} onChange={setDays} options={INACTIVE_DAYS} />
+        <a className="tbl-export" href={`/api/inactive-customers/export?${exportQs}`} download>خروجی Excel (xlsx)</a>
+      </div>
+      <Status state={r}>{(j) => {
+        if (!j.available) return <div className="banner">{j.reason}</div>
+        return (
+          <>
+            <section className="kpis" style={{ marginTop: 16 }}>
+              <Kpi label="مشتری غیرفعال" value={fa(j.inactive_customers)} unit={`از ${fa(j.total_customers)} مشتری دارای سابقهٔ خرید`} tone="primary" />
+              <Kpi label="درصد غیرفعال" value={pct(j.inactive_percent, 1)} unit="از مشتریان دارای سابقهٔ خرید" tone="teal" />
+              <Kpi label="فروش قبلی این مشتریان" value={rial(j.lost_sales_rial)} unit="ریال · فروش عادی تا قبل از بازه" />
+              <Kpi label="بازهٔ بررسی" value={`${fa(j.days)} روز`} unit={`${faDate(j.window_start.replace(/\//g, ''))} تا ${faDate(j.as_of.replace(/\//g, ''))}`} hint="نسبت به آخرین تاریخ دادهٔ بارگذاری‌شده، نه امروز" />
+            </section>
+            <Panel title="ویزیتورها با بیشترین مشتری غیرفعال" note="ویزیتور = آخرین ویزیتور خرید مشتری · فروش قبلی ریال" full>
+              <Table name="غیرفعال-ویزیتور" rows={j.by_visitor} onRow={(x) => x.code && openVisitor(x.code)} columns={[
+                { label: 'کد', render: (x) => x.code ?? '—', value: (x) => String(x.code ?? '') },
+                { label: 'ویزیتور', render: (x) => x.name ?? '—', value: (x) => String(x.name ?? '') },
+                { label: 'مشتری غیرفعال', render: (x) => fa(x.customers), value: (x) => x.customers },
+                { label: 'فروش قبلی (ریال)', render: (x) => rial(x.sales_rial), value: (x) => x.sales_rial },
+              ]} />
+            </Panel>
+            <Panel title="فهرست مشتریان غیرفعال" note="مرتب‌شده بر اساس فروش قبلی · با کلیک روی ردیف، پروفایل مشتری باز می‌شود" full>
+              <Table name={`مشتریان-غیرفعال-${days}روز`} rows={j.items} onRow={(x) => openCustomer(x.code)} columns={[
+                { label: 'رتبه', render: (x) => fa(x.rank), value: (x) => x.rank },
+                { label: 'کد مشتری', render: (x) => x.code, value: (x) => String(x.code) },
+                { label: 'مشتری', render: (x) => <ProfileLink onClick={() => openCustomer(x.code)}>{x.name ?? x.code}</ProfileLink>, value: (x) => String(x.name ?? '') },
+                { label: 'ویزیتور', render: (x) => (x.visitor_code ? <ProfileLink onClick={() => openVisitor(x.visitor_code)}>{x.visitor ?? x.visitor_code}</ProfileLink> : '—'), value: (x) => String(x.visitor ?? '') },
+                { label: 'شعبه', render: (x) => x.branch ?? '—', value: (x) => String(x.branch ?? '') },
+                { label: 'شهر', render: (x) => x.city ?? '—', value: (x) => String(x.city ?? '') },
+                { label: 'گرید', render: (x) => x.grade ?? '—', value: (x) => String(x.grade ?? '') },
+                { label: 'آخرین خرید', render: (x) => x.last_purchase, value: (x) => x.last_purchase },
+                { label: 'روز بدون خرید', render: (x) => fa(x.days_since), value: (x) => x.days_since },
+                { label: 'تعداد فاکتور', render: (x) => fa(x.invoices), value: (x) => x.invoices },
+                { label: 'فروش قبلی (ریال)', render: (x) => rial(x.sales_rial), value: (x) => x.sales_rial },
+                { label: 'میانگین فاکتور (ریال)', render: (x) => (x.avg_invoice_rial == null ? '—' : rial(x.avg_invoice_rial)), value: (x) => x.avg_invoice_rial },
+                { label: 'سهم از فروش قبلی', render: (x) => pct(x.share, 1), value: (x) => x.share * 100, unit: '٪' },
+              ]} />
+            </Panel>
+          </>
+        )
+      }}</Status>
+    </>
+  )
+}
+
 /* ---------- تحلیل فاکتور ---------- */
 export function InvoicePage({ p }) {
   const [step, setStep] = useState('10000000')

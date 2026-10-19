@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import {
   Activity, ArrowDownLeft, BarChart3, Building2, CalendarDays, ChevronDown, ChevronLeft, ChevronRight, CircleDollarSign, FileText,
   Filter, HeartPulse, LayoutDashboard, ListOrdered, LogOut, MapPin, PackageSearch, Percent, PieChart as PieIcon, Printer, RefreshCw, ShoppingBag, Sparkles,
-  PackageX, Target, TrendingDown, TrendingUp, Undo2, UserCheck, UserRound, Users, Wallet, X,
+  PackageX, Target, TrendingDown, TrendingUp, Undo2, UserCheck, UserRound, UserX, Users, Wallet, X,
 } from 'lucide-react'
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { useApi } from './api'
@@ -19,7 +19,7 @@ export const NAV = [
   ['overview', 'نمای کلی', LayoutDashboard], ['trend', 'روند روزانه', Activity], ['monthly', 'روند ماهانه', BarChart3],
   ['growth', 'آنالیز رشد و افت', Percent], ['target', 'تارگت', Target],
   ['branch', 'شعب و مناطق', MapPin], ['product', 'کالا و برند', ShoppingBag], ['profile', 'تحلیل شعبه و برند', Building2],
-  ['pareto', 'تحلیل پارتو', TrendingUp], ['returns', 'برگشتی حواله', Undo2],
+  ['pareto', 'تحلیل پارتو', TrendingUp], ['inactive', 'مشتریان غیرفعال', UserX], ['returns', 'برگشتی حواله', Undo2],
   ['invoice', 'تحلیل فاکتور', FileText], ['customer', 'پروفایل مشتری', UserRound], ['visitor', 'پروفایل ویزیتور', UserCheck],
   ['health', 'سلامت داده', HeartPulse],
 ]
@@ -28,7 +28,7 @@ export const NAV = [
 // The third field marks a group as an expandable sub-menu.
 const NAV_GROUPS = [
   ['فروش', ['overview', 'trend', 'monthly', 'growth', 'target'], false],
-  ['تحلیل', ['branch', 'product', 'profile', 'pareto', 'returns'], true],
+  ['تحلیل', ['branch', 'product', 'profile', 'pareto', 'inactive', 'returns'], true],
   ['مشتری و فاکتور', ['invoice', 'customer', 'visitor'], true],
   ['سیستم', ['health'], true],
 ]

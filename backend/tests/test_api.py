@@ -450,3 +450,74 @@ def test_password_hash_roundtrip(client):
     assert "pässwörd" not in h and h.startswith("scrypt:")
     assert auth.verify_password("pässwörd@@", h) and not auth.verify_password("pässwörd@", h)
     assert auth.hash_password("a") != auth.hash_password("a")
+
+
+@pytest.fixture()
+def inactive_client(tmp_path, monkeypatch):
+    s, promo, ret = "SRSalesProcedure1405", "SRPromotionsProcedure1405", "SRDatedSalesReturnProcedurewithVAT1405"
+    return build_client(tmp_path, monkeypatch, {
+        "sr_kg_140503": [make_row(s, "d1", "D", "400", "4", date="1405/03/01", vcode="11", vname="علی", branch="شعبه کرج")],
+        "sr_kg_140504": [make_row(s, "c1", "C", "300", "3", date="1405/04/01", vcode="11", vname="علی"),
+                         make_row(s, "f1", "F", "500", "5", date="1405/04/10", vcode="11", vname="علی"),
+                         make_row(s, "f2", "F", "600", "6", date="1405/04/20", vcode="12", vname="رضا")],
+        "sr_kg_140505": [make_row(s, "a1", "A", "100", "1", date="1405/05/20", vcode="11", vname="علی"),
+                         make_row(s, "b1", "B", "200", "2", date="1405/05/21", vcode="12", vname="رضا")],
+        "sr_kg_140507": [make_row(promo, "e1", "E", "70", "1", date="1405/07/05", vcode="11", vname="علی"),
+                         make_row(ret, "d2", "D", "-100", "-1", date="1405/07/01", vcode="11", vname="علی", branch="شعبه کرج"),
+                         make_row(promo, "c2", "C", "30", "1", date="1405/07/10", vcode="11", vname="علی"),
+                         make_row(s, "g1", "G", "50", "1", date="1405/07/18", vcode="12", vname="رضا")]})
+
+
+def test_inactive_customers_use_paid_sales_before_the_window(inactive_client):
+    j = inactive_client.get("/api/inactive-customers").json()
+    assert j["available"] and j["as_of"] == "1405/07/18" and j["window_start"] == "1405/05/21" and j["days"] == 60
+    # B bought exactly on the first window day, G on the last day: both active. E has promotion rows only: never a customer.
+    assert [i["code"] for i in j["items"]] == ["F", "D", "C", "A"]
+    assert (j["total_customers"], j["active_customers"], j["inactive_customers"]) == (6, 2, 4)
+    assert j["lost_sales_rial"] == 1100 + 400 + 300 + 100 and j["inactive_percent"] == pytest.approx(4 / 6)
+    by = {i["code"]: i for i in j["items"]}
+    # promotion (C) and return (D) rows after the last purchase do not make a customer active
+    assert by["C"]["last_purchase"] == "1405/04/01" and by["D"]["last_purchase"] == "1405/03/01"
+    assert by["D"]["sales_rial"] == 400 and by["D"]["branch"] == "شعبه کرج"
+    # the visitor shown is the one on the last paid purchase
+    assert by["F"]["visitor_code"] == "12" and by["F"]["invoices"] == 2 and by["F"]["sales_rial"] == 1100
+    assert by["A"]["days_since"] == 59 + 1 and by["F"]["share"] == pytest.approx(1100 / 1900)
+    assert {v["code"]: v["customers"] for v in j["by_visitor"]} == {"11": 3, "12": 1}
+    assert j["by_visitor"][0]["code"] == "12" and j["by_visitor"][0]["sales_rial"] == 1100
+
+
+def test_inactive_window_length_filters_and_core(inactive_client):
+    assert [i["code"] for i in inactive_client.get("/api/inactive-customers", params={"days": 30}).json()["items"]] \
+        == ["F", "D", "C", "B", "A"]
+    assert [i["code"] for i in inactive_client.get("/api/inactive-customers", params={"branch": "شعبه کرج"}).json()["items"]] == ["D"]
+    assert inactive_client.get("/api/inactive-customers", params={"days": 3}).status_code == 422
+    assert inactive_client.get("/api/inactive-customers", params={"core": "zz"}).status_code == 400
+    assert inactive_client.get("/api/inactive-customers", params={"core": "ch"}).json()["available"] is False
+    assert inactive_client.get("/api/inactive-customers/export", params={"core": "ch"}).status_code == 404
+
+
+def test_inactive_customers_export_is_a_valid_xlsx(inactive_client):
+    import io
+    import zipfile
+    from xml.etree import ElementTree
+
+    r = inactive_client.get("/api/inactive-customers/export")
+    assert r.status_code == 200 and r.headers["content-type"].startswith("application/vnd.openxmlformats")
+    assert "inactive-customers-kg-1405-07-18.xlsx" in r.headers["content-disposition"]
+    z = zipfile.ZipFile(io.BytesIO(r.content))
+    for name in z.namelist():
+        if name.endswith(".xml") or name.endswith(".rels"):
+            ElementTree.fromstring(z.read(name))
+    sheet = z.read("xl/worksheets/sheet1.xml").decode()
+    assert 'rightToLeft="1"' in sheet and "<v>1100</v>" in sheet and sheet.count("<row ") == 5
+    assert "مشتریان غیرفعال" in z.read("xl/workbook.xml").decode()
+    assert "<v>1900</v>" in z.read("xl/worksheets/sheet2.xml").decode()
+
+
+def test_inactive_report_needs_login_and_its_own_page(inactive_client):
+    from app import rbac
+    anon = fresh(inactive_client)
+    assert anon.get("/api/inactive-customers").status_code == 401
+    assert anon.get("/api/inactive-customers/export").status_code == 401
+    assert rbac.access_for("GET", "/api/inactive-customers/export") == ("pages", ("inactive",))
+    assert rbac.access_for("GET", "/api/inactive-customers") == ("pages", ("inactive",))
