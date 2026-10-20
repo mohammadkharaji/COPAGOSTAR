@@ -1,11 +1,44 @@
 import { useMemo, useState } from 'react'
 import {
-  Activity, ArrowDownLeft, BarChart3, Building2, CalendarDays, ChevronDown, ChevronLeft, ChevronRight, CircleDollarSign, FileText,
-  Filter, HeartPulse, LayoutDashboard, ListOrdered, LogOut, MapPin, PackageSearch, Percent, PieChart as PieIcon, Printer, RefreshCw, ShoppingBag, Sparkles,
-  PackageX, ShieldCheck, Target, TrendingDown, TrendingUp, Undo2, UserCheck, UserRound, UserX, Users, Wallet, X,
+  Activity,
+  ArrowDownLeft,
+  BarChart3,
+  Building2,
+  CalendarDays,
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  CircleDollarSign,
+  FileText,
+  Filter,
+  HeartPulse,
+  LayoutDashboard,
+  ListOrdered,
+  LogOut,
+  MapPin,
+  PackageSearch,
+  Percent,
+  PieChart as PieIcon,
+  Printer,
+  RefreshCw,
+  ShoppingBag,
+  Sparkles,
+  PackageX,
+  ShieldCheck,
+  Target,
+  TrendingDown,
+  TrendingUp,
+  Undo2,
+  UserCheck,
+  UserRound,
+  UserX,
+  Users,
+  Wallet,
+  X,
+  MessageSquare,
 } from 'lucide-react'
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
-import { useApi } from './api'
+import { postJson, useApi } from './api'
 import { dayLabel, fa, fa2, faDigits, monthLabel, monthName } from './format'
 import { Table } from './ui'
 
@@ -21,7 +54,7 @@ export const NAV = [
   ['branch', 'شعب و مناطق', MapPin], ['product', 'کالا و برند', ShoppingBag], ['profile', 'تحلیل شعبه و برند', Building2],
   ['pareto', 'تحلیل پارتو', TrendingUp], ['inactive', 'مشتریان غیرفعال', UserX], ['returns', 'برگشتی حواله', Undo2],
   ['invoice', 'تحلیل فاکتور', FileText], ['customer', 'پروفایل مشتری', UserRound], ['visitor', 'پروفایل ویزیتور', UserCheck],
-  ['health', 'سلامت داده', HeartPulse],
+  ['health', 'سلامت داده', HeartPulse], ['tickets', 'تیکت‌ها', MessageSquare],
 ]
 
 // Sidebar grouping only; NAV keeps its [id, label, Icon] shape for App.jsx routing.
@@ -31,6 +64,7 @@ const NAV_GROUPS = [
   ['تحلیل', ['branch', 'product', 'profile', 'pareto', 'inactive', 'returns'], true],
   ['مشتری و فاکتور', ['invoice', 'customer', 'visitor'], true],
   ['سیستم', ['health'], true],
+  ['پشتیبانی', ['tickets'], false],
 ]
 // The admin entry is not a report page: App adds it only for principals with is_admin.
 export const ADMIN_NAV = ['admin', 'مدیریت کاربران', ShieldCheck]
@@ -38,7 +72,9 @@ export const ADMIN_NAV = ['admin', 'مدیریت کاربران', ShieldCheck]
 // Sections for the pages this principal may open (allowed = list of page ids, null = all); empty groups are dropped.
 function buildSections(allowed, isAdmin) {
   const nav = allowed ? NAV.filter(([id]) => allowed.includes(id)) : NAV
-  const grouped = NAV_GROUPS.map(([label, ids, collapsible]) => [label, nav.filter(([id]) => ids.includes(id)), collapsible])
+  const hidden = isAdmin ? [] : ['health']
+  const visible = nav.filter(([id]) => !hidden.includes(id))
+  const grouped = NAV_GROUPS.map(([label, ids, collapsible]) => [label, visible.filter(([id]) => ids.includes(id)), collapsible])
   const rest = nav.filter(([id]) => !NAV_GROUPS.some(([, ids]) => ids.includes(id)))
   const out = (rest.length ? [...grouped, ['سایر', rest, true]] : grouped).filter(([, items]) => items.length)
   return isAdmin ? [...out, ['مدیریت', [ADMIN_NAV], false]] : out
@@ -91,6 +127,7 @@ export function ExecShell({
   page, onNavigate, core, cores, setCore, title, subtitle, month, setMonth, filters = {}, dims = {}, onFilterChange, onReset,
   showFilters = true, hideMonth = false, error, partial, lastDataDate, syncState = 'never', syncNotice, onDismissNotice, onRefresh, onLogout, user, allowedPages = null, isAdmin = false, canSync = false, children,
 }) {
+  const [pwOpen, setPwOpen] = useState(false)
   const sections = useMemo(() => buildSections(allowedPages, isAdmin), [allowedPages, isAdmin])
   const [collapsed, setCollapsed] = useState(false)
   const [advanced, setAdvanced] = useState(false)
@@ -120,22 +157,11 @@ export function ExecShell({
           })}
         </nav>
         <div className="exec-sidebar-bottom">
-          <div className="exec-system">
-            <span className={`exec-dot ${syncState === 'failed' || partial ? 'bad' : ''}`} />
-            <div>
-              <b>{partial ? 'استخراج ناقص' : 'داده کامل'}</b>
-              <small>{running ? 'در حال به‌روزرسانی' : syncState === 'failed' ? 'آخرین به‌روزرسانی ناموفق بود' : lastDataDate ? `داده تا ${faDigits(lastDataDate)}` : 'منبع: SR-1405.xlsx'}</small>
-            </div>
-          </div>
-          {canSync && (
-            <button type="button" className="exec-refresh" onClick={onRefresh} disabled={running}>
-              <RefreshCw size={16} className={running ? 'spin' : ''} /><span>{running ? 'در حال به‌روزرسانی…' : 'به‌روزرسانی داده'}</span>
-            </button>
-          )}
           {onLogout && (
             <div className="exec-profile">
               <span className="exec-avatar" aria-hidden="true"><UserRound size={17} /></span>
-              <div className="exec-profile-copy"><b dir="ltr">{user || 'کاربر'}</b><small>حساب کاربری</small></div>
+              <div className="exec-profile-copy"><button type="button" className="exec-user-btn" onClick={() => setPwOpen(true)} title="تغییر رمز"><b dir="ltr">{user || 'کاربر'}</b></button><small>حساب کاربری</small></div>
+              {pwOpen && <PasswordDialog onClose={() => setPwOpen(false)} />}
               <button type="button" className="exec-logout" onClick={onLogout} aria-label="خروج از حساب" title="خروج از حساب"><LogOut size={17} /></button>
             </div>
           )}
@@ -453,6 +479,48 @@ function CompareCard({ dims, month, pace, months }) {
 }
 
 /* ---------- محتوای نمای کلی ---------- */
+function PasswordDialog({ onClose }) {
+  const [cur, setCur] = useState('')
+  const [next, setNext] = useState('')
+  const [again, setAgain] = useState('')
+  const [err, setErr] = useState('')
+  const [ok, setOk] = useState(false)
+  const submit = async (e) => {
+    e.preventDefault()
+    setErr('')
+    if (next.length < 8) return setErr('رمز جدید باید حداقل ۸ نویسه باشد')
+    if (next !== again) return setErr('تکرار رمز با رمز جدید یکی نیست')
+    try {
+      await postJson('/admin/me/password', { current_password: cur, new_password: next })
+      setOk(true)
+    } catch (ex) {
+      setErr(ex?.message || 'تغییر رمز انجام نشد')
+    }
+  }
+  return (
+    <div className="exec-modal-backdrop" role="dialog" aria-modal="true" aria-label="تغییر رمز" onClick={onClose}>
+      <form className="exec-modal" onClick={(e) => e.stopPropagation()} onSubmit={submit}>
+        <h3>تغییر رمز</h3>
+        {ok ? (
+          <p>رمز تغییر کرد. نشست‌های دیگر بسته شدند؛ با رمز جدید وارد شوید.</p>
+        ) : (
+          <>
+            <label>رمز فعلی<input type="password" dir="ltr" autoComplete="current-password" value={cur} onChange={(e) => setCur(e.target.value)} required /></label>
+            <label>رمز جدید<input type="password" dir="ltr" autoComplete="new-password" value={next} onChange={(e) => setNext(e.target.value)} required /></label>
+            <label>تکرار رمز جدید<input type="password" dir="ltr" autoComplete="new-password" value={again} onChange={(e) => setAgain(e.target.value)} required /></label>
+            {err && <p className="exec-modal-err" role="alert">{err}</p>}
+            <div className="exec-modal-actions">
+              <button type="button" onClick={onClose}>انصراف</button>
+              <button type="submit" className="primary">ثبت رمز جدید</button>
+            </div>
+          </>
+        )}
+        {ok && <div className="exec-modal-actions"><button type="button" className="primary" onClick={onClose}>بستن</button></div>}
+      </form>
+    </div>
+  )
+}
+
 export default function ExecutiveDashboard({ p, cal, month, setMonth, onOpenReturns }) {
   const { month: _m, start: _s, end: _e, ...dims } = p
   const ov = useApi('/overview', p)

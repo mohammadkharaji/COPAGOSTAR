@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, Legend, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
-import { useApi } from './api'
+import { postJson, useApi } from './api'
 import { dayLabel, fa, fa2, monthLabel, monthName } from './format'
 import { ChartTip, Kpi, Panel, Status, Table, Toggle, pct, rial } from './ui'
 import { ReturnsProfileCard, returnsArg } from './ReturnsPage'
@@ -395,6 +395,81 @@ function InvoiceCompare({ p }) {
         </tbody>
       </table>
     </Panel>
+  )
+}
+
+export function TicketsPage({ isAdmin }) {
+  const [openId, setOpenId] = useState(null)
+  const [subject, setSubject] = useState('')
+  const [body, setBody] = useState('')
+  const [reply, setReply] = useState('')
+  const [err, setErr] = useState('')
+  const [tick, setTick] = useState(0)
+  const list = useApi('/tickets', { v: tick })
+  const one = useApi(openId ? `/tickets/${openId}` : null, { v: tick })
+  const refresh = () => setTick((n) => n + 1)
+  const send = async (e) => {
+    e.preventDefault()
+    setErr('')
+    try {
+      await postJson('/tickets', { subject: subject.trim(), body: body.trim() })
+      setSubject(''); setBody(''); refresh()
+    } catch (ex) { setErr(ex?.message || 'ثبت تیکت انجام نشد') }
+  }
+  const sendReply = async (e) => {
+    e.preventDefault()
+    setErr('')
+    try {
+      await postJson(`/tickets/${openId}/messages`, { body: reply.trim() })
+      setReply(''); refresh()
+    } catch (ex) { setErr(ex?.message || 'ارسال پاسخ انجام نشد') }
+  }
+  const statusLabel = { open: 'باز', answered: 'پاسخ داده شده', closed: 'بسته' }
+  return (
+    <div className="tickets">
+      {!isAdmin && (
+        <Panel title="ثبت تیکت جدید" note="پیام شما برای ادمین ارسال می‌شود" full>
+          <form className="ticket-form" onSubmit={send}>
+            <input value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="موضوع" minLength={3} maxLength={120} required />
+            <textarea value={body} onChange={(e) => setBody(e.target.value)} placeholder="شرح مشکل یا درخواست" maxLength={4000} rows={4} required />
+            <button type="submit" className="primary">ثبت تیکت</button>
+          </form>
+        </Panel>
+      )}
+      <Panel title={isAdmin ? 'همه تیکت‌ها' : 'تیکت‌های من'} note={list.data ? `${fa(list.data.tickets.length)} تیکت` : ''} full>
+        {err && <p role="alert" className="ticket-err">{err}</p>}
+        {!list.data && !list.error && <p>در حال بارگذاری…</p>}
+        {list.data && list.data.tickets.length === 0 && <p>تیکتی ثبت نشده است.</p>}
+        {list.data && list.data.tickets.length > 0 && (
+          <ul className="ticket-list">
+            {list.data.tickets.map((t) => (
+              <li key={t.id}>
+                <button type="button" className={`ticket-row${openId === t.id ? ' active' : ''}`} onClick={() => setOpenId(t.id)}>
+                  <b>{t.subject}</b>
+                  <small>{isAdmin ? `${t.owner ?? ''} · ` : ''}{statusLabel[t.status] ?? t.status} · {t.updated_at?.slice(0, 16).replace('T', ' ')}</small>
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Panel>
+      {openId && one.data && (
+        <Panel title={`تیکت: ${one.data.subject}`} note={`${statusLabel[one.data.status] ?? one.data.status}${isAdmin ? ` · ${one.data.owner ?? ''}` : ''}`} full>
+          <div className="ticket-thread">
+            {one.data.messages.map((m, i) => (
+              <div key={i} className={`ticket-msg${m.is_admin ? ' admin' : ''}`}>
+                <small>{m.is_admin ? 'پشتیبانی' : m.author} · {m.created_at?.slice(0, 16).replace('T', ' ')}</small>
+                <p>{m.body}</p>
+              </div>
+            ))}
+          </div>
+          <form className="ticket-form" onSubmit={sendReply}>
+            <textarea value={reply} onChange={(e) => setReply(e.target.value)} placeholder="پاسخ" maxLength={4000} rows={3} required />
+            <button type="submit" className="primary">ارسال پاسخ</button>
+          </form>
+        </Panel>
+      )}
+    </div>
   )
 }
 

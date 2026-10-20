@@ -71,6 +71,21 @@ CREATE TABLE IF NOT EXISTS audit_log(
     detail TEXT NOT NULL DEFAULT '{}',
     ip TEXT NOT NULL DEFAULT '');
 CREATE INDEX IF NOT EXISTS audit_ts ON audit_log(ts);
+CREATE TABLE IF NOT EXISTS tickets(
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    subject TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'open',
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS ticket_messages(
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    ticket_id INTEGER NOT NULL REFERENCES tickets(id) ON DELETE CASCADE,
+    author TEXT NOT NULL,
+    is_admin INTEGER NOT NULL DEFAULT 0,
+    body TEXT NOT NULL,
+    created_at TEXT NOT NULL);
+CREATE INDEX IF NOT EXISTS ticket_user ON tickets(user_id, updated_at);
 """
 
 write_lock = threading.Lock()   # admin rules are check-then-write (last admin, role in use): one writer at a time
@@ -296,7 +311,7 @@ def core_clause(col: str = "core") -> tuple[str, list]:
 
 # Open to every logged-in user: the app shell (sidebar, filter bar, data freshness, calendar, sync state). Anything about
 # sales numbers in them is still limited to the user's cores and branches.
-SHELL = {"/api/auth/me", "/api/auth/logout", "/api/health", "/api/meta", "/api/data-health", "/api/calendar",
+SHELL = {"/api/auth/me", "/api/auth/logout", "/api/admin/me/password", "/api/health", "/api/meta", "/api/data-health", "/api/calendar",
          "/api/sync-status", "/api/filters"}
 # Endpoint -> pages that may use it (several pages share some endpoints, e.g. /overview is also on the visitor page).
 EXACT = {
@@ -311,7 +326,7 @@ PREFIX = (("/api/visitor", ("visitor",)), ("/api/customer", ("customer",)), ("/a
 
 def access_for(method: str, path: str) -> tuple[str, tuple[str, ...]]:
     """('shell' | 'admin' | 'pages', pages). Anything not listed is admin-only (fail closed)."""
-    if path in SHELL:
+    if path in SHELL or path == "/api/tickets" or path.startswith("/api/tickets/"):
         return "shell", ()
     if path == "/api/admin" or path.startswith("/api/admin/") or (path == "/api/sync" and method != "GET"):
         return "admin", ()

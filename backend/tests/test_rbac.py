@@ -212,3 +212,16 @@ def test_every_report_route_requires_a_permitted_page(client):
         assert c2.get(path, params={"core": "kg"}).status_code == 403, path
     assert c2.get("/api/returns/summary", params={"core": "kg"}).status_code == 200
     assert c2.get("/api/admin/roles").status_code == 403
+
+
+def test_user_changes_own_password_and_old_session_is_revoked(client):
+    role = _mkrole(client, "کاربر عادی", "all")
+    _mkuser(client, "ali", role)
+    c2 = _login(client.app, "ali")
+    assert c2.post("/api/admin/me/password", json={"current_password": "wrong-pass", "new_password": "NewPass-1234"}).status_code == 400
+    assert c2.post("/api/admin/me/password", json={"current_password": TEST_PASSWORD, "new_password": "short"}).status_code == 400
+    assert c2.post("/api/admin/me/password", json={"current_password": TEST_PASSWORD, "new_password": "NewPass-1234"}).status_code == 200
+    assert c2.get("/api/overview", params={"core": "kg"}).status_code == 401
+    r = TestClient(client.app).post("/api/auth/login", json={"username": "ali", "password": "NewPass-1234"})
+    assert r.status_code == 200, r.text
+

@@ -1022,6 +1022,8 @@ app.include_router(_returns.router)
 
 from . import admin as _admin  # noqa: E402  (users, roles, audit log; admin-only, see rbac.access_for)
 app.include_router(_admin.router)
+from . import tickets as _tickets  # noqa: E402  (support tickets; every signed-in user, admins answer)
+app.include_router(_tickets.router)
 
 DIST = ROOT / "frontend" / "dist"
 if DIST.is_dir():

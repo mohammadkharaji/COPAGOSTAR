@@ -60,6 +60,11 @@ class PasswordBody(BaseModel):
     password: str = Field(max_length=256)
 
 
+class OwnPasswordBody(BaseModel):
+    current_password: str = Field(max_length=256)
+    new_password: str = Field(max_length=256)
+
+
 def _clean(values: list[str], allowed: tuple | None, what: str) -> list[str]:
     out = []
     for v in values:
@@ -387,6 +392,26 @@ def reset_password(user_id: int, body: PasswordBody, request: Request):
                     (pw_hash, rbac.now_iso(), user_id))
         rbac.audit_row(con, _actor(), "user.reset_password", "user", cur["username"], {"user_id": user_id}, _ip(request))
     return {"ok": True}
+
+
+@router.post("/me/password")
+def change_own_password(body: OwnPasswordBody, request: Request):
+    """The signed-in account changes its own password. Only accounts in the users table can; the built-in
+    env login has no row and is changed in its config instead."""
+    actor = rbac.require()
+    if rbac._is_env_user(actor.user):
+        raise HTTPException(403, "این حساب از تنظیمات ورود است؛ رمز آن در فایل تنظیمات تغییر می‌کند")
+    new_hash = _password(body.new_password)
+    with _Tx() as con:
+        cur = con.execute("SELECT * FROM users WHERE username=?", (actor.user,)).fetchone()
+        if cur is None:
+            raise HTTPException(404, "کاربر پیدا نشد")
+        if not auth.verify_password(body.current_password, cur["password_hash"]):
+            raise HTTPException(400, "رمز فعلی درست نیست")
+        con.execute("UPDATE users SET password_hash=?, token_version=token_version+1, updated_at=? WHERE id=?",
+                    (new_hash, rbac.now_iso(), cur["id"]))
+        rbac.audit_row(con, actor.user, "user.change_own_password", "user", cur["username"], {"user_id": cur["id"]}, _ip(request))
+    return {"ok": True, "signed_out_elsewhere": True}
 
 
 # ---------- audit ----------

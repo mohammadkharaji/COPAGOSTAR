@@ -33,6 +33,12 @@ export async function post(path) {
   return res.status
 }
 
+export async function postJson(path, body) {
+  const res = await fetch(`/api${path}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+  if (!res.ok) await reject(res)
+  return res.json().catch(() => ({}))
+}
+
 export async function login(username, password) {
   const res = await fetch('/api/auth/login', {
     method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username, password }),
