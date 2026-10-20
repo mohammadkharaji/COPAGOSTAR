@@ -386,11 +386,8 @@ export function InvoicePage({ p }) {
                 </select>
               </label>
             </div>
-            <Panel title="توزیع فاکتورها بر حسب مبلغ" note="محور افقی: میلیون ریال" full>
-              <Bars data={d} x="label" tall unit="فاکتور" tickFn={(v) => v} bars={[{ key: 'n', name: 'تعداد فاکتور', color: 'var(--saffron-deep)' }]} />
-            </Panel>
             <Panel title="جدول بازه‌های فاکتور" note="فقط فروش عادی؛ فاکتورهای با جمع منفی حذف است" full>
-              <Table name="بازه-فاکتور" rows={j.bands} columns={[
+              <Table name="بازه-فاکتور" rows={j.bands} pageSize={50} columns={[
                 { label: 'از (ریال)', render: (b) => rial(b.from_rial), value: (b) => b.from_rial },
                 { label: 'تا (ریال)', render: (b) => rial(b.to_rial), value: (b) => b.to_rial },
                 { label: 'تعداد فاکتور', render: (b) => fa(b.invoices), value: (b) => b.invoices },
