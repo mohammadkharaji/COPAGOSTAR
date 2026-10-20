@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, Legend, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { useApi } from './api'
 import { dayLabel, fa, fa2, monthLabel, monthName } from './format'
@@ -295,6 +295,10 @@ function ProfileLink({ onClick, children }) {
 export function InactiveCustomersPage({ p, openCustomer, openVisitor }) {
   const [days, setDays] = useState('60')
   const [selVisitor, setSelVisitor] = useState(null)
+  const listRef = useRef(null)
+  useEffect(() => {
+    if (selVisitor !== null) listRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }, [selVisitor])
   const { month: _m, start: _s, end: _e, v: _v, ...query } = p
   const r = useApi('/inactive-customers', { ...query, days, v: p.v })
   const exportQs = new URLSearchParams(Object.entries({ ...query, days }).flatMap(([k, v]) => (Array.isArray(v) ? v.map((x) => [k, x]) : v ? [[k, v]] : []))).toString()
@@ -326,6 +330,7 @@ export function InactiveCustomersPage({ p, openCustomer, openVisitor }) {
               const v = j.by_visitor.find((x) => String(x.code ?? '') === selVisitor)
               if (!v) return null
               return (
+                <div ref={listRef}>
                 <Panel title={`مشتریان غیرفعال ${v.name ?? v.code ?? ''}`} note={`${fa(v.customers)} مشتری · با کلیک روی ردیف، پروفایل مشتری باز می‌شود`} full>
                   <Table name={`غیرفعال-ویزیتور-${selVisitor || 'بدون-کد'}`} rows={v.items} pageSize={INACTIVE_PAGE_SIZE} onRow={(x) => openCustomer(x.code)} columns={[
                     { label: 'رتبه', render: (x) => fa(x.rank), value: (x) => x.rank },
@@ -337,6 +342,7 @@ export function InactiveCustomersPage({ p, openCustomer, openVisitor }) {
                     { label: 'فروش قبلی (ریال)', render: (x) => rial(x.sales_rial), value: (x) => x.sales_rial },
                   ]} />
                 </Panel>
+                </div>
               )
             })()}
             <Panel title="فهرست مشتریان غیرفعال" note="مرتب‌شده بر اساس فروش قبلی · با کلیک روی ردیف، پروفایل مشتری باز می‌شود" full>
