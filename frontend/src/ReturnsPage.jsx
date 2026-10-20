@@ -68,8 +68,8 @@ function ReturnBars({ rows, x, tickFn }) {
 
 const PIE_COLORS = ['var(--neg)', 'var(--petrol)', 'var(--saffron)', 'var(--teal)', 'var(--ink)', '#8a6d3b', '#6b7f95', '#b07aa1', '#5b8c5a']
 
-function ReturnPie({ rows, nameKey }) {
-  const data = rows.map((r) => ({ name: String(r[nameKey] ?? '—'), value: r.return_rial ?? 0 })).filter((r) => r.value > 0)
+function ReturnPie({ rows, nameKey, labelFn = (v) => String(v ?? '—') }) {
+  const data = rows.map((r) => ({ name: labelFn(r[nameKey]), value: r.return_rial ?? 0 })).filter((r) => r.value > 0)
   return (
     <div className="chart" role="img" aria-label="نمودار سهم شعبه‌ها از مبلغ برگشتی">
       <ResponsiveContainer width="100%" height="100%">
@@ -97,7 +97,7 @@ function ViewPanel({ view, s }) {
   if (view === 'month') {
     return (
       <>
-        <ReturnBars rows={s.months} x="year_month" tickFn={monthName} />
+        <ReturnPie rows={s.months} nameKey="year_month" labelFn={monthName} />
         <Table name="برگشتی-ماهانه" rows={s.months} columns={aggCols({ label: 'ماه', render: (r) => monthName(r.year_month), value: (r) => r.year_month })} />
       </>
     )
@@ -113,7 +113,7 @@ function ViewPanel({ view, s }) {
   const total = s.total.return_rial
   return (
     <>
-      <ReturnBars rows={s.reasons} x="reason" tickFn={(v) => String(v)} />
+      <ReturnPie rows={s.reasons} nameKey="reason" />
       <Table name="برگشتی-علت" rows={s.reasons} columns={[
         { label: 'علت برگشت', render: (r) => r.reason, value: (r) => String(r.reason) },
         { label: 'تعداد حواله', render: (r) => fa(r.orders), value: (r) => r.orders },
