@@ -4,9 +4,12 @@ The dashboard data stays in sr.duckdb (opened read-only). Accounts live apart, i
 is created on the first admin write. The environment user (SR_AUTH_USER / SR_AUTH_PASS_HASH) is always the superadmin: it
 needs no row here, cannot be edited or locked out through the API, and still works if the file is missing or damaged.
 
-A role carries `pages`, `cores`, `branches` (empty = every branch) and `is_admin`. An admin role sees every page, core and
-branch and may use /api/admin. The scope of the current request travels in a ContextVar, so the shared query helpers
-are scoped without every function taking a user argument.
+A role carries `pages`, `cores`, a `scope_mode` and `is_admin`. The scope mode says which rows of the sales data the role's
+users may see: `all`, only their assigned `branch`es, or only their assigned `supervisor`s. The assignment itself is stored
+per user, so two users with the same role can hold different branches. A scoped user with nothing assigned sees no rows
+(fail closed). Seeing every report (`all`) does not make a user an admin: `is_admin` alone grants /api/admin. The scope of
+the current request travels in a ContextVar, so the shared query helpers are scoped without every function taking a user
+argument.
 """
 from __future__ import annotations
 
@@ -30,7 +33,9 @@ PAGES = ("overview", "trend", "monthly", "growth", "target", "branch", "product"
          "customer", "visitor", "returns", "inactive", "health")
 USERNAME_RE = re.compile(r"^[A-Za-z0-9_.@-]{3,64}$")
 MIN_PASSWORD = 8
+SCOPE_MODES = ("all", "branch", "supervisor")
 
+# roles.branches is the legacy role-level branch list: kept only so old files migrate, never read for access any more.
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS roles(
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -40,6 +45,7 @@ CREATE TABLE IF NOT EXISTS roles(
     cores TEXT NOT NULL DEFAULT '[]',
     branches TEXT NOT NULL DEFAULT '[]',
     is_admin INTEGER NOT NULL DEFAULT 0,
+    scope_mode TEXT NOT NULL DEFAULT 'all',
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS users(
@@ -50,6 +56,8 @@ CREATE TABLE IF NOT EXISTS users(
     role_id INTEGER NOT NULL REFERENCES roles(id) ON DELETE RESTRICT,
     is_active INTEGER NOT NULL DEFAULT 1,
     token_version INTEGER NOT NULL DEFAULT 0,
+    branches TEXT NOT NULL DEFAULT '[]',
+    supervisors TEXT NOT NULL DEFAULT '[]',
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL,
     last_login_at TEXT);
@@ -79,21 +87,46 @@ def accounts_path() -> Path:
     return Path(config.DATA_DIR) / "accounts.sqlite"
 
 
+def _columns(con: sqlite3.Connection, table: str) -> set[str]:
+    return {r[1] for r in con.execute(f"PRAGMA table_info({table})")}
+
+
+def _migrate(con: sqlite3.Connection) -> None:
+    """Bring an older accounts file up to date (idempotent). Before per-user scopes a role's branch list limited its users
+    and an empty list meant every branch: a role with branches becomes scope `branch` and its users inherit that list; a
+    role without becomes scope `all`, exactly as it behaved."""
+    if "scope_mode" not in _columns(con, "roles"):
+        con.execute("ALTER TABLE roles ADD COLUMN scope_mode TEXT NOT NULL DEFAULT 'all'")
+        con.execute("UPDATE roles SET scope_mode='branch' WHERE branches NOT IN ('[]', '') AND is_admin=0")
+        legacy = True
+    else:
+        legacy = False
+    for col in ("branches", "supervisors"):
+        if col not in _columns(con, "users"):
+            con.execute(f"ALTER TABLE users ADD COLUMN {col} TEXT NOT NULL DEFAULT '[]'")
+    if legacy:
+        con.execute("UPDATE users SET branches=(SELECT branches FROM roles WHERE roles.id=users.role_id) "
+                    "WHERE role_id IN (SELECT id FROM roles WHERE scope_mode='branch')")
+
+
 def ensure_store() -> Path:
     path = accounts_path()
     if str(path) not in _ready:
         path.parent.mkdir(parents=True, exist_ok=True)
         with closing(sqlite3.connect(path, timeout=10)) as con:
-            con.executescript(SCHEMA)
+            con.executescript(SCHEMA)   # existing tables are left as they are; _migrate upgrades their columns
+            _migrate(con)
+            con.commit()
         _ready.add(str(path))
     return path
 
 
 def connect(create: bool = False) -> sqlite3.Connection | None:
     """A connection with autocommit off-by-default disabled (explicit transactions), or None when reading and no store."""
-    path = ensure_store() if create else accounts_path()
+    path = accounts_path()
     if not create and not path.exists():
         return None
+    ensure_store()
     con = sqlite3.connect(path, timeout=10, isolation_level=None)
     con.row_factory = sqlite3.Row
     con.execute("PRAGMA foreign_keys=ON")
@@ -118,7 +151,7 @@ def audit(actor: str, action: str, target_type: str = "", target: str = "", deta
 
 def role_dict(row: sqlite3.Row) -> dict:
     return {"id": row["id"], "name": row["name"], "description": row["description"], "pages": json.loads(row["pages"]),
-            "cores": json.loads(row["cores"]), "branches": json.loads(row["branches"]), "is_admin": bool(row["is_admin"]),
+            "cores": json.loads(row["cores"]), "scope_mode": row["scope_mode"], "is_admin": bool(row["is_admin"]),
             "created_at": row["created_at"], "updated_at": row["updated_at"]}
 
 
@@ -131,7 +164,9 @@ class Principal:
     is_admin: bool
     pages: tuple[str, ...]
     cores: tuple[str, ...]
-    branches: tuple[str, ...] | None      # None = every branch
+    scope_mode: str = "all"               # all | branch | supervisor; anything else sees no rows
+    branches: tuple[str, ...] = ()        # assigned branches (used when scope_mode == "branch")
+    supervisors: tuple[str, ...] = ()     # assigned supervisors (used when scope_mode == "supervisor")
     superadmin: bool = False
     display_name: str = ""
     token_version: int | None = None      # None for the environment superadmin
@@ -139,22 +174,24 @@ class Principal:
     def me(self) -> dict:
         return {"user": self.user, "display_name": self.display_name, "role": self.role, "is_admin": self.is_admin,
                 "superadmin": self.superadmin, "pages": list(self.pages), "cores": list(self.cores),
-                "branches": list(self.branches or ()), "all_branches": self.branches is None}
+                "scope_mode": self.scope_mode, "branches": list(self.branches), "supervisors": list(self.supervisors),
+                "all_branches": self.scope_mode == "all"}
 
 
 def superadmin() -> Principal:
-    return Principal(auth.username(), "superadmin", True, PAGES, tuple(CORES), None, superadmin=True)
+    return Principal(auth.username(), "superadmin", True, PAGES, tuple(CORES), "all", superadmin=True)
 
 
 def _principal(user: sqlite3.Row, role: sqlite3.Row) -> Principal:
     r = role_dict(role)
     if r["is_admin"]:
-        pages, cores, branches = PAGES, tuple(CORES), None
+        pages, cores, mode = PAGES, tuple(CORES), "all"
     else:
         pages = tuple(p for p in PAGES if p in r["pages"])
         cores = tuple(c for c in CORES if c in r["cores"])
-        branches = tuple(r["branches"]) or None
-    return Principal(user["username"], r["name"], r["is_admin"], pages, cores, branches,
+        mode = r["scope_mode"]
+    return Principal(user["username"], r["name"], r["is_admin"], pages, cores, mode,
+                     tuple(json.loads(user["branches"])), tuple(json.loads(user["supervisors"])),
                      display_name=user["display_name"], token_version=user["token_version"])
 
 
@@ -229,12 +266,20 @@ def check_core(key: str) -> None:
         raise HTTPException(403, "دسترسی به این هسته مجاز نیست")
 
 
-def branch_clause(col: str = "branch") -> tuple[str, list]:
-    """` AND col IN (...)` limiting a query to the user's branches; empty when the user sees every branch."""
-    branches = require().branches
-    if branches is None:
+def scope_clause(alias: str = "") -> tuple[str, list]:
+    """` AND ...` limiting a query to the rows the user may see, on `[alias.]branch` / `[alias.]supervisor`.
+
+    Empty only for scope `all`. A scoped user with nothing assigned, or an unknown scope mode, gets a clause that matches
+    nothing: access is never widened by missing data."""
+    p = require()
+    prefix = f"{alias}." if alias else ""
+    if p.scope_mode == "all":
         return "", []
-    return f" AND {col} IN ({','.join('?' * len(branches))})", list(branches)
+    if p.scope_mode in ("branch", "supervisor"):
+        col, values = (prefix + "branch", p.branches) if p.scope_mode == "branch" else (prefix + "supervisor", p.supervisors)
+        if values:
+            return f" AND {col} IN ({','.join('?' * len(values))})", list(values)
+    return " AND 1=0", []
 
 
 def core_clause(col: str = "core") -> tuple[str, list]:
@@ -242,6 +287,8 @@ def core_clause(col: str = "core") -> tuple[str, list]:
     cores = require().cores
     if set(cores) >= set(CORES):
         return "", []
+    if not cores:
+        return " AND 1=0", []
     return f" AND {col} IN ({','.join('?' * len(cores))})", [CORES[c] for c in cores]
 
 

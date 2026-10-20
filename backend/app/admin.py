@@ -25,7 +25,7 @@ class RoleBody(BaseModel):
     description: str = Field("", max_length=300)
     pages: list[str] = Field(default_factory=list, max_length=64)
     cores: list[str] = Field(default_factory=list, max_length=16)
-    branches: list[str] = Field(default_factory=list, max_length=500)
+    scope_mode: str = Field("all", max_length=20)
     is_admin: bool = False
 
 
@@ -34,7 +34,7 @@ class RolePatch(BaseModel):
     description: str | None = Field(None, max_length=300)
     pages: list[str] | None = Field(None, max_length=64)
     cores: list[str] | None = Field(None, max_length=16)
-    branches: list[str] | None = Field(None, max_length=500)
+    scope_mode: str | None = Field(None, max_length=20)
     is_admin: bool | None = None
 
 
@@ -44,12 +44,16 @@ class UserBody(BaseModel):
     role_id: int
     display_name: str = Field("", max_length=100)
     is_active: bool = True
+    branches: list[str] = Field(default_factory=list, max_length=500)
+    supervisors: list[str] = Field(default_factory=list, max_length=2000)
 
 
 class UserPatch(BaseModel):
     display_name: str | None = Field(None, max_length=100)
     role_id: int | None = None
     is_active: bool | None = None
+    branches: list[str] | None = Field(None, max_length=500)
+    supervisors: list[str] | None = Field(None, max_length=2000)
 
 
 class PasswordBody(BaseModel):
@@ -69,12 +73,46 @@ def _clean(values: list[str], allowed: tuple | None, what: str) -> list[str]:
     return out
 
 
-def _role_fields(pages, cores, branches, is_admin) -> dict:
+def _role_fields(pages, cores, scope_mode, is_admin) -> dict:
+    if scope_mode not in rbac.SCOPE_MODES:
+        raise HTTPException(400, "حوزهٔ دسترسی نامعتبر است")
     out = {"pages": _clean(pages, rbac.PAGES, "صفحه"), "cores": _clean(cores, tuple(CORES), "هسته"),
-           "branches": _clean(branches, None, "شعبه"), "is_admin": bool(is_admin)}
+           "scope_mode": scope_mode, "is_admin": bool(is_admin)}
     if not out["is_admin"] and not (out["pages"] and out["cores"]):
         raise HTTPException(400, "نقش غیرمدیر باید دست‌کم یک صفحه و یک هسته داشته باشد")
     return out
+
+
+def _scope_values() -> tuple[list[str], list[tuple[str, str]]]:
+    """Branch names and (branch, supervisor) pairs that exist in the sales, target and returns data."""
+    if not DB_PATH.exists():
+        return [], []
+    con = connect_sales(read_only=True)
+    try:
+        tables = {r[0] for r in con.execute("SELECT table_name FROM information_schema.tables").fetchall()}
+        parts = [f"SELECT branch, supervisor FROM {t}" for t in ("fact_sales", "fact_returns", "fact_target") if t in tables]
+        if not parts:
+            return [], []
+        rows = con.execute(f"SELECT DISTINCT branch, supervisor FROM ({' UNION ALL '.join(parts)}) "
+                           "WHERE branch IS NOT NULL OR supervisor IS NOT NULL").fetchall()
+    finally:
+        con.close()
+    branches = sorted({r[0] for r in rows if r[0]})
+    pairs = sorted({(r[0] or "", r[1]) for r in rows if r[1]})
+    return branches, pairs
+
+
+def _scope_lists(mode: str, branches: list[str], supervisors: list[str]) -> tuple[list[str], list[str]]:
+    """Validate a user's assignment against the data and keep only the list the role's mode uses. The stored names are the
+    exact spellings in the data, because queries compare them verbatim."""
+    known_b, pairs = _scope_values()
+    known_s = {s for _, s in pairs}
+    if mode == "branch":
+        out = _clean(branches, tuple(known_b) if known_b else None, "شعبه")
+        return out, []
+    if mode == "supervisor":
+        return [], _clean(supervisors, tuple(known_s) if known_s else None, "سرپرست")
+    return [], []
 
 
 def _password(pw: str) -> str:
@@ -133,10 +171,12 @@ def _unique(fn):
 def _user_dict(row: sqlite3.Row) -> dict:
     return {"id": row["id"], "username": row["username"], "display_name": row["display_name"], "role_id": row["role_id"],
             "role": row["role_name"], "is_admin": bool(row["role_is_admin"]), "is_active": bool(row["is_active"]),
+            "scope_mode": row["role_scope_mode"], "branches": json.loads(row["branches"]),
+            "supervisors": json.loads(row["supervisors"]),
             "created_at": row["created_at"], "updated_at": row["updated_at"], "last_login_at": row["last_login_at"]}
 
 
-_USER_SQL = """SELECT u.*, r.name AS role_name, r.is_admin AS role_is_admin FROM users u
+_USER_SQL = """SELECT u.*, r.name AS role_name, r.is_admin AS role_is_admin, r.scope_mode AS role_scope_mode FROM users u
                JOIN roles r ON r.id = u.role_id"""
 
 
@@ -166,16 +206,10 @@ def _read(sql: str, args=()) -> list[sqlite3.Row]:
 
 @router.get("/options")
 def options():
-    """What a role can be given: page ids, cores and (when the sales database exists) the branch names."""
-    branches: list[str] = []
-    if DB_PATH.exists():
-        con = connect_sales(read_only=True)
-        try:
-            branches = [r[0] for r in con.execute(
-                "SELECT DISTINCT branch FROM fact_sales WHERE branch IS NOT NULL ORDER BY 1").fetchall()]
-        finally:
-            con.close()
-    return {"pages": list(rbac.PAGES), "cores": CORES, "branches": branches}
+    """What a role or user can be given: page ids, cores, scope modes and (when the data exists) branches and supervisors."""
+    branches, pairs = _scope_values()
+    return {"pages": list(rbac.PAGES), "cores": CORES, "scope_modes": list(rbac.SCOPE_MODES), "branches": branches,
+            "supervisors": [{"name": s, "branch": b} for b, s in pairs]}
 
 
 # ---------- roles ----------
@@ -188,7 +222,7 @@ def list_roles():
 
 @router.post("/roles", status_code=201)
 def create_role(body: RoleBody, request: Request):
-    fields = _role_fields(body.pages, body.cores, body.branches, body.is_admin)
+    fields = _role_fields(body.pages, body.cores, body.scope_mode, body.is_admin)
     name = body.name.strip()
     if len(name) < 2:
         raise HTTPException(400, "نام نقش کوتاه است")
@@ -197,10 +231,10 @@ def create_role(body: RoleBody, request: Request):
     def write():
         with _Tx() as con:
             cur = con.execute(
-                "INSERT INTO roles(name, description, pages, cores, branches, is_admin, created_at, updated_at) "
+                "INSERT INTO roles(name, description, pages, cores, scope_mode, is_admin, created_at, updated_at) "
                 "VALUES (?,?,?,?,?,?,?,?)",
                 (name, body.description.strip(), json.dumps(fields["pages"]), json.dumps(fields["cores"]),
-                 json.dumps(fields["branches"], ensure_ascii=False), int(fields["is_admin"]), now, now))
+                 fields["scope_mode"], int(fields["is_admin"]), now, now))
             rbac.audit_row(con, _actor(), "role.create", "role", name, {"role_id": cur.lastrowid, **fields}, _ip(request))
             return rbac.role_dict(_get_role(con, cur.lastrowid))
     return _unique(write)
@@ -212,20 +246,48 @@ def update_role(role_id: int, body: RolePatch, request: Request):
         with _Tx() as con:
             cur = rbac.role_dict(_get_role(con, role_id))
             merged = {k: (getattr(body, k) if getattr(body, k) is not None else cur[k])
-                      for k in ("pages", "cores", "branches", "is_admin")}
+                      for k in ("pages", "cores", "scope_mode", "is_admin")}
             fields = _role_fields(**merged)
+            if fields["scope_mode"] != cur["scope_mode"]:
+                held = con.execute("SELECT COUNT(*) FROM users WHERE role_id=?", (role_id,)).fetchone()[0]
+                if held:
+                    raise HTTPException(409, f"حوزهٔ دسترسی نقشی که به {held} کاربر داده شده تغییر نمی‌کند؛ نقش تازه بسازید")
             name = (body.name.strip() if body.name is not None else cur["name"])
             desc = body.description.strip() if body.description is not None else cur["description"]
             if len(name) < 2:
                 raise HTTPException(400, "نام نقش کوتاه است")
-            con.execute("UPDATE roles SET name=?, description=?, pages=?, cores=?, branches=?, is_admin=?, updated_at=? "
+            con.execute("UPDATE roles SET name=?, description=?, pages=?, cores=?, scope_mode=?, is_admin=?, updated_at=? "
                         "WHERE id=?", (name, desc, json.dumps(fields["pages"]), json.dumps(fields["cores"]),
-                                       json.dumps(fields["branches"], ensure_ascii=False), int(fields["is_admin"]),
-                                       rbac.now_iso(), role_id))
+                                       fields["scope_mode"], int(fields["is_admin"]), rbac.now_iso(), role_id))
             changed = {k: v for k, v in {"name": name, "description": desc, **fields}.items() if cur[k] != v}
             rbac.audit_row(con, _actor(), "role.update", "role", name, {"role_id": role_id, "changed": changed}, _ip(request))
             return rbac.role_dict(_get_role(con, role_id))
     return _unique(write)
+
+
+_SCOPED_PAGES = [p for p in rbac.PAGES if p != "health"]
+DEFAULT_ROLES = (
+    ("مدیرعامل", "دسترسی به همهٔ گزارش‌ها و هسته‌ها", list(rbac.PAGES), "all"),
+    ("معاونت فروش", "دسترسی به همهٔ گزارش‌ها و هسته‌ها", list(rbac.PAGES), "all"),
+    ("مدیر شعبه", "گزارش‌های شعبه‌های واگذارشده", _SCOPED_PAGES, "branch"),
+    ("سرپرست شعبه", "گزارش‌های سرپرست‌های زیرمجموعه", _SCOPED_PAGES, "supervisor"),
+)
+
+
+@router.post("/roles/defaults")
+def create_default_roles(request: Request):
+    """Create the four standard business roles that do not exist yet. Full-report roles are not admins."""
+    now, created = rbac.now_iso(), []
+    with _Tx() as con:
+        for name, desc, pages, mode in DEFAULT_ROLES:
+            if con.execute("SELECT 1 FROM roles WHERE name=?", (name,)).fetchone():
+                continue
+            con.execute("INSERT INTO roles(name, description, pages, cores, scope_mode, is_admin, created_at, updated_at) "
+                        "VALUES (?,?,?,?,?,0,?,?)", (name, desc, json.dumps(pages), json.dumps(list(CORES)), mode, now, now))
+            created.append(name)
+        if created:
+            rbac.audit_row(con, _actor(), "role.defaults", "role", "defaults", {"created": created}, _ip(request))
+    return {"created": created}
 
 
 @router.delete("/roles/{role_id}")
@@ -259,13 +321,16 @@ def create_user(body: UserBody, request: Request):
 
     def write():
         with _Tx() as con:
-            _get_role(con, body.role_id)
+            mode = _get_role(con, body.role_id)["scope_mode"]
+            branches, supervisors = _scope_lists(mode, body.branches, body.supervisors)
             cur = con.execute(
-                "INSERT INTO users(username, display_name, password_hash, role_id, is_active, created_at, updated_at) "
-                "VALUES (?,?,?,?,?,?,?)",
-                (username, body.display_name.strip(), pw_hash, body.role_id, int(body.is_active), now, now))
+                "INSERT INTO users(username, display_name, password_hash, role_id, is_active, branches, supervisors, "
+                "created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?)",
+                (username, body.display_name.strip(), pw_hash, body.role_id, int(body.is_active),
+                 json.dumps(branches, ensure_ascii=False), json.dumps(supervisors, ensure_ascii=False), now, now))
             rbac.audit_row(con, _actor(), "user.create", "user", username,
-                           {"user_id": cur.lastrowid, "role_id": body.role_id, "is_active": body.is_active}, _ip(request))
+                           {"user_id": cur.lastrowid, "role_id": body.role_id, "is_active": body.is_active,
+                            "branches": branches, "supervisors": supervisors}, _ip(request))
             return _user_dict(_get_user(con, cur.lastrowid))
     return _unique(write)
 
@@ -275,15 +340,28 @@ def update_user(user_id: int, body: UserPatch, request: Request):
     with _Tx() as con:
         cur = _get_user(con, user_id)
         role_id = cur["role_id"] if body.role_id is None else body.role_id
-        _get_role(con, role_id)
+        mode = _get_role(con, role_id)["scope_mode"]
         active = cur["is_active"] if body.is_active is None else int(body.is_active)
         name = cur["display_name"] if body.display_name is None else body.display_name.strip()
+        old_b, old_s = json.loads(cur["branches"]), json.loads(cur["supervisors"])
+        # Assignments sent now are checked against the data; untouched ones are kept, but only the list the role's mode uses.
+        if body.branches is None and body.supervisors is None:
+            branches = old_b if mode == "branch" else []
+            supervisors = old_s if mode == "supervisor" else []
+        else:
+            branches, supervisors = _scope_lists(mode, old_b if body.branches is None else body.branches,
+                                                 old_s if body.supervisors is None else body.supervisors)
         # Deactivating ends the user's open sessions at once.
         bump = 1 if cur["is_active"] and not active else 0
-        con.execute("UPDATE users SET display_name=?, role_id=?, is_active=?, token_version=token_version+?, updated_at=? "
-                    "WHERE id=?", (name, role_id, active, bump, rbac.now_iso(), user_id))
-        changed = {k: v for k, v in (("display_name", name), ("role_id", role_id), ("is_active", bool(active)))
-                   if v != (bool(cur[k]) if k == "is_active" else cur[k])}
+        con.execute("UPDATE users SET display_name=?, role_id=?, is_active=?, branches=?, supervisors=?, "
+                    "token_version=token_version+?, updated_at=? WHERE id=?",
+                    (name, role_id, active, json.dumps(branches, ensure_ascii=False),
+                     json.dumps(supervisors, ensure_ascii=False), bump, rbac.now_iso(), user_id))
+        old = {"display_name": cur["display_name"], "role_id": cur["role_id"], "is_active": bool(cur["is_active"]),
+               "branches": old_b, "supervisors": old_s}
+        new = {"display_name": name, "role_id": role_id, "is_active": bool(active), "branches": branches,
+               "supervisors": supervisors}
+        changed = {k: v for k, v in new.items() if v != old[k]}
         rbac.audit_row(con, _actor(), "user.update", "user", cur["username"], {"user_id": user_id, "changed": changed},
                        _ip(request))
         return _user_dict(_get_user(con, user_id))

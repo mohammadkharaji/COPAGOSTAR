@@ -24,7 +24,7 @@ PRODUCT_DDL = ("CREATE TABLE IF NOT EXISTS dim_product (unique_product_code VARC
 # One row per visitor x target category for a core and month; chunk_id is the file stem (target_kg_140507).
 TARGET_DDL = ("CREATE TABLE IF NOT EXISTS fact_target (chunk_id VARCHAR, core VARCHAR, "
               + ", ".join(f"{c} VARCHAR" for c in TARGET_COLS if c != "target_rial") + ", target_rial DOUBLE)")
-# One row per distribution (dispatch) order; upserted by (core, branch, dispatch_no) from the ret_*.tsv delta files.
+# One row per distribution (dispatch) order; upserted by (core, branch, dispatch_no, tour_date, customer_code, order_date) from the ret_*.tsv delta files.
 RETURNS_DDL = ("CREATE TABLE IF NOT EXISTS fact_returns (core VARCHAR, " + ", ".join(f"{c} VARCHAR" for c in RETURN_TEXT)
                + ", " + ", ".join(f"{c} DOUBLE" for c in RETURN_NUMERIC)
                + ", jdate_key INTEGER, year_month VARCHAR, return_rial DOUBLE, return_status VARCHAR, source_file VARCHAR)")
@@ -261,7 +261,7 @@ def ingest_returns(con, path: Path) -> dict:
         date = r["order_date"]
         if not (r["branch"] and r["dispatch_no"] and re.fullmatch(r"\d{4}/\d{2}/\d{2}", date)) or n["order_rial"] <= 0:
             raise ValueError(f"{path.name}: incomplete or invalid returns row {r['branch']!r}/{r['dispatch_no']!r}")
-        key = (r["branch"], r["dispatch_no"])
+        key = (r["branch"], r["dispatch_no"], r["tour_date"], r["customer_code"], date)
         if key in seen:
             raise ValueError(f"{path.name}: duplicate dispatch order {key}")
         seen.add(key)
@@ -284,7 +284,9 @@ def ingest_returns(con, path: Path) -> dict:
         con.execute("CREATE TEMP TABLE _ret_in AS SELECT " + select + " FROM read_csv(?, header=false, all_varchar=true, columns={"
                     + ", ".join(f"'{c}': 'VARCHAR'" for c in names) + "})", [tmp_name])
         con.execute("DELETE FROM fact_returns USING _ret_in i WHERE i.core=fact_returns.core "
-                    "AND i.branch=fact_returns.branch AND i.dispatch_no=fact_returns.dispatch_no")
+                    "AND i.branch=fact_returns.branch AND i.dispatch_no=fact_returns.dispatch_no "
+                    "AND i.tour_date=fact_returns.tour_date AND i.customer_code IS NOT DISTINCT FROM fact_returns.customer_code "
+                    "AND i.order_date=fact_returns.order_date")
         con.execute("INSERT INTO fact_returns SELECT " + ", ".join(names) + " FROM _ret_in")
         con.execute("DROP TABLE _ret_in")
         con.execute("INSERT OR REPLACE INTO ingest_manifest VALUES (?,?,?,?)",

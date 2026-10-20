@@ -19,13 +19,14 @@ COLS = ["SR[ID]", "SR[ProductName]", "SR[Brand]", "SR[MainUnit]", "SR[InvoiceCod
 
 
 def make_row(src, inv, cust, rv, qty, disc="0", d2="0", settle="0", vcode="", vname="", date="1405/07/18",
-             branch="شعبه تهران", brand="", ucode="", line=""):
+             branch="شعبه تهران", brand="", ucode="", line="", sup=""):
     d = dict.fromkeys(COLS, "")
     d.update({"SR[SourceTable]": src, "SR[InvoiceCode]": inv, "SR[CustomerCode]": cust, "SR[InvoiceDate]": date,
               "SR[Year/Month]": date[:4] + date[5:7], "SR[Core]": "کوپا گستر", "SR[Rial+Vat]": rv, "SR[QTY]": qty,
               "SR[TotalDiscount]": disc, "SR[DISCOUNT]": d2, "SR[TotalDiscountBySettlementInInvoiceRecord]": settle,
               "SR[Branch]": branch, "SR[CityName]": "تهران", "SR[State]": "منطقه ۱", "SR[Movaze]": "غرب",
-              "SR[VisitorCode]": vcode, "SR[Visitor]": vname, "SR[Brand]": brand, "SR[UniqueProductCode]": ucode, "SR[GROUP]": line})
+              "SR[VisitorCode]": vcode, "SR[Visitor]": vname, "SR[Brand]": brand, "SR[UniqueProductCode]": ucode,
+              "SR[GROUP]": line, "SR[Superviser]": sup})
     return "\x1f".join(d[c] for c in COLS)
 
 
@@ -48,11 +49,12 @@ def build_client(tmp_path, monkeypatch, chunks, product=None):
         (raw / f"{name}.tsv").write_text("\x1f".join(COLS) + "\x1e" + "\x1e".join(rows) + "\x1e", encoding="utf-8")
     monkeypatch.setenv("SR_RAW_DIR", str(raw))
     monkeypatch.setenv("SR_DB_PATH", str(tmp_path / "t.duckdb"))
-    from app import auth, config, db, ingest, api
+    monkeypatch.setenv("SR_DATA_DIR", str(tmp_path / "data"))
+    from app import auth, config, db, ingest, api, rbac, admin
     monkeypatch.setenv("SR_AUTH_USER", "admin")
     monkeypatch.setenv("SR_AUTH_PASS_HASH", auth.hash_password(TEST_PASSWORD))
     monkeypatch.setenv("SR_AUTH_SECRET", "t" * 40)
-    for m in (config, db, ingest, api):
+    for m in (config, db, ingest, rbac, admin, api):
         importlib.reload(m)
     assert sum(r["rows"] for r in ingest.ingest_all()) == sum(len(r) for r in chunks.values())
     c = TestClient(api.app)

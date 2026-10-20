@@ -159,7 +159,7 @@ def _dims(request: Request, skip: tuple[str, ...] = ()) -> tuple[str, list]:
         if vals:
             sql += f" AND {col} IN ({','.join('?' * len(vals))})"
             args += vals
-    scope, sargs = rbac.branch_clause("branch")   # the user's branch scope, applied even when `branch` is skipped
+    scope, sargs = rbac.scope_clause()   # the user's branch scope, applied even when `branch` is skipped
     return sql + scope, args + sargs
 
 
@@ -316,7 +316,7 @@ def filters(request: Request, core: str = DEFAULT_CORE):
     """Option lists. region/state/city are narrowed by the selected branch and by each other, and sub_group by the
     selected main_group (never by themselves)."""
     name = _core(core)
-    scope, sargs = rbac.branch_clause()
+    scope, sargs = rbac.scope_clause()
     con = _con()
     try:
         out = {}
@@ -450,7 +450,7 @@ def visitor_profile(code: str, request: Request, core: str = DEFAULT_CORE, start
     dim, dargs = _dims(request)
     base = f"core=? AND visitor_code=?{rng}{dim}"
     bargs = [name, code, *args, *dargs]
-    scope, sargs = rbac.branch_clause()
+    scope, sargs = rbac.scope_clause()
     con = _con()
     try:
         names = [r[0] for r in con.execute(
@@ -558,7 +558,7 @@ def growth(request: Request, kind: str = "month", core: str = DEFAULT_CORE):
     length = GROWTH_KINDS[kind]
     name = _core(core)
     dim, dargs = _dims(request)
-    scope, sargs = rbac.branch_clause()
+    scope, sargs = rbac.scope_clause()
     con = _con()
     try:
         first, last = con.execute(
@@ -615,7 +615,7 @@ def dimension_profile(by: str, key: str, request: Request, core: str = DEFAULT_C
     dim, dargs = _dims(request, skip=(by,))
     base = f"core=? AND {col}=?{rng}{dim}"
     bargs = [name, key, *args, *dargs]
-    scope, sargs = rbac.branch_clause()
+    scope, sargs = rbac.scope_clause()
     con = _con()
     try:
         if not con.execute(f"SELECT COUNT(*) FROM fact_sales WHERE core=? AND {col}=?{scope}",
@@ -687,7 +687,7 @@ def dimension_profile(by: str, key: str, request: Request, core: str = DEFAULT_C
 @app.get("/api/customer/{code}")
 def customer_profile(code: str, core: str = DEFAULT_CORE):
     name = _core(core)
-    scope, sargs = rbac.branch_clause()
+    scope, sargs = rbac.scope_clause()
     con = _con()
     try:
         head = con.execute(
@@ -740,7 +740,9 @@ def _inactive_report(request: Request, core: str, days: int) -> dict:
     dim, dargs = _dims(request)
     con = _con()
     try:
-        latest = con.execute("SELECT MAX(jdate_key) FROM fact_sales WHERE core=? AND jdate_key IS NOT NULL", [name]).fetchone()[0]
+        l_scope, l_args = rbac.scope_clause()
+        latest = con.execute(f"SELECT MAX(jdate_key) FROM fact_sales WHERE core=? AND jdate_key IS NOT NULL{l_scope}",
+                             [name, *l_args]).fetchone()[0]
         if latest is None:
             return {"available": False, "days": days, "reason": "داده‌ای برای این هسته بارگذاری نشده است."}
         latest_g = jalali_to_gregorian(*_jtuple(latest))
@@ -775,9 +777,10 @@ def _inactive_report(request: Request, core: str, days: int) -> dict:
                       "days_since": since, "invoices": invoices, "sales_rial": sales,
                       "avg_invoice_rial": (sales / invoices) if invoices else None,
                       "share": (sales / lost) if lost else 0})
-        v = by_visitor.setdefault(vcode or "", {"code": vcode, "name": vname, "customers": 0, "sales_rial": 0})
+        v = by_visitor.setdefault(vcode or "", {"code": vcode, "name": vname, "customers": 0, "sales_rial": 0, "items": []})
         v["customers"] += 1
         v["sales_rial"] += sales
+        v["items"].append({"rank": rank, "code": code, "name": cname, "branch": branch, "city": city, "grade": grade, "days_since": since, "invoices": invoices, "sales_rial": sales})
         b = by_branch.setdefault(branch or "", {"name": branch, "customers": 0, "sales_rial": 0})
         b["customers"] += 1
         b["sales_rial"] += sales
@@ -926,7 +929,7 @@ def calendar(on: str | None = Query(None, description="تاریخ شمسی، م�
 def pace(request: Request, core: str = DEFAULT_CORE):
     name = _core(core)
     dim, dargs = _dims(request)
-    scope, sargs = rbac.branch_clause()
+    scope, sargs = rbac.scope_clause()
     con = _con()
     try:
         last = con.execute(f"SELECT MAX(jdate_key) FROM fact_sales WHERE core=?{scope}", [name, *sargs]).fetchone()[0]
@@ -958,7 +961,7 @@ def pace(request: Request, core: str = DEFAULT_CORE):
 @app.get("/api/data-health")
 def data_health():
     c_sql, c_args = rbac.core_clause()
-    b_sql, b_args = rbac.branch_clause()
+    b_sql, b_args = rbac.scope_clause()
     scope, sargs = c_sql + b_sql, [*c_args, *b_args]    # counts cover only what the user may see
     con = _con()
     try:

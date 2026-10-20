@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react'
 
 export const UNAUTHORIZED = 'sr-unauthorized'
-const reject = (res) => {
+const detailOf = (d) => (typeof d === 'string' ? d : Array.isArray(d) ? d.map((x) => x.msg).filter(Boolean).join('، ') : '')
+const reject = async (res) => {
   if (res.status === 401) window.dispatchEvent(new Event(UNAUTHORIZED))
-  throw new Error(`${res.status}`)
+  const data = await res.json().catch(() => ({}))
+  throw Object.assign(new Error(detailOf(data.detail) || `${res.status}`), { status: res.status })
 }
 
 export async function get(path, params = {}) {
@@ -11,13 +13,23 @@ export async function get(path, params = {}) {
   const pairs = Object.entries(params).filter(([, v]) => v !== '' && v != null).flatMap(([k, v]) => (Array.isArray(v) ? v.map((x) => [k, x]) : [[k, v]]))
   const qs = new URLSearchParams(pairs).toString()
   const res = await fetch(`/api${path}${qs ? `?${qs}` : ''}`)
-  if (!res.ok) reject(res)
+  if (!res.ok) await reject(res)
   return res.json()
+}
+
+// JSON mutation (POST/PATCH/DELETE). Errors keep the backend `detail` text as the message; 401 signs the user out like get().
+export async function send(method, path, body) {
+  const res = await fetch(`/api${path}`, {
+    method,
+    ...(body !== undefined && { headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }),
+  })
+  if (res.ok) return res.json().catch(() => ({}))
+  return reject(res)
 }
 
 export async function post(path) {
   const res = await fetch(`/api${path}`, { method: 'POST' })
-  if (!res.ok && res.status !== 409) reject(res)
+  if (!res.ok && res.status !== 409) await reject(res)
   return res.status
 }
 

@@ -29,16 +29,19 @@ MAX_LIMIT = 500
 _AGG = """COUNT(*), COUNT(*) FILTER (WHERE return_status <> 'none'), COUNT(*) FILTER (WHERE return_status = 'full'),
           COUNT(*) FILTER (WHERE return_status = 'partial'), COALESCE(SUM(order_rial), 0), COALESCE(SUM(return_rial), 0),
           COALESCE(SUM(full_return_rial), 0), COALESCE(SUM(part_return_rial), 0),
-          COUNT(DISTINCT customer_code) FILTER (WHERE return_status <> 'none')"""
+          COUNT(DISTINCT customer_code) FILTER (WHERE return_status <> 'none'),
+          COUNT(*) FILTER (WHERE COALESCE(invoice_no, '') <> ''), COALESCE(SUM(order_rial) FILTER (WHERE COALESCE(invoice_no, '') <> ''), 0)"""
 
 
 def _agg(r) -> dict:
-    orders, returned, full, partial, order_rial, return_rial, full_rial, part_rial, customers = r
+    orders, returned, full, partial, order_rial, return_rial, full_rial, part_rial, customers, invoiced, invoiced_rial = r
     return {"orders": orders, "returned_orders": returned, "full_orders": full, "partial_orders": partial,
             "order_rial": order_rial, "return_rial": return_rial, "full_return_rial": full_rial,
             "partial_return_rial": part_rial, "returned_customers": customers,
             "return_percent": (return_rial / order_rial) if order_rial else 0,
-            "returned_order_percent": (returned / orders) if orders else 0}
+            "returned_order_percent": (returned / orders) if orders else 0,
+            "invoiced_orders": invoiced, "invoiced_order_percent": (invoiced / orders) if orders else 0,
+            "invoiced_order_rial": invoiced_rial, "invoiced_rial_percent": (invoiced_rial / order_rial) if order_rial else 0}
 
 
 def _table_exists(con) -> bool:
@@ -71,7 +74,7 @@ def _filters(request: Request) -> tuple[str, list, list[str]]:
     for key in UNSUPPORTED:
         if any(request.query_params.getlist(key)):
             ignored.append(key)
-    scope, sargs = rbac.branch_clause()   # the user's branch scope, always applied
+    scope, sargs = rbac.scope_clause()   # the user's branch scope, always applied
     return sql + scope, args + sargs, ignored
 
 
@@ -101,7 +104,7 @@ def summary(request: Request, core: str = "kg", start: str | None = None, end: s
     try:
         if not _table_exists(con):
             return {**UNAVAILABLE, "core": core}
-        scope, sargs = rbac.branch_clause()
+        scope, sargs = rbac.scope_clause()
         have = con.execute(f"SELECT COUNT(*), MIN(jdate_key), MAX(jdate_key) FROM fact_returns WHERE core=?{scope}",
                            [name, *sargs]).fetchone()
         if not have[0]:
@@ -165,7 +168,7 @@ def listing(request: Request, core: str = "kg", start: str | None = None, end: s
 def _profile(con, name: str, col_sql: str, args: list, rng: str, rargs: list) -> dict | None:
     if not _table_exists(con):
         return None
-    scope, sargs = rbac.branch_clause()
+    scope, sargs = rbac.scope_clause()
     where = f"core=? AND {col_sql}{rng}{scope}"
     base = [name, *args, *rargs, *sargs]
     total = _agg(con.execute(f"SELECT {_AGG} FROM fact_returns WHERE {where}", base).fetchone())
@@ -194,15 +197,18 @@ def visitor_returns(con, name: str, code: str, start: str | None = None, end: st
     `ambiguous_names` and left out of the totals."""
     if not _table_exists(con):
         return None
+    scope, sargs = rbac.scope_clause()
     names = [r[0] for r in con.execute(
-        "SELECT visitor FROM fact_sales WHERE core=? AND visitor_code=? AND visitor IS NOT NULL GROUP BY 1", [name, code]).fetchall()]
+        f"SELECT visitor FROM fact_sales WHERE core=? AND visitor_code=? AND visitor IS NOT NULL{scope} GROUP BY 1",
+        [name, code, *sargs]).fetchall()]
     shared = {r[0] for r in con.execute(
         f"""SELECT visitor FROM fact_sales WHERE core=? AND visitor IN ({','.join('?' * len(names))})
-            AND visitor_code IS NOT NULL GROUP BY 1 HAVING COUNT(DISTINCT visitor_code) > 1""", [name, *names]).fetchall()} if names else set()
+            AND visitor_code IS NOT NULL{scope} GROUP BY 1 HAVING COUNT(DISTINCT visitor_code) > 1""",
+        [name, *names, *sargs]).fetchall()} if names else set()
     usable = [n for n in names if n not in shared]
     rng, rargs = _range(start, end)
     out = (_profile(con, name, f"visitor IN ({','.join('?' * len(usable))})", usable, rng, rargs) if usable else
-           {"available": True, "total": _agg((0,) * 9), "months": [], "reasons": [], "recent": []})
+           {"available": True, "total": _agg((0,) * 11), "months": [], "reasons": [], "recent": []})
     out.update(matched_names=usable, ambiguous_names=sorted(shared),
                note="کد ویزیتور در فایل حواله نیست؛ تطبیق با نام ویزیتور انجام شده است." if usable or shared else None)
     return out

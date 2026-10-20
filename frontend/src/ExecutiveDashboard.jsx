@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import {
   Activity, ArrowDownLeft, BarChart3, Building2, CalendarDays, ChevronDown, ChevronLeft, ChevronRight, CircleDollarSign, FileText,
   Filter, HeartPulse, LayoutDashboard, ListOrdered, LogOut, MapPin, PackageSearch, Percent, PieChart as PieIcon, Printer, RefreshCw, ShoppingBag, Sparkles,
-  PackageX, Target, TrendingDown, TrendingUp, Undo2, UserCheck, UserRound, UserX, Users, Wallet, X,
+  PackageX, ShieldCheck, Target, TrendingDown, TrendingUp, Undo2, UserCheck, UserRound, UserX, Users, Wallet, X,
 } from 'lucide-react'
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { useApi } from './api'
@@ -32,11 +32,17 @@ const NAV_GROUPS = [
   ['مشتری و فاکتور', ['invoice', 'customer', 'visitor'], true],
   ['سیستم', ['health'], true],
 ]
-const NAV_SECTIONS = (() => {
-  const grouped = NAV_GROUPS.map(([label, ids, collapsible]) => [label, NAV.filter(([id]) => ids.includes(id)), collapsible])
-  const rest = NAV.filter(([id]) => !NAV_GROUPS.some(([, ids]) => ids.includes(id)))
-  return rest.length ? [...grouped, ['سایر', rest, true]] : grouped
-})()
+// The admin entry is not a report page: App adds it only for principals with is_admin.
+export const ADMIN_NAV = ['admin', 'مدیریت کاربران', ShieldCheck]
+
+// Sections for the pages this principal may open (allowed = list of page ids, null = all); empty groups are dropped.
+function buildSections(allowed, isAdmin) {
+  const nav = allowed ? NAV.filter(([id]) => allowed.includes(id)) : NAV
+  const grouped = NAV_GROUPS.map(([label, ids, collapsible]) => [label, nav.filter(([id]) => ids.includes(id)), collapsible])
+  const rest = nav.filter(([id]) => !NAV_GROUPS.some(([, ids]) => ids.includes(id)))
+  const out = (rest.length ? [...grouped, ['سایر', rest, true]] : grouped).filter(([, items]) => items.length)
+  return isAdmin ? [...out, ['مدیریت', [ADMIN_NAV], false]] : out
+}
 
 function NavGroup({ label, items, collapsible, page, onNavigate, open, onToggle, index }) {
   const hasActive = items.some(([id]) => id === page)
@@ -83,8 +89,9 @@ function QuickSelect({ label, value, options, onChange, format = (x) => x }) {
 /* ---------- پوستهٔ مشترک همهٔ صفحه‌ها ---------- */
 export function ExecShell({
   page, onNavigate, core, cores, setCore, title, subtitle, month, setMonth, filters = {}, dims = {}, onFilterChange, onReset,
-  showFilters = true, hideMonth = false, error, partial, lastDataDate, syncState = 'never', syncNotice, onDismissNotice, onRefresh, onLogout, user, children,
+  showFilters = true, hideMonth = false, error, partial, lastDataDate, syncState = 'never', syncNotice, onDismissNotice, onRefresh, onLogout, user, allowedPages = null, isAdmin = false, canSync = false, children,
 }) {
+  const sections = useMemo(() => buildSections(allowedPages, isAdmin), [allowedPages, isAdmin])
   const [collapsed, setCollapsed] = useState(false)
   const [advanced, setAdvanced] = useState(false)
   const [openGroups, setOpenGroups] = useState({})
@@ -95,13 +102,13 @@ export function ExecShell({
       <aside className="exec-sidebar">
         <div className="exec-brand">
           <span className="exec-logo"><img src="/logo.jpg" alt="لوگوی کوپا گستر" /></span>
-          <div className="exec-brand-copy"><b>نبض فروش</b><small>{cores[core]}</small></div>
+          <div className="exec-brand-copy"><b>نبض فروش</b><small>{cores[core] ?? ''}</small></div>
           <button type="button" className="exec-collapse" aria-label={collapsed ? 'باز کردن منو' : 'جمع کردن منو'} onClick={() => setCollapsed((v) => !v)}>
             {collapsed ? <ChevronLeft size={17} /> : <ChevronRight size={17} />}
           </button>
         </div>
         <nav className="exec-nav" aria-label="گزارش‌ها">
-          {NAV_SECTIONS.map(([group, items, collapsible], i) => {
+          {sections.map(([group, items, collapsible], i) => {
             // A group the user has not toggled opens when it holds the current page.
             const open = openGroups[group] ?? items.some(([id]) => id === page)
             return (
@@ -120,9 +127,11 @@ export function ExecShell({
               <small>{running ? 'در حال به‌روزرسانی' : syncState === 'failed' ? 'آخرین به‌روزرسانی ناموفق بود' : lastDataDate ? `داده تا ${faDigits(lastDataDate)}` : 'منبع: SR-1405.xlsx'}</small>
             </div>
           </div>
-          <button type="button" className="exec-refresh" onClick={onRefresh} disabled={running}>
-            <RefreshCw size={16} className={running ? 'spin' : ''} /><span>{running ? 'در حال به‌روزرسانی…' : 'به‌روزرسانی داده'}</span>
-          </button>
+          {canSync && (
+            <button type="button" className="exec-refresh" onClick={onRefresh} disabled={running}>
+              <RefreshCw size={16} className={running ? 'spin' : ''} /><span>{running ? 'در حال به‌روزرسانی…' : 'به‌روزرسانی داده'}</span>
+            </button>
+          )}
           {onLogout && (
             <div className="exec-profile">
               <span className="exec-avatar" aria-hidden="true"><UserRound size={17} /></span>
@@ -142,14 +151,18 @@ export function ExecShell({
           </div>
           <div className="exec-header-actions">
             {lastDataDate && <span className="exec-live" title="آخرین روز دارای داده در پایگاه"><i /> داده تا {dayLabel(lastDataDate)}</span>}
-            <div className="seg" role="tablist" aria-label="هسته فروش">
-              {Object.entries(cores).map(([k, v]) => (
-                <button type="button" key={k} role="tab" aria-selected={core === k} className={core === k ? 'on' : ''} onClick={() => setCore(k)}>{v}</button>
-              ))}
-            </div>
-            <button type="button" className="exec-refresh-mini" onClick={onRefresh} disabled={running} aria-label="به‌روزرسانی داده" title="به‌روزرسانی داده">
-              <RefreshCw size={17} className={running ? 'spin' : ''} />
-            </button>
+            {page !== 'admin' && Object.keys(cores).length > 1 && (
+              <div className="seg" role="tablist" aria-label="هسته فروش">
+                {Object.entries(cores).map(([k, v]) => (
+                  <button type="button" key={k} role="tab" aria-selected={core === k} className={core === k ? 'on' : ''} onClick={() => setCore(k)}>{v}</button>
+                ))}
+              </div>
+            )}
+            {canSync && (
+              <button type="button" className="exec-refresh-mini" onClick={onRefresh} disabled={running} aria-label="به‌روزرسانی داده" title="به‌روزرسانی داده">
+                <RefreshCw size={17} className={running ? 'spin' : ''} />
+              </button>
+            )}
             <button type="button" className="exec-refresh-mini" onClick={() => window.print()} aria-label="چاپ یا ذخیره PDF" title="چاپ / PDF">
               <Printer size={17} />
             </button>
@@ -485,8 +498,9 @@ export default function ExecutiveDashboard({ p, cal, month, setMonth }) {
         <Metric icon={Users} label="مشتری فعال" value={o ? fa(o.active_customers) : '—'} unit="مشتری یکتا" tone="pink" />
         <Metric icon={ArrowDownLeft} label="مجموع پروموشن" value={o ? fa(o.promo_total_rial) : '—'} unit="ریال" tone="red" />
         <Metric icon={Percent} label="درصد کل پروموشن" value={o ? pct(o.promo_percent) : '—'} unit="از فروش ناخالص · دورهٔ انتخاب‌شده" tone="red" />
-        <Metric icon={Undo2} label="حواله‌های برگشتی" value={retTotal ? fa(retTotal.returned_orders) : '—'} unit={retNote ?? `از ${fa(retTotal.orders)} حواله پخش`} tone="amber" />
-        <Metric icon={PackageX} label="درصد برگشتی حواله" value={retTotal ? pct(retTotal.return_percent) : '—'} unit={retNote ?? (ret.data.ignored_filters?.length ? 'مبلغ برگشتی ÷ مبلغ حواله · برخی فیلترها اعمال نشد' : 'مبلغ برگشتی ÷ مبلغ حواله')} tone="red" />
+        <Metric icon={Undo2} label="حواله‌های برگشتی" value={retTotal ? fa(retTotal.returned_orders) : '—'} unit={retNote ?? `${pct(retTotal.returned_order_percent)} از ${fa(retTotal.orders)} حواله پخش`} tone="amber" />
+        <Metric icon={PackageX} label="درصد برگشتی حواله" value={retTotal ? pct(retTotal.return_percent) : '—'} unit={retNote ?? `${fa(retTotal.return_rial)} ریال برگشتی از ${fa(retTotal.order_rial)} ریال حواله`} tone="red" />
+        <Metric icon={PackageX} label="تعداد فاکتور تحویلی" value={retTotal ? fa(retTotal.invoiced_orders) : '—'} unit={retNote ?? `${pct(retTotal.invoiced_order_percent)} درصد تحویل حواله‌ها · ${pct(retTotal.invoiced_rial_percent)} درصد ریال`} tone="blue" />
       </section>
 
       <section className="exec-grid">

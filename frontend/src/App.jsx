@@ -1,4 +1,5 @@
 import TargetPage from './TargetPage'
+import AdminPage from './AdminPage'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { get, post, useApi } from './api'
 import { monthLabel, monthRange } from './format'
@@ -7,12 +8,14 @@ import { BranchRegionPage, CustomerPage, GrowthPage, HealthPage, InactiveCustome
 
 const CORES = { kg: 'کوپا گستر', ch: 'زنجیره‌ای' }
 const SHARED_KEYS = ['month', 'branch', 'region', 'state', 'city', 'brand', 'group', 'grade', 'sales_type', 'main_group', 'sub_group']
+const PAGE_IDS = [...NAV.map(([k]) => k), 'admin']
+// An unknown page is '' here; App turns it (and any page the user may not open) into the first page they can access.
 const parseHash = () => {
   const [path, query = ''] = location.hash.slice(1).split('?')
   const [rawPage, ...rest] = path.split('/')
   const page = decodeURIComponent(rawPage)
   const q = new URLSearchParams(query)
-  return { page: NAV.some(([k]) => k === page) ? page : 'overview', arg: decodeURIComponent(rest.join('/')), q }
+  return { page: PAGE_IDS.includes(page) ? page : '', arg: decodeURIComponent(rest.join('/')), q }
 }
 const pageFromHash = () => { const { page, arg } = parseHash(); return { page, arg } }
 const initialState = () => {
@@ -36,10 +39,22 @@ export default function App({ onLogout }) {
   const [error, setError] = useState(null)
   const [ver, setVer] = useState(0)
   const [syncNotice, setSyncNotice] = useState('')
-  const options = useApi('/filters', { core, v: ver, ...(dims.branch && { branch: dims.branch }), ...(dims.region && { region: dims.region }), ...(dims.state && { state: dims.state }), ...(dims.city && { city: dims.city }), ...(dims.main_group && { main_group: dims.main_group }) })
+  // What this user may open comes from /auth/me (pages, cores, is_admin); the backend enforces the same rules.
+  const me = useApi('/auth/me', {})
+  const principal = me.data
+  const allowedPages = useMemo(() => principal?.pages ?? [], [principal])
+  const allowedCores = useMemo(() => Object.keys(CORES).filter((k) => principal?.cores?.includes(k)), [principal])
+  const visibleCores = useMemo(() => Object.fromEntries(allowedCores.map((k) => [k, CORES[k]])), [allowedCores])
+  const isAdmin = Boolean(principal?.is_admin)
+  const home = NAV.find(([k]) => allowedPages.includes(k))?.[0] ?? (isAdmin ? 'admin' : null)
+  const canOpen = (pg) => (pg === 'admin' ? isAdmin : allowedPages.includes(pg))
+  // A hash for a page the user may not open falls back to their first allowed page.
+  const page = principal ? (canOpen(route.page) ? route.page : home) : null
+  const arg = page === route.page ? route.arg : ''
+  const reports = Boolean(principal) && page !== 'admin' && allowedCores.includes(core)
+  const options = useApi('/filters', { core, v: ver, ...(dims.branch && { branch: dims.branch }), ...(dims.region && { region: dims.region }), ...(dims.state && { state: dims.state }), ...(dims.city && { city: dims.city }), ...(dims.main_group && { main_group: dims.main_group }) }, reports)
   const [tick, setTick] = useState(0)
   const sync = useApi('/sync-status', { t: tick })
-  const me = useApi('/auth/me', {})
   const syncState = sync.data?.state
   const running = syncState === 'running'
   const prevSync = useRef(syncState)
@@ -75,12 +90,17 @@ export default function App({ onLogout }) {
     get('/calendar').then(setCal).catch(() => setCal(null))
   }, [ver])
   const startSync = () => {
+    if (!isAdmin) return
     post('/sync')
       .then(() => setTick((n) => n + 1))
       .catch(() => setError('شروع به‌روزرسانی ممکن نشد.'))
   }
   const firstCore = useRef(true)
   const prevCore = useRef(core)
+  // Start on, and never stay on, a core the user is not allowed to see (also covers a ?core= in the hash).
+  useEffect(() => {
+    if (principal && allowedCores.length && !allowedCores.includes(core)) setCore(allowedCores[0])
+  }, [principal, allowedCores, core])
   useEffect(() => {
     if (firstCore.current) { firstCore.current = false; return }
     if (prevCore.current !== core && !hashDriven.current) { setMonth(''); setDims({}) }
@@ -107,14 +127,20 @@ export default function App({ onLogout }) {
     if (k === 'main_group' && d.main_group !== v) delete n.sub_group
     return n
   })
-  const { page, arg } = route
   useEffect(() => {
-    const next = `#${buildHash(page, arg)}`
+    if (!principal) return
+    const next = `#${buildHash(page ?? '', arg)}`
     if (location.hash !== next) history.replaceState(null, '', next)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [core, month, dims, page, arg])
-  const title = NAV.find(([k]) => k === page)[1]
-  const subtitle = page === 'target'
+  }, [principal, core, month, dims, page, arg])
+  if (me.error) return <div className="exec-alert err" role="alert" dir="rtl">دریافت اطلاعات حساب ناموفق بود.</div>
+  if (!principal) return <div className="banner" dir="rtl">در حال بارگذاری…</div>
+  const title = page === 'admin' ? 'مدیریت کاربران و نقش‌ها' : page ? NAV.find(([k]) => k === page)[1] : 'بدون دسترسی'
+  const subtitle = page === 'admin'
+    ? 'کاربران، نقش‌ها و گزارش رویدادهای سامانه'
+    : !page
+      ? 'برای این حساب صفحه‌ای فعال نشده است؛ با مدیر سامانه تماس بگیرید.'
+    : page === 'target'
     ? 'پیشرفت فروش نسبت به تارگت ماهانه · مبالغ به ریال و شامل مالیات و عوارض'
     : page === 'returns'
       ? `دوره: ${month ? monthLabel(month) : 'همه ماه‌ها'} · حواله‌های پخش، مبالغ به ریال · جدا از ردیف‌های مرجوعی فروش (SR)`
@@ -122,11 +148,15 @@ export default function App({ onLogout }) {
 
   return (
     <ExecShell
-      page={page} onNavigate={go} core={core} cores={CORES} setCore={setCore} title={title} subtitle={subtitle}
+      page={page} onNavigate={go} core={core} cores={visibleCores} setCore={setCore} title={title} subtitle={subtitle}
       month={month} setMonth={setMonth} filters={options.data ?? {}} dims={dims} onFilterChange={setDim}
-      onReset={() => { setMonth(''); setDims({}) }} showFilters={page !== 'health' && page !== 'customer' && page !== 'target'} hideMonth={page === 'monthly' || page === 'growth' || page === 'inactive'}
-      error={error} partial={partial} lastDataDate={health?.last_data_date} syncState={syncState} syncNotice={syncNotice} onDismissNotice={() => setSyncNotice('')} onRefresh={startSync} onLogout={onLogout} user={me.data?.user}
+      onReset={() => { setMonth(''); setDims({}) }} showFilters={reports && page !== 'health' && page !== 'customer' && page !== 'target'} hideMonth={page === 'monthly' || page === 'growth' || page === 'inactive'}
+      error={error} partial={partial} lastDataDate={health?.last_data_date} syncState={syncState} syncNotice={syncNotice} onDismissNotice={() => setSyncNotice('')} onRefresh={startSync} onLogout={onLogout} user={principal.user}
+      allowedPages={allowedPages} isAdmin={isAdmin} canSync={isAdmin}
     >
+      {page === 'admin' && isAdmin && <AdminPage />}
+      {page && page !== 'admin' && !allowedCores.length && <div className="empty">برای این حساب هسته‌ای فعال نشده است.</div>}
+      {reports && page !== 'admin' && <>
       {page === 'overview' && <ExecutiveDashboard p={p} cal={cal} month={month} setMonth={setMonth} />}
       {page === 'trend' && <TrendPage p={p} />}
       {page === 'monthly' && <MonthlyTrendPage p={p} />}
@@ -142,6 +172,7 @@ export default function App({ onLogout }) {
       {page === 'inactive' && <InactiveCustomersPage p={p} openCustomer={(c) => go('customer', c)} openVisitor={(c) => go('visitor', c)} />}
       {page === 'customer' && <CustomerPage key={arg} core={core} code={arg} setCode={(c) => go('customer', c)} openReturns={(a) => go('returns', a)} />}
       {page === 'health' && <HealthPage health={health} meta={meta} quality={quality} />}
+      </>}
     </ExecShell>
   )
 }

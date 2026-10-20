@@ -75,7 +75,7 @@ def target_report(request: Request, core: str = "kg", month: str | None = Query(
     try:
         if not _table_exists(con, "fact_target"):
             return {"available": False, "core": core, "months": [], "reason": "هنوز هیچ تارگتی بارگذاری نشده است."}
-        t_scope, t_sargs = rbac.branch_clause("t.branch")
+        t_scope, t_sargs = rbac.scope_clause("t")
         months = [{"month": m, "rows": n, "target_rial": s, "loaded_at": at} for m, n, s, at in con.execute(
             f"""SELECT t.month, COUNT(*), SUM(t.target_rial), MAX(m.loaded_at) FROM fact_target t
                LEFT JOIN ingest_manifest m ON m.file_name = t.chunk_id || '.tsv'
@@ -85,14 +85,14 @@ def target_report(request: Request, core: str = "kg", month: str | None = Query(
         ym = month or months[0]["month"]
         if ym not in {m["month"] for m in months}:
             raise HTTPException(404, "تارگت این ماه بارگذاری نشده است")
-        b_scope, b_sargs = rbac.branch_clause("branch")
+        b_scope, b_sargs = rbac.scope_clause()
         trows = [T(*r) for r in con.execute(
             f"""SELECT branch, line, target_category, product_group, visitor_code, visitor_name, supervisor, manager, target_rial
                FROM fact_target WHERE core=? AND month=?{b_scope}""", [name, ym, *b_sargs]).fetchall()]
         by_name = {n: (c, k) for n, c, k in con.execute(
             """SELECT visitor, ANY_VALUE(visitor_code), COUNT(DISTINCT visitor_code) FROM fact_sales
                WHERE core=? AND visitor IS NOT NULL AND visitor_code IS NOT NULL GROUP BY 1""", [name]).fetchall()}
-        s_scope, s_sargs = rbac.branch_clause("s.branch")
+        s_scope, s_sargs = rbac.scope_clause("s")
         sales = con.execute(
             f"""SELECT s.branch, s.group_name, s.visitor_code, d.target_category, COALESCE(s.jdate_key, 0) % 100, SUM(s.rial_vat)
                FROM fact_sales s LEFT JOIN dim_product d ON d.unique_product_code = s.unique_product_code
