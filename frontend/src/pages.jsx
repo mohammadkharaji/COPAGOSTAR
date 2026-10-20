@@ -364,6 +364,34 @@ export function InactiveCustomersPage({ p, openCustomer, openVisitor }) {
 }
 
 /* ---------- تحلیل فاکتور ---------- */
+function InvoiceCompare({ p }) {
+  const r = useApi('/invoice-compare', { ...p, day: p.end ? p.end.replaceAll('-', '/') : undefined })
+  const row = (label, key, fmt) => {
+    const ch = r.data?.change?.[key]
+    return (
+      <tr key={key}>
+        <td>{label}</td>
+        <td>{r.data ? fmt(r.data.current[key]) : '—'}</td>
+        <td>{r.data ? fmt(r.data.previous[key]) : '—'}</td>
+        <td className={ch == null ? '' : ch >= 0 ? 'pos' : 'neg'}>{ch == null ? '—' : `${ch >= 0 ? '+' : ''}${pct(ch, 1)}`}</td>
+      </tr>
+    )
+  }
+  if (!r.data || !r.data.available) return null
+  return (
+    <Panel title="مقایسه با همان روز ماه قبل" note={`از ابتدای ماه تا ${r.data.day} در برابر همان بازه در ماه قبل`} full>
+      <table className="compare">
+        <thead><tr><th>شاخص</th><th>{`این ماه (${fa(r.data.current.to % 100)} روز)`}</th><th>ماه قبل</th><th>تغییر</th></tr></thead>
+        <tbody>
+          {row('تعداد فاکتور', 'invoices', (v) => fa(v))}
+          {row('جمع فروش فاکتورها (ریال)', 'sales_rial', (v) => rial(v))}
+          {row('میانگین هر فاکتور (ریال)', 'avg_invoice_rial', (v) => rial(v))}
+        </tbody>
+      </table>
+    </Panel>
+  )
+}
+
 export function InvoicePage({ p }) {
   const [step, setStep] = useState('10000000')
   const r = useApi('/invoice-bands', { ...p, step })
@@ -378,6 +406,7 @@ export function InvoicePage({ p }) {
               <Kpi label="جمع فروش فاکتورها" value={rial(j.total_rial)} unit="ریال" />
               <Kpi label="میانگین هر فاکتور" value={j.total_invoices ? rial(j.total_rial / j.total_invoices) : '—'} unit="ریال" tone="teal" />
             </section>
+            <InvoiceCompare p={p} />
             <InvoiceLinesSection p={p} />
             <div className="toolbar" style={{ marginTop: 24 }}>
               <label className="field">عرض بازه فاکتور

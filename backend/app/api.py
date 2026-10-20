@@ -851,6 +851,45 @@ def invoice_bands(request: Request, core: str = DEFAULT_CORE, start: str | None 
     return {"step_rial": step, "total_invoices": total_n, "total_rial": total_v, "bands": out}
 
 
+@app.get("/api/invoice-compare")
+def invoice_compare(request: Request, core: str = DEFAULT_CORE, day: str | None = None):
+    """Same day-of-month last month vs this month, from day 1: invoices, sales and average invoice (current filters)."""
+    name = _core(core)
+    dim, dargs = _dims(request)
+    con = _con()
+    try:
+        if not day:
+            last = con.execute("SELECT MAX(jdate_key) FROM fact_sales WHERE core=?", [name]).fetchone()[0]
+            if not last:
+                return {"available": False}
+            day = f"{last // 10000}/{(last // 100) % 100:02d}/{last % 100:02d}"
+        digits = day.replace("/", "")
+        if not digits.isdigit() or len(digits) != 8:
+            raise HTTPException(400, "فرمت تاریخ باید 1405/07/27 باشد")
+        y, m, d = int(digits[:4]), int(digits[4:6]), int(digits[6:])
+        pm, py = (m - 1, y) if m > 1 else (12, y - 1)
+        cur_end, prev_end = y * 10000 + m * 100 + d, py * 10000 + pm * 100 + d
+        cur_start, prev_start = y * 10000 + m * 100 + 1, py * 10000 + pm * 100 + 1
+
+        def agg(start: int, end: int) -> dict:
+            n, v = con.execute(
+                f"""SELECT COUNT(DISTINCT invoice_code), COALESCE(SUM(rial_vat), 0) FROM fact_sales
+                    WHERE core=? AND {SALES_ONLY} AND invoice_code IS NOT NULL AND jdate_key BETWEEN ? AND ?{dim}""",
+                [name, start, end, *dargs]).fetchone()
+            return {"invoices": n, "sales_rial": v, "avg_invoice_rial": (v / n) if n else 0}
+
+        cur, prev = agg(cur_start, cur_end), agg(prev_start, prev_end)
+    finally:
+        con.close()
+
+    def change(a: float, b: float) -> float | None:
+        return (a - b) / b if b else None
+
+    return {"available": True, "day": day, "current": {"from": cur_start, "to": cur_end, **cur},
+            "previous": {"from": prev_start, "to": prev_end, **prev},
+            "change": {k: change(cur[k], prev[k]) for k in ("invoices", "sales_rial", "avg_invoice_rial")}}
+
+
 LINE_BUCKET_MAX = 10
 
 

@@ -523,3 +523,22 @@ def test_inactive_report_needs_login_and_its_own_page(inactive_client):
     assert anon.get("/api/inactive-customers/export").status_code == 401
     assert rbac.access_for("GET", "/api/inactive-customers/export") == ("pages", ("inactive",))
     assert rbac.access_for("GET", "/api/inactive-customers") == ("pages", ("inactive",))
+
+
+def test_invoice_compare_same_day_last_month(tmp_path, monkeypatch):
+    s = "SRSalesProcedure1405"
+    c = build_client(tmp_path, monkeypatch, {
+        "sr_kg_140506": [make_row(s, "p1", "C1", "1000", "10", date="1405/06/10", brand="A")],
+        "sr_kg_140507": [
+            make_row(s, "c1", "C1", "3000", "30", date="1405/07/05", brand="A"),
+            make_row(s, "c2", "C2", "1000", "10", date="1405/07/20", brand="A"),
+            make_row(s, "c3", "C3", "9999", "99", date="1405/07/28", brand="A")],
+    })
+    body = c.get("/api/invoice-compare", params={"core": "kg", "day": "1405/07/27"}).json()
+    assert body["available"] is True
+    assert body["current"]["from"] == 14050701 and body["current"]["to"] == 14050727
+    assert body["previous"]["from"] == 14050601 and body["previous"]["to"] == 14050627
+    assert body["current"]["invoices"] == 2
+    assert body["previous"]["invoices"] == 1
+    assert body["change"]["invoices"] == 1.0
+    assert body["change"]["sales_rial"] == (body["current"]["sales_rial"] - body["previous"]["sales_rial"]) / body["previous"]["sales_rial"]
