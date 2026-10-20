@@ -42,7 +42,7 @@ export default function App({ onLogout }) {
   // What this user may open comes from /auth/me (pages, cores, is_admin); the backend enforces the same rules.
   const me = useApi('/auth/me', {})
   const principal = me.data
-  const allowedPages = useMemo(() => principal?.pages ?? [], [principal])
+  const allowedPages = useMemo(() => [...(principal?.pages ?? []), 'tickets'], [principal])
   const allowedCores = useMemo(() => Object.keys(CORES).filter((k) => principal?.cores?.includes(k)), [principal])
   const visibleCores = useMemo(() => Object.fromEntries(allowedCores.map((k) => [k, CORES[k]])), [allowedCores])
   const isAdmin = Boolean(principal?.is_admin)

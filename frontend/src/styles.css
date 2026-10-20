@@ -575,3 +575,36 @@ tbody tr:hover, tbody tr.sel { background: #fbf3e0; }
   .adm-scope-tools { flex-direction: column; align-items: stretch; }
   .adm-detail pre { max-width: 100%; }
 }
+
+/* Password dialog */
+.exec-modal-backdrop { position: fixed; inset: 0; z-index: 60; display: grid; place-items: center; background: #0a1a2e80; padding: 16px; }
+.exec-modal { width: min(420px, 100%); display: grid; gap: 12px; padding: 22px; border-radius: var(--radius); background: var(--card); color: var(--ink); box-shadow: 0 20px 50px #0a1a2e55; direction: rtl; }
+.exec-modal h3 { margin: 0; font-size: 17px; font-weight: 800; }
+.exec-modal label { display: grid; gap: 6px; font-size: 13px; color: var(--muted); font-weight: 600; }
+.exec-modal input { height: 40px; border: 1px solid var(--line); border-radius: 10px; padding: 0 12px; font: inherit; color: var(--ink); background: var(--paper); direction: ltr; text-align: left; }
+.exec-modal input:focus { outline: 2px solid var(--saffron); outline-offset: 1px; }
+.exec-modal-err { margin: 0; color: var(--neg); font-size: 13px; font-weight: 600; }
+.exec-modal-actions { display: flex; justify-content: flex-start; gap: 8px; margin-top: 4px; }
+.exec-modal-actions button { height: 38px; padding: 0 16px; border-radius: 10px; border: 1px solid var(--line); background: var(--card); color: var(--ink); font: inherit; font-weight: 700; cursor: pointer; }
+.exec-modal-actions button.primary { border-color: transparent; background: var(--ink); color: #fff; }
+.exec-user-btn { all: unset; cursor: pointer; display: inline; }
+.exec-user-btn:hover b { text-decoration: underline; }
+.exec-user-btn:focus-visible { outline: 2px solid var(--saffron); outline-offset: 2px; border-radius: 4px; }
+
+/* Tickets */
+.tickets { display: grid; gap: 16px; }
+.ticket-form { display: grid; gap: 10px; }
+.ticket-form input, .ticket-form textarea { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; font: inherit; color: var(--ink); background: var(--paper); resize: vertical; }
+.ticket-form input:focus, .ticket-form textarea:focus { outline: 2px solid var(--saffron); outline-offset: 1px; }
+.ticket-form button { justify-self: start; height: 40px; padding: 0 18px; border-radius: 10px; border: 0; background: var(--ink); color: #fff; font: inherit; font-weight: 700; cursor: pointer; }
+.ticket-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.ticket-row { width: 100%; display: grid; gap: 4px; text-align: right; padding: 12px 14px; border: 1px solid var(--line); border-radius: 12px; background: var(--card); color: var(--ink); font: inherit; cursor: pointer; }
+.ticket-row:hover { border-color: var(--saffron); }
+.ticket-row.active { border-color: var(--petrol); background: #174c5a0d; }
+.ticket-row small { color: var(--muted); font-size: 12px; }
+.ticket-err { margin: 0 0 8px; color: var(--neg); font-weight: 600; }
+.ticket-thread { display: grid; gap: 10px; margin-bottom: 12px; }
+.ticket-msg { padding: 10px 14px; border-radius: 12px; background: var(--paper); border: 1px solid var(--line); }
+.ticket-msg.admin { background: #e4a53a1f; border-color: #e4a53a66; }
+.ticket-msg small { color: var(--muted); font-size: 12px; }
+.ticket-msg p { margin: 6px 0 0; white-space: pre-wrap; line-height: 1.8; }
