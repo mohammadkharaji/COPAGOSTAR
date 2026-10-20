@@ -408,6 +408,17 @@ export function TicketsPage({ isAdmin }) {
   const list = useApi('/tickets', { v: tick })
   const one = useApi(openId ? `/tickets/${openId}` : null, { v: tick })
   const refresh = () => setTick((n) => n + 1)
+  useEffect(() => {
+    const t = setInterval(() => setTick((n) => n + 1), 20000)
+    return () => clearInterval(t)
+  }, [])
+  const setStatus = async (action) => {
+    setErr('')
+    try {
+      await postJson(`/tickets/${openId}/status`, { action })
+      refresh()
+    } catch (ex) { setErr(ex?.message || 'تغییر وضعیت انجام نشد') }
+  }
   const send = async (e) => {
     e.preventDefault()
     setErr('')
@@ -455,6 +466,14 @@ export function TicketsPage({ isAdmin }) {
       </Panel>
       {openId && one.data && (
         <Panel title={`تیکت: ${one.data.subject}`} note={`${statusLabel[one.data.status] ?? one.data.status}${isAdmin ? ` · ${one.data.owner ?? ''}` : ''}`} full>
+          {isAdmin && (
+            <div className="ticket-admin-actions">
+              {one.data.status === 'closed'
+                ? <button type="button" onClick={() => setStatus('reopen')}>بازکردن تیکت</button>
+                : <button type="button" onClick={() => setStatus('close')}>بستن تیکت</button>}
+              <small>تیکت‌های بسته‌شده پس از ۷ روز از سرور حذف می‌شوند.</small>
+            </div>
+          )}
           <div className="ticket-thread">
             {one.data.messages.map((m, i) => (
               <div key={i} className={`ticket-msg${m.is_admin ? ' admin' : ''}`}>
@@ -463,10 +482,14 @@ export function TicketsPage({ isAdmin }) {
               </div>
             ))}
           </div>
+          {one.data.status === 'closed' && !isAdmin
+            ? <p>این تیکت بسته شده است. برای پیگیری، تیکت جدید ثبت کنید.</p>
+            : (
           <form className="ticket-form" onSubmit={sendReply}>
             <textarea value={reply} onChange={(e) => setReply(e.target.value)} placeholder="پاسخ" maxLength={4000} rows={3} required />
             <button type="submit" className="primary">ارسال پاسخ</button>
           </form>
+            )}
         </Panel>
       )}
     </div>

@@ -77,7 +77,8 @@ CREATE TABLE IF NOT EXISTS tickets(
     subject TEXT NOT NULL,
     status TEXT NOT NULL DEFAULT 'open',
     created_at TEXT NOT NULL,
-    updated_at TEXT NOT NULL);
+    updated_at TEXT NOT NULL,
+    closed_at TEXT);
 CREATE TABLE IF NOT EXISTS ticket_messages(
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     ticket_id INTEGER NOT NULL REFERENCES tickets(id) ON DELETE CASCADE,
@@ -116,6 +117,8 @@ def _migrate(con: sqlite3.Connection) -> None:
         legacy = True
     else:
         legacy = False
+    if "closed_at" not in _columns(con, "tickets") and _columns(con, "tickets"):
+        con.execute("ALTER TABLE tickets ADD COLUMN closed_at TEXT")
     for col in ("branches", "supervisors"):
         if col not in _columns(con, "users"):
             con.execute(f"ALTER TABLE users ADD COLUMN {col} TEXT NOT NULL DEFAULT '[]'")

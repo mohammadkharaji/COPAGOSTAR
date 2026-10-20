@@ -608,3 +608,7 @@ tbody tr:hover, tbody tr.sel { background: #fbf3e0; }
 .ticket-msg.admin { background: #e4a53a1f; border-color: #e4a53a66; }
 .ticket-msg small { color: var(--muted); font-size: 12px; }
 .ticket-msg p { margin: 6px 0 0; white-space: pre-wrap; line-height: 1.8; }
+
+.ticket-admin-actions { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 4px; }
+.ticket-admin-actions button { height: 36px; padding: 0 14px; border-radius: 10px; border: 1px solid var(--line); background: var(--card); color: var(--ink); font: inherit; font-weight: 700; cursor: pointer; }
+.ticket-admin-actions small { color: var(--muted); font-size: 12px; }
