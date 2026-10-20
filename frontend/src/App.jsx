@@ -157,7 +157,7 @@ export default function App({ onLogout }) {
       {page === 'admin' && isAdmin && <AdminPage />}
       {page && page !== 'admin' && !allowedCores.length && <div className="empty">برای این حساب هسته‌ای فعال نشده است.</div>}
       {reports && page !== 'admin' && <>
-      {page === 'overview' && <ExecutiveDashboard p={p} cal={cal} month={month} setMonth={setMonth} />}
+      {page === 'overview' && <ExecutiveDashboard p={p} cal={cal} month={month} setMonth={setMonth} onOpenReturns={() => go('returns')} />}
       {page === 'trend' && <TrendPage p={p} />}
       {page === 'monthly' && <MonthlyTrendPage p={p} />}
       {page === 'target' && <TargetPage key={core} core={core} />}

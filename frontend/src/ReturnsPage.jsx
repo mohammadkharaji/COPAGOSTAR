@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState } from 'react'
-import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
+import { Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { CircleAlert, CircleMinus, ExternalLink, Info } from 'lucide-react'
 import { useApi } from './api'
 import { fa, monthName } from './format'
@@ -66,6 +66,24 @@ function ReturnBars({ rows, x, tickFn }) {
   )
 }
 
+const PIE_COLORS = ['var(--neg)', 'var(--petrol)', 'var(--saffron)', 'var(--teal)', 'var(--ink)', '#8a6d3b', '#6b7f95', '#b07aa1', '#5b8c5a']
+
+function ReturnPie({ rows, nameKey }) {
+  const data = rows.map((r) => ({ name: String(r[nameKey] ?? '—'), value: r.return_rial ?? 0 })).filter((r) => r.value > 0)
+  return (
+    <div className="chart" role="img" aria-label="نمودار سهم شعبه‌ها از مبلغ برگشتی">
+      <ResponsiveContainer width="100%" height="100%">
+        <PieChart>
+          <Pie data={data} dataKey="value" nameKey="name" innerRadius="48%" outerRadius="78%" paddingAngle={2} stroke="none">
+            {data.map((_, i) => <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />)}
+          </Pie>
+          <Tooltip content={<ChartTip labelFn={(v) => String(v)} unit="ریال" />} />
+        </PieChart>
+      </ResponsiveContainer>
+    </div>
+  )
+}
+
 const aggCols = (first) => [
   first,
   { label: 'تعداد حواله', render: (r) => fa(r.orders), value: (r) => r.orders },
@@ -87,7 +105,7 @@ function ViewPanel({ view, s }) {
   if (view === 'branch') {
     return (
       <>
-        <ReturnBars rows={s.branches} x="branch" tickFn={(v) => String(v ?? '—')} />
+        <ReturnPie rows={s.branches} nameKey="branch" />
         <Table name="برگشتی-شعبه" rows={s.branches} columns={aggCols({ label: 'شعبه', render: (r) => r.branch ?? '—', value: (r) => String(r.branch ?? '') })} />
       </>
     )

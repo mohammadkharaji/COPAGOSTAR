@@ -215,14 +215,15 @@ export function ExecShell({
   )
 }
 
-function Metric({ icon: Icon, label, value, unit, tone = 'blue' }) {
+function Metric({ icon: Icon, label, value, unit, tone = 'blue', onClick }) {
+  const Tag = onClick ? 'button' : 'article'
   return (
-    <article className={`exec-metric ${tone}`}>
+    <Tag type={onClick ? 'button' : undefined} onClick={onClick} className={`exec-metric ${tone}${onClick ? ' clickable' : ''}`}>
       <div className="exec-metric-top"><i aria-hidden="true"><Icon size={18} /></i></div>
       <span className="exec-metric-label">{label}</span>
       <strong>{value}</strong>
       <small>{unit}</small>
-    </article>
+    </Tag>
   )
 }
 
@@ -452,7 +453,7 @@ function CompareCard({ dims, month, pace, months }) {
 }
 
 /* ---------- محتوای نمای کلی ---------- */
-export default function ExecutiveDashboard({ p, cal, month, setMonth }) {
+export default function ExecutiveDashboard({ p, cal, month, setMonth, onOpenReturns }) {
   const { month: _m, start: _s, end: _e, ...dims } = p
   const ov = useApi('/overview', p)
   const invoiceLines = useApi('/invoice-lines', p)
@@ -498,9 +499,9 @@ export default function ExecutiveDashboard({ p, cal, month, setMonth }) {
         <Metric icon={Users} label="مشتری فعال" value={o ? fa(o.active_customers) : '—'} unit="مشتری یکتا" tone="pink" />
         <Metric icon={ArrowDownLeft} label="مجموع پروموشن" value={o ? fa(o.promo_total_rial) : '—'} unit="ریال" tone="red" />
         <Metric icon={Percent} label="درصد کل پروموشن" value={o ? pct(o.promo_percent) : '—'} unit="از فروش ناخالص · دورهٔ انتخاب‌شده" tone="red" />
-        <Metric icon={Undo2} label="حواله‌های برگشتی" value={retTotal ? fa(retTotal.returned_orders) : '—'} unit={retNote ?? `${pct(retTotal.returned_order_percent)} از ${fa(retTotal.orders)} حواله پخش`} tone="amber" />
-        <Metric icon={PackageX} label="درصد برگشتی حواله" value={retTotal ? pct(retTotal.return_percent) : '—'} unit={retNote ?? `${fa(retTotal.return_rial)} ریال برگشتی از ${fa(retTotal.order_rial)} ریال حواله`} tone="red" />
-        <Metric icon={PackageX} label="تعداد فاکتور تحویلی" value={retTotal ? fa(retTotal.invoiced_orders) : '—'} unit={retNote ?? `${pct(retTotal.invoiced_order_percent)} درصد تحویل حواله‌ها · ${pct(retTotal.invoiced_rial_percent)} درصد ریال`} tone="blue" />
+        <Metric icon={Undo2} label="حواله‌های برگشتی" value={retTotal ? fa(retTotal.returned_orders) : '—'} unit={retNote ?? `${pct(retTotal.returned_order_percent)} از ${fa(retTotal.orders)} حواله پخش`} tone="amber"  onClick={onOpenReturns}/>
+        <Metric icon={PackageX} label="درصد برگشتی حواله" value={retTotal ? pct(retTotal.return_percent) : '—'} unit={retNote ?? `${fa(retTotal.return_rial)} ریال برگشتی از ${fa(retTotal.order_rial)} ریال حواله`} tone="red"  onClick={onOpenReturns}/>
+        <Metric icon={PackageX} label="تعداد فاکتور تحویلی" value={retTotal ? fa(retTotal.invoiced_orders) : '—'} unit={retNote ?? `${pct(retTotal.invoiced_order_percent)} درصد تحویل حواله‌ها · ${pct(retTotal.invoiced_rial_percent)} درصد ریال`} tone="blue"  onClick={onOpenReturns}/>
       </section>
 
       <section className="exec-grid">
