@@ -70,14 +70,23 @@ const PIE_COLORS = ['var(--neg)', 'var(--petrol)', 'var(--saffron)', 'var(--teal
 
 function ReturnPie({ rows, nameKey, labelFn = (v) => String(v ?? '—') }) {
   const data = rows.map((r) => ({ name: labelFn(r[nameKey]), value: r.return_rial ?? 0 })).filter((r) => r.value > 0)
+  const total = data.reduce((sum, r) => sum + r.value, 0)
+  const share = (v) => (total ? `${pct(v / total)}` : '—')
+  const renderLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent, value }) => {
+    if (percent < 0.04) return null
+    const r = innerRadius + (outerRadius - innerRadius) * 0.5
+    const x = cx + r * Math.cos(-midAngle * Math.PI / 180)
+    const y = cy + r * Math.sin(-midAngle * Math.PI / 180)
+    return <text x={x} y={y} fill="#fff" textAnchor="middle" dominantBaseline="central" fontSize={12} fontWeight={700}>{share(value)}</text>
+  }
   return (
-    <div className="chart" role="img" aria-label="نمودار سهم شعبه‌ها از مبلغ برگشتی">
+    <div className="chart" role="img" aria-label="نمودار سهم از مبلغ برگشتی">
       <ResponsiveContainer width="100%" height="100%">
         <PieChart>
-          <Pie data={data} dataKey="value" nameKey="name" innerRadius="48%" outerRadius="78%" paddingAngle={2} stroke="none">
+          <Pie data={data} dataKey="value" nameKey="name" innerRadius="48%" outerRadius="78%" paddingAngle={2} stroke="none" label={renderLabel} labelLine={false}>
             {data.map((_, i) => <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />)}
           </Pie>
-          <Tooltip content={<ChartTip labelFn={(v) => String(v)} unit="ریال" />} />
+          <Tooltip content={<ChartTip labelFn={(v) => `${v} · ${share(data.find((d) => d.name === v)?.value ?? 0)}`} unit="ریال" />} />
         </PieChart>
       </ResponsiveContainer>
     </div>
