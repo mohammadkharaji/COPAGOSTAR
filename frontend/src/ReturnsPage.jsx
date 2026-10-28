@@ -85,7 +85,7 @@ function ReturnPie({ rows, nameKey, labelFn = (v) => String(v ?? '—'), selecte
       <ResponsiveContainer width="100%" height="100%">
         <PieChart>
           <Pie data={data} dataKey="value" nameKey="name" innerRadius="48%" outerRadius="78%" paddingAngle={2} stroke="none" label={renderLabel} labelLine={false}
-            onClick={(d) => onPick?.(d.raw)} style={{ cursor: onPick ? 'pointer' : 'default' }}>
+            onClick={(d) => { const v = d?.payload?.raw ?? d?.raw; if (v != null && v !== '') onPick?.(v) }} style={{ cursor: onPick ? 'pointer' : 'default' }}>
             {data.map((d, i) => <Cell key={i} fill={colorOf(i)} opacity={selected && d.raw !== selected ? 0.35 : 1} />)}
           </Pie>
           <Tooltip content={<ChartTip labelFn={(v) => `${v} · ${share(data.find((d) => d.name === v)?.value ?? 0)}`} unit="ریال" />} />
@@ -118,7 +118,7 @@ const aggCols = (first) => [
   { label: 'درصد برگشتی', render: (r) => pct(r.return_percent, 2), value: (r) => r.return_percent * 100, unit: '٪' },
 ]
 
-function ViewPanel({ view, s }) {
+function ViewPanel({ view, s, reason, setReason }) {
   if (view === 'month') {
     return (
       <>
@@ -231,7 +231,7 @@ export function ReturnsPage({ p, arg, setArg, openCustomer, onReason }) {
                 <section className="grid">
                   <Panel title="تحلیل برگشتی" note="مبلغ برگشتی (کامل + جزئی)، میلیون ریال" full>
                     <Toggle label="نمای گزارش برگشتی" value={view} onChange={setView} options={VIEWS} />
-                    <ViewPanel view={view} s={s} />
+                    <ViewPanel view={view} s={s} reason={reason} setReason={setReason} />
                   </Panel>
                   {scope?.by !== 'customer' && s.customers.length > 0 && (
                     <Panel title="مشتریان با بیشترین برگشتی" note="۱۵ مشتری؛ برای دیدن پروفایل روی ردیف کلیک کنید" full>
