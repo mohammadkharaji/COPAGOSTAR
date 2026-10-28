@@ -622,3 +622,10 @@ tbody tr:hover, tbody tr.sel { background: #fbf3e0; }
 .pie-legend span:nth-of-type(1) { flex: 1; }
 .pie-legend b { font-variant-numeric: tabular-nums; }
 .pie-arrow { color: var(--muted); font-weight: 700; }
+
+/* Returns pie: chart keeps its height, the reason legend flows below it without covering the table */
+.pie-wrap { display: grid; gap: 14px; }
+.pie-chart { height: 280px; }
+.pie-legend { margin: 0; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); }
+.pie-legend button { min-height: 40px; }
+.pie-legend span:nth-of-type(1) { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

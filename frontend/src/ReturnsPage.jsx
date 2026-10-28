@@ -81,7 +81,8 @@ function ReturnPie({ rows, nameKey, labelFn = (v) => String(v ?? '—'), selecte
     return <text x={x} y={y} fill="#fff" textAnchor="middle" dominantBaseline="central" fontSize={12} fontWeight={700}>{share(value)}</text>
   }
   return (
-    <div className="chart" role="img" aria-label="نمودار سهم از مبلغ برگشتی">
+    <div className="pie-wrap">
+    <div className="chart pie-chart" role="img" aria-label="نمودار سهم از مبلغ برگشتی">
       <ResponsiveContainer width="100%" height="100%">
         <PieChart>
           <Pie data={data} dataKey="value" nameKey="name" innerRadius="48%" outerRadius="78%" paddingAngle={2} stroke="none" label={renderLabel} labelLine={false}
@@ -91,6 +92,7 @@ function ReturnPie({ rows, nameKey, labelFn = (v) => String(v ?? '—'), selecte
           <Tooltip content={<ChartTip labelFn={(v) => `${v} · ${share(data.find((d) => d.name === v)?.value ?? 0)}`} unit="ریال" />} />
         </PieChart>
       </ResponsiveContainer>
+      </div>
       {onPick && (
         <ul className="pie-legend" aria-label="راهنمای رنگ‌ها">
           {data.map((d, i) => (
