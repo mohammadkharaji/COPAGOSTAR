@@ -578,7 +578,8 @@ function InvoiceLinesSection({ p }) {
 /* ---------- پروفایل مشتری ---------- */
 export function CustomerPage({ core, code, setCode, openReturns }) {
   const [draft, setDraft] = useState(code ?? '')
-  const r = useApi(`/customer/${encodeURIComponent(code ?? '')}`, { core }, Boolean(code))
+  const reasonFilter = new URLSearchParams(location.hash.split('?')[1] || '').get('reason') || undefined
+  const r = useApi(`/customer/${encodeURIComponent(code ?? '')}`, { core, reason: reasonFilter }, Boolean(code))
   return (
     <>
       <form className="toolbar" onSubmit={(e) => { e.preventDefault(); setCode(draft.trim()) }}>

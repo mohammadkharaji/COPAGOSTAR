@@ -612,3 +612,13 @@ tbody tr:hover, tbody tr.sel { background: #fbf3e0; }
 .ticket-admin-actions { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 4px; }
 .ticket-admin-actions button { height: 36px; padding: 0 14px; border-radius: 10px; border: 1px solid var(--line); background: var(--card); color: var(--ink); font: inherit; font-weight: 700; cursor: pointer; }
 .ticket-admin-actions small { color: var(--muted); font-size: 12px; }
+
+/* Reason legend under the returns pie */
+.pie-legend { list-style: none; margin: 14px 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 8px; }
+.pie-legend button { width: 100%; display: flex; align-items: center; gap: 10px; padding: 9px 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--card); color: var(--ink); font: inherit; font-size: 13px; text-align: right; cursor: pointer; }
+.pie-legend button:hover { border-color: var(--saffron); }
+.pie-legend button.active { border-color: var(--petrol); background: #174c5a0d; font-weight: 700; }
+.pie-legend i { width: 12px; height: 12px; border-radius: 3px; flex: none; }
+.pie-legend span:nth-of-type(1) { flex: 1; }
+.pie-legend b { font-variant-numeric: tabular-nums; }
+.pie-arrow { color: var(--muted); font-weight: 700; }

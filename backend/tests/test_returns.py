@@ -211,3 +211,23 @@ def test_profiles_without_any_returns_loaded(tmp_path, monkeypatch):
     assert c.get("/api/customer/C1").json()["dispatch_returns"]["total"]["orders"] == 0
     assert c.get("/api/returns/summary").json()["available"] is False
     assert c.get("/api/returns/list").json()["rows"] == []
+
+
+def test_reason_filter_applies_to_summary_and_profiles(tmp_path, monkeypatch):
+    c = api_client(tmp_path, monkeypatch)
+    s = c.get("/api/returns/summary", params={"core": "kg", "reason": "لغو سفارش"}).json()
+    assert s["total"]["orders"] == 2
+    assert s["total"]["return_rial"] == 1000 + 400
+    assert {r["reason"] for r in s["reasons"]} == {"لغو سفارش"}
+    cust = c.get("/api/customer/C1", params={"reason": "تحویل ناقص"}).json()["dispatch_returns"]
+    assert cust["total"]["orders"] == 1 and cust["total"]["return_rial"] == 300
+    assert [x["dispatch_no"] for x in cust["recent"]] == ["2"]
+    vis = c.get("/api/visitor/11", params={"reason": "لغو سفارش"}).json()["dispatch_returns"]
+    assert all(x["reason"] == "لغو سفارش" for x in vis["recent"])
+
+
+def test_reason_filter_matches_unknown_reason(tmp_path, monkeypatch):
+    c = api_client(tmp_path, monkeypatch)
+    s = c.get("/api/returns/summary", params={"core": "kg", "reason": "نامشخص"}).json()
+    assert s["total"]["orders"] >= 1
+    assert all(r["reason"] == "نامشخص" for r in s["reasons"])

@@ -68,10 +68,11 @@ function ReturnBars({ rows, x, tickFn }) {
 
 const PIE_COLORS = ['var(--neg)', 'var(--petrol)', 'var(--saffron)', 'var(--teal)', 'var(--ink)', '#8a6d3b', '#6b7f95', '#b07aa1', '#5b8c5a']
 
-function ReturnPie({ rows, nameKey, labelFn = (v) => String(v ?? '—') }) {
-  const data = rows.map((r) => ({ name: labelFn(r[nameKey]), value: r.return_rial ?? 0 })).filter((r) => r.value > 0)
+function ReturnPie({ rows, nameKey, labelFn = (v) => String(v ?? '—'), selected = '', onPick }) {
+  const data = rows.map((r) => ({ name: labelFn(r[nameKey]), value: r.return_rial ?? 0, raw: r[nameKey] })).filter((r) => r.value > 0)
   const total = data.reduce((sum, r) => sum + r.value, 0)
   const share = (v) => (total ? `${pct(v / total)}` : '—')
+  const colorOf = (i) => PIE_COLORS[i % PIE_COLORS.length]
   const renderLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent, value }) => {
     if (percent < 0.04) return null
     const r = innerRadius + (outerRadius - innerRadius) * 0.5
@@ -83,12 +84,27 @@ function ReturnPie({ rows, nameKey, labelFn = (v) => String(v ?? '—') }) {
     <div className="chart" role="img" aria-label="نمودار سهم از مبلغ برگشتی">
       <ResponsiveContainer width="100%" height="100%">
         <PieChart>
-          <Pie data={data} dataKey="value" nameKey="name" innerRadius="48%" outerRadius="78%" paddingAngle={2} stroke="none" label={renderLabel} labelLine={false}>
-            {data.map((_, i) => <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />)}
+          <Pie data={data} dataKey="value" nameKey="name" innerRadius="48%" outerRadius="78%" paddingAngle={2} stroke="none" label={renderLabel} labelLine={false}
+            onClick={(d) => onPick?.(d.raw)} style={{ cursor: onPick ? 'pointer' : 'default' }}>
+            {data.map((d, i) => <Cell key={i} fill={colorOf(i)} opacity={selected && d.raw !== selected ? 0.35 : 1} />)}
           </Pie>
           <Tooltip content={<ChartTip labelFn={(v) => `${v} · ${share(data.find((d) => d.name === v)?.value ?? 0)}`} unit="ریال" />} />
         </PieChart>
       </ResponsiveContainer>
+      {onPick && (
+        <ul className="pie-legend" aria-label="راهنمای رنگ‌ها">
+          {data.map((d, i) => (
+            <li key={d.raw ?? i}>
+              <button type="button" className={selected === d.raw ? 'active' : ''} onClick={() => onPick(selected === d.raw ? '' : d.raw)} aria-pressed={selected === d.raw}>
+                <i style={{ background: colorOf(i) }} aria-hidden="true" />
+                <span>{d.name}</span>
+                <b>{share(d.value)}</b>
+                <span className="pie-arrow" aria-hidden="true">{selected === d.raw ? '←' : '→'}</span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   )
 }
@@ -122,8 +138,8 @@ function ViewPanel({ view, s }) {
   const total = s.total.return_rial
   return (
     <>
-      <ReturnPie rows={s.reasons} nameKey="reason" />
-      <Table name="برگشتی-علت" rows={s.reasons} columns={[
+      <ReturnPie rows={s.reasons} nameKey="reason" selected={reason} onPick={(v) => setReason(v)} />
+      <Table name="برگشتی-علت" rows={s.reasons} highlight={(r) => r.reason === reason} onRow={(r) => setReason(reason === r.reason ? '' : r.reason)} columns={[
         { label: 'علت برگشت', render: (r) => r.reason, value: (r) => String(r.reason) },
         { label: 'تعداد حواله', render: (r) => fa(r.orders), value: (r) => r.orders },
         { label: 'مبلغ برگشتی (ریال)', render: (r) => rial(r.return_rial), value: (r) => r.return_rial },
@@ -157,12 +173,13 @@ function ReturnsTable({ q, openCustomer }) {
   )
 }
 
-export function ReturnsPage({ p, arg, setArg, openCustomer }) {
+export function ReturnsPage({ p, arg, setArg, openCustomer, onReason }) {
   const [view, setView] = useState('month')
-  const [reason, setReason] = useState('')
+  const reason = p.reason ?? ''
+  const setReason = (v) => onReason?.(v || null)
   const [status, setStatus] = useState('')
   const scope = useMemo(() => parseScope(arg), [arg])
-  const q = { ...p, ...(scope && { [scope.by]: scope.keys }), ...(reason && { reason }), ...(status && { status }) }
+  const q = { ...p, ...(scope && { [scope.by]: scope.keys }), ...(status && { status }) }
   const sum = useApi('/returns/summary', q)
   const lastOptions = useRef({})
   if (sum.data?.options) lastOptions.current = sum.data.options
@@ -244,13 +261,14 @@ export function ReturnsPage({ p, arg, setArg, openCustomer }) {
 /* کارت برگشتی در پروفایل مشتری و ویزیتور؛ data همان فیلد dispatch_returns پاسخ API است. */
 export function ReturnsProfileCard({ data, onOpen, entity }) {
   const title = 'برگشتی حواله پخش'
+  const activeReason = new URLSearchParams(location.hash.split('?')[1] || '').get('reason') || ''
   if (!data?.available) {
     return <Panel title={title} full><div className="empty" role="status">داده برگشتی حواله هنوز بارگذاری نشده است.</div></Panel>
   }
   const t = data.total
   const ambiguous = data.ambiguous_names ?? []
   return (
-    <Panel title={title} note={`مستقل از ردیف‌های مرجوعی فروش (SR)`} full>
+    <Panel title={title} note={activeReason ? `فیلتر علت: ${activeReason} · مستقل از ردیف‌های مرجوعی فروش (SR)` : `مستقل از ردیف‌های مرجوعی فروش (SR)`} full>
       {data.note && <Note>{data.note}</Note>}
       {ambiguous.length > 0 && <Note tone="err">نام‌های مشترک بین چند کد ویزیتور در مجموع نیامده‌اند: {ambiguous.join('، ')}</Note>}
       {!t.orders ? <div className="empty" role="status">برای این {entity} حواله‌ای ثبت نشده است.</div> : (

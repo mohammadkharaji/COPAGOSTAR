@@ -495,7 +495,7 @@ def visitor_profile(code: str, request: Request, core: str = DEFAULT_CORE, start
             f"""SELECT customer_code, ANY_VALUE(customer_name), SUM(rial_vat), COUNT(DISTINCT invoice_code)
                 FROM fact_sales WHERE {base} AND {SALES_ONLY} AND customer_code IS NOT NULL
                 GROUP BY 1 HAVING SUM(rial_vat) > 0 ORDER BY 3 DESC LIMIT 20""", bargs).fetchall()
-        dispatch_returns = _returns.visitor_returns(con, name, code, start, end)
+        dispatch_returns = _returns.visitor_returns(con, name, code, start, end, request.query_params.get("reason") or None)
     finally:
         con.close()
     m = _metrics(row[:9])
@@ -685,7 +685,7 @@ def dimension_profile(by: str, key: str, request: Request, core: str = DEFAULT_C
 
 
 @app.get("/api/customer/{code}")
-def customer_profile(code: str, core: str = DEFAULT_CORE):
+def customer_profile(code: str, request: Request, core: str = DEFAULT_CORE):
     name = _core(core)
     scope, sargs = rbac.scope_clause()
     con = _con()
@@ -708,7 +708,7 @@ def customer_profile(code: str, core: str = DEFAULT_CORE):
         brands = con.execute(
             f"""SELECT brand, SUM(rial_vat) FROM fact_sales WHERE core=? AND customer_code=? AND {SALES_ONLY}
                 AND brand IS NOT NULL{scope} GROUP BY 1 ORDER BY 2 DESC""", [name, code, *sargs]).fetchall()
-        dispatch_returns = _returns.customer_returns(con, name, code)
+        dispatch_returns = _returns.customer_returns(con, name, code, reason=request.query_params.get("reason") or None)
     finally:
         con.close()
     last = head[7]

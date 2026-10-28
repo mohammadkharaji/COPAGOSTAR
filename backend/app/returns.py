@@ -68,7 +68,14 @@ def _filters(request: Request) -> tuple[str, list, list[str]]:
             bad = [v for v in vals if v not in STATUS_LABEL]
             if bad:
                 raise HTTPException(400, "وضعیت نامعتبر است")
-        if vals:
+        if key == "reason" and NO_REASON in vals:
+            known = [v for v in vals if v != NO_REASON]
+            sql += f" AND (return_reason IS NULL OR return_reason = ''"
+            if known:
+                sql += f" OR return_reason IN ({','.join('?' * len(known))})"
+                args += known
+            sql += ")"
+        elif vals:
             sql += f" AND {col} IN ({','.join('?' * len(vals))})"
             args += vals
     for key in UNSUPPORTED:
@@ -165,12 +172,22 @@ def listing(request: Request, core: str = "kg", start: str | None = None, end: s
 
 # --- helpers for the customer and visitor profile endpoints (called with their open read-only connection) ---
 
-def _profile(con, name: str, col_sql: str, args: list, rng: str, rargs: list) -> dict | None:
+def _reason_clause(reason: str | None) -> tuple[str, list]:
+    """Filter on the return reason; the placeholder NO_REASON matches rows whose reason is empty."""
+    if not reason:
+        return "", []
+    if reason == NO_REASON:
+        return " AND (return_reason IS NULL OR return_reason = '')", []
+    return " AND return_reason = ?", [reason]
+
+
+def _profile(con, name: str, col_sql: str, args: list, rng: str, rargs: list, reason: str | None = None) -> dict | None:
     if not _table_exists(con):
         return None
     scope, sargs = rbac.scope_clause()
-    where = f"core=? AND {col_sql}{rng}{scope}"
-    base = [name, *args, *rargs, *sargs]
+    rsql, rsargs = _reason_clause(reason)
+    where = f"core=? AND {col_sql}{rng}{rsql}{scope}"
+    base = [name, *args, *rargs, *rsargs, *sargs]
     total = _agg(con.execute(f"SELECT {_AGG} FROM fact_returns WHERE {where}", base).fetchone())
     months = [{"year_month": r[0], **_agg(r[1:])} for r in con.execute(
         f"SELECT year_month, {_AGG} FROM fact_returns WHERE {where} GROUP BY 1 ORDER BY 1", base).fetchall()]
@@ -185,12 +202,12 @@ def _profile(con, name: str, col_sql: str, args: list, rng: str, rargs: list) ->
     return {"available": True, "total": total, "months": months, "reasons": reasons, "recent": recent}
 
 
-def customer_returns(con, name: str, code: str, start: str | None = None, end: str | None = None) -> dict | None:
+def customer_returns(con, name: str, code: str, start: str | None = None, end: str | None = None, reason: str | None = None) -> dict | None:
     rng, rargs = _range(start, end)
-    return _profile(con, name, "customer_code=?", [code], rng, rargs)
+    return _profile(con, name, "customer_code=?", [code], rng, rargs, reason)
 
 
-def visitor_returns(con, name: str, code: str, start: str | None = None, end: str | None = None) -> dict | None:
+def visitor_returns(con, name: str, code: str, start: str | None = None, end: str | None = None, reason: str | None = None) -> dict | None:
     """Returns of one visitor, matched by the visitor's name(s) in the sales data (the returns file has no visitor code).
 
     A name that is also used under another visitor code cannot be attributed to one person; such names are listed in
@@ -207,7 +224,7 @@ def visitor_returns(con, name: str, code: str, start: str | None = None, end: st
         [name, *names, *sargs]).fetchall()} if names else set()
     usable = [n for n in names if n not in shared]
     rng, rargs = _range(start, end)
-    out = (_profile(con, name, f"visitor IN ({','.join('?' * len(usable))})", usable, rng, rargs) if usable else
+    out = (_profile(con, name, f"visitor IN ({','.join('?' * len(usable))})", usable, rng, rargs, reason) if usable else
            {"available": True, "total": _agg((0,) * 11), "months": [], "reasons": [], "recent": []})
     out.update(matched_names=usable, ambiguous_names=sorted(shared),
                note="کد ویزیتور در فایل حواله نیست؛ تطبیق با نام ویزیتور انجام شده است." if usable or shared else None)
