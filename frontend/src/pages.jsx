@@ -853,7 +853,8 @@ function VisitorList({ p, openVisitor }) {
   const r = useApi('/visitors', p)
   const ov = useApi('/overview', p)
   return (
-    <Status state={r}>{(rows) => {
+    <Status state={r}>{(j) => {
+      const rows = j.visitors ?? []
       const sales = rows.reduce((s, x) => s + x.sales_rial, 0)
       const unassigned = ov.data ? ov.data.sum_rial_vat - rows.reduce((s, x) => s + x.sum_rial_vat, 0) : null
       const top = rows.slice(0, 15).map((x) => ({ ...x, label: `${x.name ?? ''} (${x.code})`, gross: billions(x.sales_rial) }))
@@ -863,6 +864,7 @@ function VisitorList({ p, openVisitor }) {
             <Kpi label="تعداد ویزیتور دارای فروش" value={fa(rows.length)} unit="کد ویزیتور" tone="primary" />
             <Kpi label="جمع فروش عادی" value={rial(sales)} unit="ریال" />
             <Kpi label="میانگین فروش هر ویزیتور" value={rows.length ? rial(sales / rows.length) : '—'} unit="ریال" tone="teal" />
+            <Kpi label="خرید پرسنلی" value={rial(j.personnel_rial ?? 0)} unit={`${fa(j.personnel_visitors ?? 0)} ویزیتور فقط خرید پرسنلی`} />
             <Kpi label="Rial+Vat بدون کد ویزیتور" value={unassigned == null ? '…' : rial(unassigned)} unit="ریال؛ ردیف‌های بدون کد در جدول نیامده" />
           </section>
           <section className="grid">

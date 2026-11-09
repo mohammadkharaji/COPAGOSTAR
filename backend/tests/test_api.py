@@ -240,8 +240,10 @@ def test_pareto_and_invoice_bands(client):
 
 
 def test_visitors_are_keyed_by_code_not_name(client):
-    rows = client.get("/api/visitors").json()
+    j = client.get("/api/visitors").json()
+    rows = j["visitors"]
     assert [r["code"] for r in rows] == ["11", "12"]
+    assert j["personnel_visitors"] == 0 and j["personnel_rial"] == 0
     assert all(r["name"] == "علی رضایی" for r in rows)
     assert sum(r["sum_rial_vat"] for r in rows) == client.get("/api/overview").json()["sum_rial_vat"] == 1350
     v11, v12 = rows
@@ -250,8 +252,8 @@ def test_visitors_are_keyed_by_code_not_name(client):
     assert abs(v11["return_percent"] - 200 / 1000) < 1e-9
     assert v12["sum_rial_vat"] == 550 and v12["sales_rial"] == 500
     assert abs(v11["share"] - 1000 / 1500) < 1e-9 and v11["branch_count"] == 1
-    assert client.get("/api/visitors", params={"core": "ch"}).json() == []
-    assert client.get("/api/visitors", params={"branch": "x"}).json() == []
+    assert client.get("/api/visitors", params={"core": "ch"}).json()["visitors"] == []
+    assert client.get("/api/visitors", params={"branch": "x"}).json()["visitors"] == []
     assert client.get("/api/visitors", params={"start": "bad"}).status_code == 400
 
 

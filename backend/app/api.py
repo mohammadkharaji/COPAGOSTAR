@@ -306,6 +306,9 @@ def trend(request: Request, core: str = DEFAULT_CORE, start: str | None = None, 
 
 BREAKDOWN_BY = {**DIMS, "month": "year_month", "day": "jdate_key", "product": "product_name", "customer": "customer_name"}
 SALES_ONLY = "NOT is_promo AND NOT is_return"
+# Personal purchases (خرید پرسنلی in the Guild column) are not visitor sales: one total, not per-visitor ranks.
+PERSONNEL_GUILD = "خرید پرسنلی"
+VISITOR_SALES = f"({SALES_ONLY} AND (guild IS NULL OR guild <> '{PERSONNEL_GUILD}'))"
 
 
 GEO_KEYS = ("region", "state", "city")
@@ -507,24 +510,39 @@ def visitors(request: Request, core: str = DEFAULT_CORE, start: str | None = Non
     try:
         rows = con.execute(
             f"""SELECT visitor_code, MODE(visitor), COUNT(DISTINCT branch), {METRICS_SQL},
-                       COALESCE(SUM(rial_vat) FILTER (WHERE {SALES_ONLY}), 0), MAX(jdate_key)
+                       COALESCE(SUM(rial_vat) FILTER (WHERE {VISITOR_SALES}), 0), MAX(jdate_key),
+                       COALESCE(SUM(rial_vat) FILTER (WHERE guild = '{PERSONNEL_GUILD}'), 0)
                 FROM fact_sales WHERE core=? AND visitor_code IS NOT NULL{rng}{dim}
                 GROUP BY 1 ORDER BY SUM(rial_vat) DESC""",
             [*PROMO_KALA_SOURCES, name, *args, *dargs]).fetchall()
+        per_personnel = con.execute(
+            f"""SELECT visitor_code, COALESCE(SUM(rial_vat) FILTER (WHERE guild = '{PERSONNEL_GUILD}'), 0)
+                FROM fact_sales WHERE core=? AND visitor_code IS NOT NULL{rng}{dim} GROUP BY 1 HAVING SUM(rial_vat) > 0""",
+            [name, *args, *dargs]).fetchall()
+        regular_codes = {r[0] for r in con.execute(
+            f"""SELECT DISTINCT visitor_code FROM fact_sales
+                WHERE core=? AND visitor_code IS NOT NULL AND {VISITOR_SALES}{rng}{dim}""",
+            [name, *args, *dargs]).fetchall()}
+        personnel_only = [r for r in per_personnel if r[0] not in regular_codes]
+        personnel_visitors = len(personnel_only)
+        personnel_rial = sum(r[1] for r in personnel_only)
     finally:
         con.close()
     total_sales = sum(r[12] for r in rows if r[12] > 0)
     out = []
     for rank, r in enumerate(rows, 1):
+        if r[0] not in regular_codes:   # personnel-only visitors: counted and summed, never ranked
+            personnel_visitors += 0
+            continue
         m = _metrics(r[3:12])
         sales_only = r[12]
-        m.update(rank=rank, code=r[0], name=r[1], branch_count=r[2], sales_rial=sales_only,
+        m.update(rank=len(out) + 1, code=r[0], name=r[1], branch_count=r[2], sales_rial=sales_only,
                  share=(sales_only / total_sales) if total_sales and sales_only > 0 else 0,
                  return_percent=(-m["returns_rial"] / sales_only) if sales_only and m["returns_rial"] else 0,
                  discount_percent=(m["promison_rial"] / sales_only) if sales_only else 0,
                  last_sale=_jdate(r[13]))
         out.append(m)
-    return out
+    return {"visitors": out, "personnel_visitors": personnel_visitors, "personnel_rial": personnel_rial}
 
 
 @app.get("/api/visitor/{code}")
@@ -549,36 +567,36 @@ def visitor_profile(code: str, request: Request, core: str = DEFAULT_CORE, start
             "GROUP BY 1 ORDER BY COUNT(*) DESC", [name, code, *sargs]).fetchall()]
         row = con.execute(
             f"""SELECT {METRICS_SQL},
-                       COALESCE(SUM(rial_vat) FILTER (WHERE {SALES_ONLY}), 0),
-                       COUNT(DISTINCT invoice_code) FILTER (WHERE {SALES_ONLY}),
-                       COUNT(DISTINCT customer_code) FILTER (WHERE {SALES_ONLY}),
-                       COUNT(DISTINCT jdate_key) FILTER (WHERE {SALES_ONLY}),
-                       MIN(jdate_key) FILTER (WHERE {SALES_ONLY}), MAX(jdate_key) FILTER (WHERE {SALES_ONLY}),
-                       COUNT(*) FILTER (WHERE {SALES_ONLY} AND invoice_code IS NOT NULL)
+                       COALESCE(SUM(rial_vat) FILTER (WHERE {VISITOR_SALES}), 0),
+                       COUNT(DISTINCT invoice_code) FILTER (WHERE {VISITOR_SALES}),
+                       COUNT(DISTINCT customer_code) FILTER (WHERE {VISITOR_SALES}),
+                       COUNT(DISTINCT jdate_key) FILTER (WHERE {VISITOR_SALES}),
+                       MIN(jdate_key) FILTER (WHERE {VISITOR_SALES}), MAX(jdate_key) FILTER (WHERE {VISITOR_SALES}),
+                       COUNT(*) FILTER (WHERE {VISITOR_SALES} AND invoice_code IS NOT NULL)
                 FROM fact_sales WHERE {base}""", [*PROMO_KALA_SOURCES, *bargs]).fetchone()
         peers = con.execute(
             f"""SELECT visitor_code, SUM(rial_vat) FROM fact_sales
-                WHERE core=? AND {SALES_ONLY} AND visitor_code IS NOT NULL{rng}{dim} GROUP BY 1""",
+                WHERE core=? AND {VISITOR_SALES} AND visitor_code IS NOT NULL{rng}{dim} GROUP BY 1""",
             [name, *args, *dargs]).fetchall()
         months = con.execute(
             f"""SELECT year_month, SUM(rial_vat), COUNT(DISTINCT invoice_code), COUNT(DISTINCT customer_code)
-                FROM fact_sales WHERE core=? AND visitor_code=? AND {SALES_ONLY} AND year_month IS NOT NULL{dim}
+                FROM fact_sales WHERE core=? AND visitor_code=? AND {VISITOR_SALES} AND year_month IS NOT NULL{dim}
                 GROUP BY 1 ORDER BY 1""", [name, code, *dargs]).fetchall()
         days = con.execute(
             f"""SELECT jdate_key, SUM(rial_vat), COUNT(DISTINCT customer_code) FROM fact_sales
-                WHERE {base} AND {SALES_ONLY} AND jdate_key IS NOT NULL GROUP BY 1 ORDER BY 1""", bargs).fetchall()
+                WHERE {base} AND {VISITOR_SALES} AND jdate_key IS NOT NULL GROUP BY 1 ORDER BY 1""", bargs).fetchall()
         splits = {}
         for key, col in (("branches", "branch"), ("brands", "brand"), ("grades", "grade"), ("sales_types", "sales_type")):
             splits[key] = [{"name": n, "sales_rial": v} for n, v in con.execute(
-                f"""SELECT {col}, SUM(rial_vat) FROM fact_sales WHERE {base} AND {SALES_ONLY} AND {col} IS NOT NULL
+                f"""SELECT {col}, SUM(rial_vat) FROM fact_sales WHERE {base} AND {VISITOR_SALES} AND {col} IS NOT NULL
                     GROUP BY 1 HAVING SUM(rial_vat) > 0 ORDER BY 2 DESC LIMIT 30""", bargs).fetchall()]
         products = con.execute(
             f"""SELECT product_name, SUM(rial_vat), SUM(qty) FROM fact_sales
-                WHERE {base} AND {SALES_ONLY} AND product_name IS NOT NULL
+                WHERE {base} AND {VISITOR_SALES} AND product_name IS NOT NULL
                 GROUP BY 1 HAVING SUM(rial_vat) > 0 ORDER BY 2 DESC LIMIT 15""", bargs).fetchall()
         customers = con.execute(
             f"""SELECT customer_code, ANY_VALUE(customer_name), SUM(rial_vat), COUNT(DISTINCT invoice_code)
-                FROM fact_sales WHERE {base} AND {SALES_ONLY} AND customer_code IS NOT NULL
+                FROM fact_sales WHERE {base} AND {VISITOR_SALES} AND customer_code IS NOT NULL
                 GROUP BY 1 HAVING SUM(rial_vat) > 0 ORDER BY 3 DESC LIMIT 20""", bargs).fetchall()
         dispatch_returns = _returns.visitor_returns(con, name, code, start, end, request.query_params.get("reason") or None)
     finally:
