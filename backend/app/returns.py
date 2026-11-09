@@ -60,11 +60,16 @@ def _range(start: str | None, end: str | None) -> tuple[str, list]:
     return sql, args
 
 
-def _filters(request: Request) -> tuple[str, list, list[str]]:
+def _filters(request: Request, include_status: bool = True) -> tuple[str, list, list[str]]:
     sql, args, ignored = "", [], []
     for key, col in FILTERS.items():
         vals = [v for v in request.query_params.getlist(key) if v]
         if key == "status":
+            bad = [v for v in vals if v not in STATUS_LABEL]
+            if bad:
+                raise HTTPException(400, "وضعیت نامعتبر است")
+            if not include_status:
+                continue
             bad = [v for v in vals if v not in STATUS_LABEL]
             if bad:
                 raise HTTPException(400, "وضعیت نامعتبر است")
@@ -98,6 +103,15 @@ def _open():
     return connect(read_only=True)
 
 
+
+def _returned_slice(con, col, val, returned_where, returned_args):
+    """Returned-side figures (counts, return_rial) of one group, computed on the status-filtered set."""
+    r = con.execute(f"SELECT {_AGG} FROM fact_returns WHERE {returned_where} AND {col} = ?", [*returned_args, val]).fetchone()
+    a = _agg(r)
+    return {k: a[k] for k in ("returned_orders", "full_orders", "partial_orders", "return_rial",
+                              "full_return_rial", "partial_return_rial", "returned_customers")}
+
+
 UNAVAILABLE = {"available": False, "reason": "هنوز هیچ برگشتی حواله‌ای بارگذاری نشده است."}
 
 
@@ -105,8 +119,12 @@ UNAVAILABLE = {"available": False, "reason": "هنوز هیچ برگشتی حو�
 def summary(request: Request, core: str = "kg", start: str | None = None, end: str | None = None):
     name = _core(core)
     rng, rargs = _range(start, end)
-    flt, fargs, ignored = _filters(request)
+    flt, fargs, ignored = _filters(request, include_status=False)
     where, args = f"core=?{rng}{flt}", [name, *rargs, *fargs]
+    # status= full/partial filters the returned side only: totals keep ALL dispatched orders of the filtered set.
+    status_vals = [v for v in request.query_params.getlist("status") if v]
+    returned_where = where + ("".join(f" AND return_status = ?" for _ in status_vals) or "")
+    returned_args = [*args, *status_vals]
     con = _open()
     try:
         if not _table_exists(con):
@@ -116,10 +134,20 @@ def summary(request: Request, core: str = "kg", start: str | None = None, end: s
                            [name, *sargs]).fetchone()
         if not have[0]:
             return {**UNAVAILABLE, "core": core}
-        total = _agg(con.execute(f"SELECT {_AGG} FROM fact_returns WHERE {where}", args).fetchone())
-        months = [{"year_month": r[0], **_agg(r[1:])} for r in con.execute(
+        all_orders = _agg(con.execute(f"SELECT {_AGG} FROM fact_returns WHERE {where}", args).fetchone())
+        returned = _agg(con.execute(f"SELECT {_AGG} FROM fact_returns WHERE {returned_where}", returned_args).fetchone())
+        total = {**all_orders,
+                 "returned_orders": returned["returned_orders"], "full_orders": returned["full_orders"],
+                 "partial_orders": returned["partial_orders"], "return_rial": returned["return_rial"],
+                 "full_return_rial": returned["full_return_rial"], "partial_return_rial": returned["partial_return_rial"],
+                 "returned_customers": returned["returned_customers"],
+                 "return_percent": (returned["return_rial"] / all_orders["order_rial"]) if all_orders["order_rial"] else 0,
+                 "returned_order_percent": (returned["returned_orders"] / all_orders["orders"]) if all_orders["orders"] else 0}
+        months = [{**{"year_month": r[0], **_agg(r[1:])}, **_returned_slice(con, "year_month", r[0], returned_where, returned_args)}
+                  for r in con.execute(
             f"SELECT year_month, {_AGG} FROM fact_returns WHERE {where} GROUP BY 1 ORDER BY 1", args).fetchall()]
-        branches = [{"branch": r[0], **_agg(r[1:])} for r in con.execute(
+        branches = [{"branch": r[0], **_agg(r[1:]), **_returned_slice(con, "branch", r[0], returned_where, returned_args)}
+                  for r in con.execute(
             f"SELECT branch, {_AGG} FROM fact_returns WHERE {where} GROUP BY 1 ORDER BY SUM(return_rial) DESC", args).fetchall()]
         reasons = [{"reason": r[0], "orders": r[1], "return_rial": r[2]} for r in con.execute(
             f"""SELECT COALESCE(return_reason, '{NO_REASON}'), COUNT(*), COALESCE(SUM(return_rial), 0) FROM fact_returns
