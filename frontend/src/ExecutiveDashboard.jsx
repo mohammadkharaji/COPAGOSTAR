@@ -45,14 +45,15 @@ import { Table } from './ui'
 const pct = (v) => (v == null ? '—' : `${new Intl.NumberFormat('fa-IR', { maximumFractionDigits: 1 }).format(v * 100)}٪`)
 const PIE_COLORS = ['#2563eb', '#0f766e', '#8b5cf6', '#f59e0b', '#ec4899', '#0ea5e9', '#84cc16', '#ef4444', '#94a3b8']
 const PIE_BY = [['branch', 'شعبه'], ['region', 'منطقه'], ['brand', 'برند'], ['sales_type', 'کانال فروش'], ['group', 'لاین'], ['grade', 'گرید مشتری']]
-const FILTER_LABELS = { sales_type: 'کانال فروش', region: 'منطقه', state: 'منطقه شهرداری', city: 'شهر', brand: 'برند', group: 'لاین', grade: 'گرید مشتری', main_group: 'گروه کالای اصلی', sub_group: 'زیرگروه کالای اصلی' }
-const PRODUCT_GROUP_KEYS = ['main_group', 'sub_group'] // hidden while the data has no product groups (product.tsv not loaded)
+const FILTER_LABELS = { sales_type: 'کانال فروش', region: 'منطقه', state: 'منطقه شهرداری', city: 'شهر', brand: 'برند', group: 'لاین', grade: 'گرید مشتری', main_group: 'گروه کالای اصلی', sub_group: 'زیرگروه کالای اصلی', product: 'کالا' }
+const PRODUCT_GROUP_KEYS = ['main_group', 'sub_group', 'product'] // hidden while the data has no product groups (product.tsv not loaded)
 
 export const NAV = [
   ['overview', 'نمای کلی', LayoutDashboard], ['trend', 'روند روزانه', Activity], ['monthly', 'روند ماهانه', BarChart3],
   ['growth', 'آنالیز رشد و افت', Percent], ['target', 'تارگت', Target],
   ['branch', 'شعب و مناطق', MapPin], ['product', 'کالا و برند', ShoppingBag], ['profile', 'تحلیل شعبه و برند', Building2],
   ['pareto', 'تحلیل پارتو', TrendingUp], ['inactive', 'مشتریان غیرفعال', UserX], ['returns', 'برگشتی حواله', Undo2],
+  ['quantity', 'تحلیل تعداد کالا', PackageSearch],
   ['invoice', 'تحلیل فاکتور', FileText], ['customer', 'پروفایل مشتری', UserRound], ['visitor', 'پروفایل ویزیتور', UserCheck],
   ['health', 'سلامت داده', HeartPulse], ['tickets', 'تیکت‌ها', MessageSquare],
 ]
@@ -61,7 +62,7 @@ export const NAV = [
 // The third field marks a group as an expandable sub-menu.
 const NAV_GROUPS = [
   ['فروش', ['overview', 'trend', 'monthly', 'growth', 'target'], false],
-  ['تحلیل', ['branch', 'product', 'profile', 'pareto', 'inactive', 'returns'], true],
+  ['تحلیل', ['branch', 'product', 'profile', 'pareto', 'inactive', 'returns', 'quantity'], true],
   ['مشتری و فاکتور', ['invoice', 'customer', 'visitor'], true],
   ['سیستم', ['health'], true],
   ['پشتیبانی', ['tickets'], false],
@@ -561,6 +562,7 @@ export default function ExecutiveDashboard({ p, cal, month, setMonth, onOpenRetu
       <section className="exec-kpis exec-kpis-overview">
         <Metric icon={CircleDollarSign} label="فروش ناخالص" value={o ? fa(o.sum_rial_vat) : '—'} unit="ریال · شامل مالیات و عوارض" tone="blue" />
         <Metric icon={PackageSearch} label="تعداد کالا" value={o ? fa(o.sum_qty) : '—'} unit="عدد" tone="violet" />
+        <Metric icon={PackageSearch} label="تعداد کالا خالص" value={o ? fa(o.sum_qty_net) : '—'} unit="عدد · منهای مرجوعی، بدون پروموشن" tone="violet" />
         <Metric icon={FileText} label="تعداد فاکتور" value={o ? fa(o.invoice_count) : '—'} unit="فقره" tone="amber" />
         <Metric icon={TrendingUp} label="درصد رشد فاکتور" value={pct(invoiceGrowth)} unit={growthLabel ? `${growthLabel} نسبت به دورهٔ مشابه ماه قبل` : 'مقایسه با ماه قبل'} tone="teal" />
         <Metric icon={ListOrdered} label="میانگین سطر فاکتور" value={invoiceLines.data ? fa2(invoiceLines.data.avg_lines_per_invoice) : '—'} unit="سطر در هر فاکتور · فقط فروش عادی" tone="sky" />

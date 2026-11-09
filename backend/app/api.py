@@ -147,7 +147,7 @@ def _core(core: str) -> str:
 # Query-parameter name -> fact_sales column. Only these may be used as filters (allow-list; values are bound params).
 DIMS = {"sales_type": "sales_type", "region": "region", "state": "state", "city": "city_name", "branch": "branch",
         "brand": "brand", "group": "group_name", "grade": "grade", "visitor": "visitor",
-        "main_group": "main_group", "sub_group": "sub_group"}
+        "main_group": "main_group", "sub_group": "sub_group", "product": "product_name"}
 
 
 def _dims(request: Request, skip: tuple[str, ...] = ()) -> tuple[str, list]:
@@ -260,9 +260,11 @@ def overview(request: Request, core: str = DEFAULT_CORE, start: str | None = Que
     try:
         row = con.execute(f"SELECT {METRICS_SQL} FROM fact_sales WHERE core=?{rng}{dim}",
                           [*PROMO_KALA_SOURCES, name, *args, *dargs]).fetchone()
+        qty_net = con.execute(f"SELECT COALESCE(SUM(qty), 0) FROM fact_sales WHERE core=? AND NOT is_promo{rng}{dim}",
+                              [name, *args, *dargs]).fetchone()[0]
     finally:
         con.close()
-    return {"core": core, **_metrics(row)}
+    return {"core": core, **_metrics(row), "sum_qty_net": qty_net}
 
 
 @app.get("/api/monthly")
@@ -308,7 +310,8 @@ SALES_ONLY = "NOT is_promo AND NOT is_return"
 
 GEO_KEYS = ("region", "state", "city")
 # Option lists narrowed by other selected filters: geography by branch and each other; sub group only by its main group.
-NARROWED_BY = {**{k: ("branch", *(g for g in GEO_KEYS if g != k)) for k in GEO_KEYS}, "sub_group": ("main_group",)}
+NARROWED_BY = {**{k: ("branch", *(g for g in GEO_KEYS if g != k)) for k in GEO_KEYS},
+               "main_group": ("brand",), "sub_group": ("brand", "main_group"), "product": ("brand", "main_group", "sub_group")}
 
 
 @app.get("/api/filters")
@@ -372,6 +375,81 @@ def breakdown(request: Request, by: str, core: str = DEFAULT_CORE, start: str | 
     if by in ("month", "day"):
         out.sort(key=lambda x: str(x["key"]))
     return out
+
+
+@app.get("/api/quantity-monthly")
+def quantity_monthly(request: Request, core: str = DEFAULT_CORE, product: str | None = None,
+                     main_group: str | None = None, sub_group: str | None = None):
+    """Net quantity per month (sales minus returns, promotions excluded), optionally for one product or sub group."""
+    name = _core(core)
+    dim, dargs = _dims(request)  # all months stay visible: no start/end range here
+    extra, eargs = "", []
+    if product:
+        extra, eargs = extra + " AND product_name=?", eargs + [product]
+    if main_group:
+        extra, eargs = extra + " AND main_group=?", eargs + [main_group]
+    if sub_group:
+        extra, eargs = extra + " AND sub_group=?", eargs + [sub_group]
+    con = _con()
+    try:
+        rows = con.execute(
+            f"""SELECT year_month, SUM(qty) FILTER (WHERE NOT is_promo), SUM(rial_vat) FILTER (WHERE NOT is_promo)
+                FROM fact_sales WHERE core=? AND year_month IS NOT NULL{extra}{dim}
+                GROUP BY 1 ORDER BY 1""",
+            [name, *eargs, *dargs]).fetchall()
+    finally:
+        con.close()
+    out = []
+    for i, r in enumerate(rows):
+        prev = out[-1]["net_qty"] if out else None
+        q = r[1] or 0
+        out.append({"month": r[0], "net_qty": q, "net_rial": r[2] or 0,
+                    "change_percent": ((q - prev) / prev) if prev else None})
+    return out
+
+
+@app.get("/api/quantity-split")
+def quantity_split(request: Request, core: str = DEFAULT_CORE, main_group: str | None = None, sub_group: str | None = None):
+    """Monthly sales quantity (positive) and return quantity (negative), promotion rows excluded."""
+    name = _core(core)
+    dim, dargs = _dims(request)
+    extra, eargs = "", []
+    if main_group:
+        extra, eargs = extra + " AND main_group=?", eargs + [main_group]
+    if sub_group:
+        extra, eargs = extra + " AND sub_group=?", eargs + [sub_group]
+    con = _con()
+    try:
+        rows = con.execute(
+            f"""SELECT year_month, SUM(qty) FILTER (WHERE NOT is_promo AND NOT is_return),
+                       SUM(qty) FILTER (WHERE is_return)
+                FROM fact_sales WHERE core=? AND year_month IS NOT NULL{extra}{dim}
+                GROUP BY 1 ORDER BY 1""",
+            [name, *eargs, *dargs]).fetchall()
+    finally:
+        con.close()
+    return [{"month": r[0], "sales_qty": r[1] or 0, "return_qty": r[2] or 0} for r in rows]
+
+
+@app.get("/api/quantity")
+def quantity(request: Request, core: str = DEFAULT_CORE, start: str | None = None, end: str | None = None,
+             limit: int = Query(20, ge=1, le=200)):
+    """Net quantity per product: sales rows minus return rows, promotion rows excluded."""
+    name = _core(core)
+    rng, args = _range(start, end)
+    dim, dargs = _dims(request)
+    con = _con()
+    try:
+        rows = con.execute(
+            f"""SELECT product_name, SUM(qty) FILTER (WHERE NOT is_promo) AS net_qty,
+                       SUM(rial_vat) FILTER (WHERE NOT is_promo) AS net_rial, COUNT(DISTINCT invoice_code) AS invoices
+                FROM fact_sales WHERE core=? AND product_name IS NOT NULL{rng}{dim}
+                GROUP BY 1 HAVING net_qty > 0 ORDER BY net_qty DESC LIMIT {limit}""",
+            [name, *args, *dargs]).fetchall()
+    finally:
+        con.close()
+    return [{"product": r[0], "net_qty": r[1], "net_rial": r[2], "invoices": r[3],
+             "rial_per_unit": (r[2] / r[1]) if r[1] else 0} for r in rows]
 
 
 @app.get("/api/pareto")

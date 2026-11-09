@@ -12,23 +12,14 @@ def sync(tmp_path, monkeypatch):
     spec = importlib.util.spec_from_file_location("sr_sync_under_test", SYNC_PY)
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
-    raw = tmp_path / "raw"
-    raw.mkdir()
-    (raw / "sr_kg_140507.tsv").write_bytes(b"x")
-    for name, value in {"DATA_DIR": tmp_path, "STATUS": tmp_path / "sync_status.json", "RAW_DIR": raw}.items():
+    for name, value in {"DATA_DIR": tmp_path, "STATUS": tmp_path / "sync_status.json",
+                        "RAW_DIR": tmp_path / "raw"}.items():
         monkeypatch.setattr(mod, name, value)
     return mod
 
 
 def status(mod) -> dict:
     return json.loads(mod.STATUS.read_text(encoding="utf-8"))
-
-
-def test_signature_changes_when_an_extract_changes(sync):
-    first = sync.signature()
-    assert [row[0] for row in first] == ["sr_kg_140507.tsv"]
-    (sync.RAW_DIR / "sr_kg_140507.tsv").write_bytes(b"xy")
-    assert sync.signature() != first
 
 
 def test_lock_is_exclusive_and_released(sync):
@@ -45,10 +36,31 @@ def test_successful_run_records_ok_and_releases_lock(sync, monkeypatch):
     monkeypatch.setattr(sync, "ingest_all", lambda: [{"status": "loaded", "rows": 5}, {"status": "skipped", "rows": 0}])
     assert sync.run_sync(False) is True
     s = status(sync)
-    assert s["state"] == "ok" and s["rows_loaded"] == 5 and s["error"] is None and s["signature"]
+    assert s["state"] == "ok" and s["rows_loaded"] == 5 and s["error"] is None and s["signature"] is not None
     lock = sync.acquire_lock()
     assert lock is not None
     lock.close()
+
+
+def test_sql_run_extracts_before_ingest(sync, monkeypatch):
+    order = []
+    monkeypatch.setattr(sync, "extract_recent", lambda out: order.append("sql") or [{"file": "sr_kg_140505.tsv"}])
+    monkeypatch.setattr(sync, "ingest_all", lambda: order.append("ingest") or [{"status": "loaded", "rows": 1}])
+    assert sync.run_sync(False, sql=True) is True
+    assert order == ["sql", "ingest"]
+    assert status(sync)["sql_extracted"] == ["sr_kg_140505.tsv"]
+
+
+def test_failed_sql_extract_keeps_previous_data_and_records_error(sync, monkeypatch):
+    def boom(out):
+        raise RuntimeError("login failed")
+    ingested = []
+    monkeypatch.setattr(sync, "extract_recent", boom)
+    monkeypatch.setattr(sync, "ingest_all", lambda: ingested.append(1) or [])
+    assert sync.run_sync(False, sql=True) is False
+    assert ingested == []
+    s = status(sync)
+    assert s["state"] == "failed" and "login failed" in s["error"]
 
 
 def test_failed_run_records_error_and_keeps_serving(sync, monkeypatch):

@@ -5,6 +5,7 @@ Run each day on the exported workbook:
   python tools/returns/convert_returns.py Returns.xlsx --check
   python tools/returns/convert_returns.py Returns.xlsx --dry-run
   python tools/returns/convert_returns.py Returns.xlsx --out data/raw
+  python tools/returns/convert_returns.py --state data/returns_state_kg.json --commit-state
   python tools/returns/convert_returns.py Returns.xlsx --upload root@SERVER --key ~/.ssh/sr_deploy
 
 Source columns A-U (header row must match exactly): مرکز فروش، شماره حواله پخش، شماره تور، تاریخ تور، کد مشتری،
@@ -12,10 +13,13 @@ Source columns A-U (header row must match exactly): مرکز فروش، شمار
 زمان ثبت فاکتور، مبلغ فاکتور، روش تسویه، ريال کل برگشتی، ريال جز برگشتی، دلیل برگشتی.
 
 Writes ret_<core>_<YYYYMMDD>_<HHMM>.tsv (Jalali publish date) with app.schema.RETURN_COLS, \\x1f/\\x1e delimited, holding
-only the dispatch orders that are new or changed since the last run. A JSON state file (branch + dispatch_no -> row hash)
-remembers what was already emitted; it is updated only after the extract was written locally. Nothing is uploaded
-unless --upload is given. --check validates the workbook and reports; --dry-run also shows what the next run would
-write; neither writes anything. Standard library only (zipfile + XML); handles shared, inline and rich-text strings.
+only the dispatch orders that are new or changed since the last run. A JSON state file (branch + dispatch_no -> row hash;
+a dispatch number that repeats on another date is keyed `<dispatch_no>@<order_date>`) remembers what was already
+emitted. A real run writes the *pending* state and leaves the state file alone; `--commit-state` promotes it, which is
+what the publisher does once the server has accepted and synced the extract — a failed upload therefore never advances
+the state. `--upload` commits on its own after a successful upload. Nothing is uploaded unless --upload is given.
+--check validates the workbook and reports; --dry-run also shows what the next run would write; neither writes anything.
+Standard library only (zipfile + XML); handles shared, inline and rich-text strings.
 """
 from __future__ import annotations
 
@@ -147,7 +151,8 @@ def read_rows(path: Path, sheet: str | None = None) -> tuple[str, list[dict[str,
                 else:
                     text = _number_text(v.text)
                 r[col] = text
-            rows.append(r)
+            if any(v for k, v in r.items() if k != "_row"):  # Excel pads the used range with empty rows
+                rows.append(r)
             el.clear()
     return name, rows
 
@@ -239,13 +244,14 @@ def convert(path: Path, sheet: str | None = None) -> tuple[list[dict], dict]:
             continue
         v["order_date"] = order_date
         v["tour_date"] = parse_date(v["tour_date"]) or v["tour_date"]
-        key = (v["branch"], v["dispatch_no"])
+        key = (v["branch"], v["dispatch_no"], order_date)  # one dispatch number may legitimately recur on another date
         if key in seen:
             errors.append(f"ردیف {n}: شماره حواله تکراری {key} (ردیف {seen[key]})")
             continue
         seen[key] = n
         values = [v[c] if c in v else format_amount(amounts[c]) for c in RETURN_COLS]
-        records.append({"branch": key[0], "dispatch_no": key[1], "values": values, "hash": row_hash(values)})
+        records.append({"branch": key[0], "dispatch_no": key[1], "order_date": order_date, "values": values,
+                        "hash": row_hash(values)})
     if errors:
         raise ReturnsError("خطا در داده:\n  " + "\n  ".join(errors[:25])
                            + (f"\n  … و {len(errors) - 25} خطای دیگر" if len(errors) > 25 else ""))
@@ -260,6 +266,10 @@ def convert(path: Path, sheet: str | None = None) -> tuple[list[dict], dict]:
         "first_date": min(x["values"][RETURN_COLS.index("order_date")] for x in records),
         "last_date": max(x["values"][RETURN_COLS.index("order_date")] for x in records),
     }
+    shared = Counter((x["branch"], x["dispatch_no"]) for x in records)  # a dispatch number may repeat across dates
+    for x in records:
+        x["state_key"] = (x["dispatch_no"] if shared[(x["branch"], x["dispatch_no"])] == 1
+                          else f'{x["dispatch_no"]}@{x["order_date"]}')
     return records, report
 
 
@@ -289,10 +299,27 @@ def save_state(path: Path, core: str, orders: dict[str, dict[str, str]]) -> None
     tmp.replace(path)
 
 
+def commit_state(pending: Path, state: Path, core: str) -> int:
+    """Promote the pending state written by the last real run. Missing pending = nothing to commit (a no-delta run)."""
+    if not pending.exists():
+        print(f"وضعیتی در انتظار تأیید نیست: {pending}")
+        return 0
+    try:
+        data = json.loads(pending.read_text(encoding="utf-8"))
+        if data.get("version") != STATE_VERSION or data.get("core") != core:
+            raise ReturnsError(f"فایل وضعیت در انتظار تأیید {pending} برای هستهٔ دیگری است یا خراب است")
+        save_state(state, core, data["orders"])
+        pending.unlink()
+    except (OSError, ValueError, KeyError, TypeError, AttributeError) as e:
+        print(f"تأیید وضعیت ناموفق بود: {e}", file=sys.stderr)
+        return 1
+    print(f"وضعیت تأیید و ذخیره شد: {state}")
+    return 0
+
 def delta(records: list[dict], state: dict[str, dict[str, str]]) -> tuple[list[dict], dict]:
     out, counts = [], Counter()
     for x in records:
-        prev = state.get(x["branch"], {}).get(x["dispatch_no"])
+        prev = state.get(x["branch"], {}).get(x["state_key"])
         kind = "new" if prev is None else "changed" if prev != x["hash"] else "unchanged"
         counts[kind] += 1
         if kind != "unchanged":
@@ -304,7 +331,7 @@ def merged_state(state: dict[str, dict[str, str]], records: list[dict]) -> dict[
     """Old state plus the emitted orders; orders missing from today's workbook are kept (their history stays on the server)."""
     out = {b: dict(d) for b, d in state.items()}
     for x in records:
-        out.setdefault(x["branch"], {})[x["dispatch_no"]] = x["hash"]
+        out.setdefault(x["branch"], {})[x["state_key"]] = x["hash"]
     return out
 
 
@@ -339,11 +366,14 @@ def main(argv: list[str] | None = None, now: datetime | None = None) -> int:
     for stream in (sys.stdout, sys.stderr):  # Windows consoles default to a legacy codepage that cannot print Persian
         stream.reconfigure(encoding="utf-8", errors="replace")
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("workbook", type=Path)
+    ap.add_argument("workbook", type=Path, nargs="?")
     ap.add_argument("--core", default=DEFAULT_CORE, choices=sorted(CORES))
     ap.add_argument("--sheet", help="نام شیت؛ پیش‌فرض اولین شیت قابل‌مشاهده")
     ap.add_argument("--out", type=Path, default=ROOT / "data" / "raw", help="پوشهٔ خروجی (پیش‌فرض data/raw)")
     ap.add_argument("--state", type=Path, help="فایل وضعیت JSON (پیش‌فرض data/returns_state_<core>.json)")
+    ap.add_argument("--pending-state", type=Path, help="وضعیت تازه پس از این اجرا این‌جا نوشته می‌شود و تا --commit-state قطعی نمی‌شود "
+                                                       "(پیش‌فرض: <state>.pending)")
+    ap.add_argument("--commit-state", action="store_true", help="وضعیت pending را جایگزین فایل وضعیت کند؛ بدون workbook")
     mode = ap.add_mutually_exclusive_group()
     mode.add_argument("--check", action="store_true", help="فقط اعتبارسنجی و گزارش؛ چیزی نوشته نمی‌شود")
     mode.add_argument("--dry-run", action="store_true", help="مثل اجرای واقعی ولی بدون نوشتن فایل خروجی و وضعیت")
@@ -355,6 +385,15 @@ def main(argv: list[str] | None = None, now: datetime | None = None) -> int:
         print("--upload با --check یا --dry-run سازگار نیست", file=sys.stderr)
         return 2
     state_path = a.state or ROOT / "data" / f"returns_state_{a.core}.json"
+    pending_path = a.pending_state or state_path.with_name(state_path.name + ".pending")
+    if a.commit_state:
+        if a.workbook or a.check or a.dry_run or a.upload:
+            print("--commit-state تنها و بدون workbook استفاده می‌شود", file=sys.stderr)
+            return 2
+        return commit_state(pending_path, state_path, a.core)
+    if a.workbook is None:
+        print("workbook لازم است (یا --commit-state بدون workbook)", file=sys.stderr)
+        return 2
     try:
         records, rep = convert(a.workbook, a.sheet)
         state = {} if a.check else load_state(state_path, a.core)
@@ -372,6 +411,8 @@ def main(argv: list[str] | None = None, now: datetime | None = None) -> int:
     print(f"نسبت به آخرین اجرا: {counts['new']:,} جدید، {counts['changed']:,} تغییرکرده، {counts['unchanged']:,} بدون تغییر")
     if not out:
         print("حوالهٔ جدید یا تغییرکرده‌ای نیست؛ فایلی نوشته نشد.")
+        if pending_path.exists():  # an uncommitted state from an earlier run: committing it now would skip real data
+            print(f"هشدار: وضعیت تأییدنشده از اجرای قبلی باقی است: {pending_path}", file=sys.stderr)
         return 0
     dest = extract_name(a.core, now or datetime.now(), a.out)
     if a.dry_run:
@@ -380,11 +421,11 @@ def main(argv: list[str] | None = None, now: datetime | None = None) -> int:
     try:
         a.out.mkdir(parents=True, exist_ok=True)
         write_tsv(dest, out)
-        save_state(state_path, a.core, merged_state(state, out))
+        save_state(pending_path, a.core, merged_state(state, out))
     except OSError as e:
         print(f"نوشتن ناموفق بود: {e}", file=sys.stderr)
         return 1
-    print(f"نوشته شد: {dest} ({len(out):,} ردیف)؛ وضعیت: {state_path}")
+    print(f"نوشته شد: {dest} ({len(out):,} ردیف)؛ وضعیت در انتظار تأیید: {pending_path}")
     if a.upload:
         try:
             upload(dest, a.upload, a.key, a.remote_data)
@@ -393,6 +434,7 @@ def main(argv: list[str] | None = None, now: datetime | None = None) -> int:
                   file=sys.stderr)
             return 1
         print("روی سرور بارگذاری شد؛ sr-sync خودکار آن را در پایگاه‌داده وارد می‌کند.")
+        commit_state(pending_path, state_path, a.core)
     return 0
 
 

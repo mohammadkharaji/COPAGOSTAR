@@ -4,10 +4,10 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { get, post, useApi } from './api'
 import { monthLabel, monthRange } from './format'
 import ExecutiveDashboard, { ExecShell, NAV } from './ExecutiveDashboard'
-import { BranchRegionPage, CustomerPage, GrowthPage, HealthPage, InactiveCustomersPage, InvoicePage, MonthlyTrendPage, TicketsPage, ParetoPage, ProductBrandPage, ProfilePage, ReturnsPage, TrendPage, VisitorPage } from './pages'
+import { BranchRegionPage, CustomerPage, GrowthPage, HealthPage, InactiveCustomersPage, InvoicePage, MonthlyTrendPage, QuantityPage, TicketsPage, ParetoPage, ProductBrandPage, ProfilePage, ReturnsPage, TrendPage, VisitorPage } from './pages'
 
 const CORES = { kg: 'کوپا گستر', ch: 'زنجیره‌ای' }
-const SHARED_KEYS = ['month', 'branch', 'region', 'state', 'city', 'brand', 'group', 'grade', 'sales_type', 'main_group', 'sub_group', 'reason']
+const SHARED_KEYS = ['month', 'branch', 'region', 'state', 'city', 'brand', 'group', 'grade', 'sales_type', 'main_group', 'sub_group', 'product', 'reason']
 const PAGE_IDS = [...NAV.map(([k]) => k), 'admin']
 // An unknown page is '' here; App turns it (and any page the user may not open) into the first page they can access.
 const parseHash = () => {
@@ -52,7 +52,7 @@ export default function App({ onLogout }) {
   const page = principal ? (canOpen(route.page) ? route.page : home) : null
   const arg = page === route.page ? route.arg : ''
   const reports = Boolean(principal) && page !== 'admin' && allowedCores.includes(core)
-  const options = useApi('/filters', { core, v: ver, ...(dims.branch && { branch: dims.branch }), ...(dims.region && { region: dims.region }), ...(dims.state && { state: dims.state }), ...(dims.city && { city: dims.city }), ...(dims.main_group && { main_group: dims.main_group }) }, reports)
+  const options = useApi('/filters', { core, v: ver, ...(dims.branch && { branch: dims.branch }), ...(dims.region && { region: dims.region }), ...(dims.state && { state: dims.state }), ...(dims.city && { city: dims.city }), ...(dims.main_group && { main_group: dims.main_group }), ...(dims.sub_group && { sub_group: dims.sub_group }), ...(dims.brand && { brand: dims.brand }) }, reports)
   const [tick, setTick] = useState(0)
   const sync = useApi('/sync-status', { t: tick })
   const syncState = sync.data?.state
@@ -168,6 +168,7 @@ export default function App({ onLogout }) {
       {page === 'pareto' && <ParetoPage p={p} openCustomer={(c) => go('customer', c)} openVisitor={(c) => go('visitor', c)} openProfile={openProfile} />}
       {page === 'visitor' && <VisitorPage p={p} code={arg} setCode={(c) => go('visitor', c)} openCustomer={(c) => go('customer', c)} openReturns={(a) => go('returns', a)} />}
       {page === 'returns' && <ReturnsPage p={p} arg={arg} setArg={(a) => go('returns', a)} openCustomer={(c) => go('customer', c)} onReason={(v) => setDim('reason', v)} />}
+      {page === 'quantity' && <QuantityPage p={p} />}
       {page === 'invoice' && <InvoicePage p={p} />}
       {page === 'inactive' && <InactiveCustomersPage p={p} openCustomer={(c) => go('customer', c)} openVisitor={(c) => go('visitor', c)} />}
       {page === 'customer' && <CustomerPage key={arg} core={core} code={arg} setCode={(c) => go('customer', c)} openReturns={(a) => go('returns', a)} />}

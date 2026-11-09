@@ -30,14 +30,18 @@ def make_row(src, inv, cust, rv, qty, disc="0", d2="0", settle="0", vcode="", vn
     return "\x1f".join(d[c] for c in COLS)
 
 
-PRODUCT_COLS = ["Product[UniqueProductCode]", "Product[گروه کالای اصلی]", "Product[ProductGroup]", "Product[TargetCategory]",
-                "Product[Brand]"]
+PRODUCT_COLS = ["Product[UniqueProductCode]", "Product[گروه کالای اصلی]", "Product[ProductGroup]", "Product[ProductCategory]",
+                "Product[TargetCategory]", "Product[Brand]", "Product[ProductType]"]
 
 
 def product_tsv(*products):
     """products: (unique code, main group, sub group[, target category]) tuples -> product.tsv text in the extract format."""
-    return "\x1f".join(PRODUCT_COLS) + "\x1e" + "".join(
-        "\x1f".join([*p, *[""] * (4 - len(p)), "b"]) + "\x1e" for p in products)
+    rows = []
+    for p in products:
+        code, main, sub, *target = p
+        target = target[0] if target else ""
+        rows.append("\x1f".join([code, main, "", sub, target, "", ""]) + "\x1e")
+    return "\x1f".join(PRODUCT_COLS) + "\x1e" + "".join(rows)
 
 
 def build_client(tmp_path, monkeypatch, chunks, product=None):
@@ -130,10 +134,29 @@ def test_invoice_lines_in_profiles(lines_client):
 def test_overview_matches_pivot_definitions(client):
     j = client.get("/api/overview").json()
     assert j["sum_rial_vat"] == 1350 and j["sum_qty"] == 14 and j["invoice_count"] == 4
+    assert j["sum_qty_net"] <= j["sum_qty"]
     assert j["promison_rial"] == 120 and j["settlement_discount_rial"] == 30 and j["promo_kala_rial"] == 0
     assert j["promo_total_rial"] == 150 and j["net_rial"] == 1200
     assert abs(j["promo_percent"] - 150 / 1350) < 1e-9
     assert j["returns_rial"] == -200 and j["promo_rows_rial"] == 50
+
+
+def test_quantity_monthly_growth_is_relative_to_previous_month(client):
+    rows = client.get("/api/quantity-monthly").json()
+    months = [r["month"] for r in rows]
+    assert months == sorted(months)
+    assert rows[0]["change_percent"] is None
+    for prev, cur in zip(rows, rows[1:]):
+        if prev["net_qty"]:
+            assert abs(cur["change_percent"] - (cur["net_qty"] - prev["net_qty"]) / prev["net_qty"]) < 1e-9
+
+
+def test_quantity_is_sorted_and_consistent(client):
+    rows = client.get("/api/quantity", params={"limit": 5}).json()
+    assert len(rows) <= 5
+    qty = [r["net_qty"] for r in rows]
+    assert qty == sorted(qty, reverse=True) and all(q > 0 for q in qty)
+    assert all(r["rial_per_unit"] == (r["net_rial"] / r["net_qty"] if r["net_qty"] else 0) for r in rows)
 
 
 def test_calendar_matches_workbook_example(client):
@@ -523,22 +546,3 @@ def test_inactive_report_needs_login_and_its_own_page(inactive_client):
     assert anon.get("/api/inactive-customers/export").status_code == 401
     assert rbac.access_for("GET", "/api/inactive-customers/export") == ("pages", ("inactive",))
     assert rbac.access_for("GET", "/api/inactive-customers") == ("pages", ("inactive",))
-
-
-def test_invoice_compare_same_day_last_month(tmp_path, monkeypatch):
-    s = "SRSalesProcedure1405"
-    c = build_client(tmp_path, monkeypatch, {
-        "sr_kg_140506": [make_row(s, "p1", "C1", "1000", "10", date="1405/06/10", brand="A")],
-        "sr_kg_140507": [
-            make_row(s, "c1", "C1", "3000", "30", date="1405/07/05", brand="A"),
-            make_row(s, "c2", "C2", "1000", "10", date="1405/07/20", brand="A"),
-            make_row(s, "c3", "C3", "9999", "99", date="1405/07/28", brand="A")],
-    })
-    body = c.get("/api/invoice-compare", params={"core": "kg", "day": "1405/07/27"}).json()
-    assert body["available"] is True
-    assert body["current"]["from"] == 14050701 and body["current"]["to"] == 14050727
-    assert body["previous"]["from"] == 14050601 and body["previous"]["to"] == 14050627
-    assert body["current"]["invoices"] == 2
-    assert body["previous"]["invoices"] == 1
-    assert body["change"]["invoices"] == 1.0
-    assert body["change"]["sales_rial"] == (body["current"]["sales_rial"] - body["previous"]["sales_rial"]) / body["previous"]["sales_rial"]

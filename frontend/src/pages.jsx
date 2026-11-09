@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, Legend, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
+import { Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, Legend, Line, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { postJson, useApi } from './api'
 import { dayLabel, fa, fa2, monthLabel, monthName } from './format'
 import { ChartTip, Kpi, Panel, Status, Table, Toggle, pct, rial } from './ui'
@@ -28,6 +28,80 @@ function Bars({ data, x, bars, tickFn, unit = 'میلیارد ریال', tall, o
         </BarChart>
       </ResponsiveContainer>
     </div>
+  )
+}
+
+/* ---------- تحلیل تعداد کالا (خالص از مرجوعی) ---------- */
+export const QuantityPage = ({ p }) => {
+  const r = useApi('/quantity', { ...p, limit: 20 })
+  const data = (Array.isArray(r.data) ? r.data : []).map((x) => ({ ...x, short: x.product }))
+  return (
+    <>
+      <QuantityMonthCompare p={p} />
+      <QuantityGrowth p={p} />
+      <Panel title="تحلیل تعداد کالا" note="۲۰ کالای برتر بر اساس تعداد خالص (فروش منهای مرجوعی فروش، بدون پروموشن)" full>
+        <div className="chart tall" role="img">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={data} layout="vertical" margin={{ top: 8, right: 24, left: 8, bottom: 0 }}>
+              <CartesianGrid horizontal={false} stroke="var(--line)" />
+              <XAxis type="number" tickFormatter={(v) => fa(v)} tickLine={false} axisLine={false} />
+              <YAxis type="category" dataKey="short" width={220} tickLine={false} axisLine={false} interval={0} />
+              <Tooltip content={<ChartTip unit="عدد" />} cursor={{ fill: 'rgba(16,37,63,.05)' }} />
+              <Bar dataKey="net_qty" name="تعداد خالص" fill="#8b5cf6" radius={[0, 4, 4, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      </Panel>
+      <Panel title="جدول تعداد کالا" note="رتبه، تعداد خالص، فروش خالص، تعداد فاکتور و ریال به ازای هر واحد" full>
+        <Table name="تعداد-کالا" rows={data} columns={[
+          { label: 'کالا', render: (r) => r.product, value: (r) => r.product },
+          { label: 'تعداد خالص', render: (r) => fa(r.net_qty), value: (r) => r.net_qty },
+          { label: 'فروش خالص (ریال)', render: (r) => fa(r.net_rial), value: (r) => r.net_rial },
+          { label: 'فاکتور', render: (r) => fa(r.invoices), value: (r) => r.invoices },
+          { label: 'ریال به ازای واحد', render: (r) => fa(r.rial_per_unit), value: (r) => r.rial_per_unit },
+        ]} />
+      </Panel>
+    </>
+  )
+}
+
+const pctChange = (v) => (v == null ? '—' : `${v > 0 ? '+' : ''}${(v * 100).toFixed(1)}٪`)
+
+function QuantityMonthCompare({ p }) {
+  const m = useApi('/quantity-monthly', p)
+  const months = Array.isArray(m.data) ? m.data : []
+  const last = months[months.length - 1]
+  const prev = months[months.length - 2]
+  return (
+    <Panel title="مقایسه با ماه قبل" note={last && prev ? `${monthLabel(last.month)} نسبت به ${monthLabel(prev.month)} · تعداد خالص` : ''} full>
+      <div className="exec-grid">
+        <Kpi label={last ? monthLabel(last.month) : 'ماه جاری'} value={last ? fa(last.net_qty) : '—'} unit="تعداد خالص" />
+        <Kpi label={prev ? monthLabel(prev.month) : 'ماه قبل'} value={prev ? fa(prev.net_qty) : '—'} unit="تعداد خالص" />
+        <Kpi label="تغییر" value={pctChange(last?.change_percent)} unit="نسبت به ماه قبل" />
+      </div>
+    </Panel>
+  )
+}
+
+function QuantityGrowth({ p }) {
+  const m = useApi('/quantity-monthly', p)
+  const data = (Array.isArray(m.data) ? m.data : []).map((x) => ({ ...x, label: monthLabel(x.month), growth: x.change_percent == null ? null : x.change_percent * 100 }))
+  return (
+    <Panel title="روند رشد ماهانه تعداد" note="تعداد خالص هر ماه و درصد تغییر نسبت به ماه قبل" full>
+      <div className="chart tall" role="img">
+        <ResponsiveContainer width="100%" height="100%">
+          <BarChart data={data} margin={{ top: 8, right: 24, left: 8, bottom: 0 }}>
+            <CartesianGrid vertical={false} stroke="var(--line)" />
+            <XAxis dataKey="label" tickLine={false} axisLine={false} />
+            <YAxis yAxisId="qty" orientation="right" tickFormatter={(v) => fa(v)} tickLine={false} axisLine={false} width={80} />
+            <YAxis yAxisId="pct" orientation="left" tickFormatter={(v) => `${v}٪`} tickLine={false} axisLine={false} width={56} />
+            <Tooltip content={<ChartTip unit="عدد" />} cursor={{ fill: 'rgba(16,37,63,.05)' }} />
+            <Bar yAxisId="qty" dataKey="net_qty" name="تعداد خالص" fill="#8b5cf6" radius={[4, 4, 0, 0]} />
+            <Line yAxisId="pct" dataKey="growth" name="رشد ٪" stroke="#0f766e" strokeWidth={2} dot connectNulls={false} />
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+    </Panel>
   )
 }
 

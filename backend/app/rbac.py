@@ -30,7 +30,7 @@ from . import auth, config
 from .config import CORES
 
 PAGES = ("overview", "trend", "monthly", "growth", "target", "branch", "product", "profile", "pareto", "invoice",
-         "customer", "visitor", "returns", "inactive", "health")
+         "customer", "visitor", "returns", "inactive", "health", "quantity")
 USERNAME_RE = re.compile(r"^[A-Za-z0-9_.@-]{3,64}$")
 MIN_PASSWORD = 8
 SCOPE_MODES = ("all", "branch", "supervisor")
@@ -321,7 +321,7 @@ EXACT = {
     "/api/overview": ("overview", "visitor"), "/api/monthly": ("monthly", "overview"), "/api/growth": ("growth", "overview"),
     "/api/trend": ("trend",), "/api/pace": ("overview",), "/api/pareto": ("pareto",), "/api/visitors": ("visitor",),
     "/api/breakdown": ("overview", "branch", "product", "profile"),
-    "/api/invoice-bands": ("invoice",), "/api/invoice-lines": ("invoice",),
+    "/api/invoice-bands": ("invoice",), "/api/invoice-lines": ("invoice",), "/api/quantity": ("quantity",), "/api/quantity-monthly": ("quantity",), "/api/quantity-split": ("quantity",),
 }
 PREFIX = (("/api/visitor", ("visitor",)), ("/api/customer", ("customer",)), ("/api/profile", ("profile",)),
           ("/api/returns", ("returns",)), ("/api/target", ("target",)), ("/api/inactive-customers", ("inactive",)))

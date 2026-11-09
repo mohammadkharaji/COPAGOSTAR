@@ -141,7 +141,10 @@ def ingest_product(con, path: Path) -> dict:
             raise ValueError(f"{path.name}: row has {len(vals)} fields, expected {len(cols)}")
         code = normalize_text(vals[idx["unique_product_code"]])
         if code:
-            seen[code] = [code, *(normalize_text(vals[idx[c]]) or "" for c in PRODUCT_DIM_COLS)]
+            row = {c: normalize_text(vals[idx[c]]) or "" for c in idx if c != "unique_product_code"}
+            combo = f"{row['brand']} {row['product_type']}".strip()
+            row["sub_group"] = combo or row["sub_group"]  # fall back to ProductCategory when brand and type are both empty
+            seen[code] = [code, *(row[c] for c in PRODUCT_DIM_COLS)]
     with tempfile.NamedTemporaryFile("w", suffix=".csv", delete=False, newline="", encoding="utf-8") as tmp:
         csv.writer(tmp).writerows(seen.values())
         tmp_name = tmp.name
