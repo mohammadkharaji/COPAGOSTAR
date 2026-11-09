@@ -333,8 +333,15 @@ def filters(request: Request, core: str = DEFAULT_CORE):
                     if vals:
                         where += f" AND {DIMS[dep]} IN ({','.join('?' * len(vals))})"
                         args += vals
+            # Districts sort by their numeric suffix (منطقه چهار تهران-4 -> 4), cities alphabetically, rest by usage.
+            if key == "state":
+                order = r"CAST(NULLIF(regexp_extract(" + col + r", '-(\d+)$', 1), '') AS INTEGER) NULLS LAST, " + col
+            elif key == "region":
+                order = f"{col}"
+            else:
+                order = "COUNT(*) DESC"
             out[key] = [r[0] for r in con.execute(
-                f"SELECT {col} FROM fact_sales WHERE core=? AND {col} IS NOT NULL{where}{scope} GROUP BY 1 ORDER BY COUNT(*) DESC LIMIT 300",
+                f"SELECT {col} FROM fact_sales WHERE core=? AND {col} IS NOT NULL{where}{scope} GROUP BY 1 ORDER BY {order} LIMIT 300",
                 [name, *args, *sargs]).fetchall()]
         out["month"] = [r[0] for r in con.execute(
             f"SELECT DISTINCT year_month FROM fact_sales WHERE core=? AND year_month IS NOT NULL{scope} ORDER BY 1",

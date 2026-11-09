@@ -45,7 +45,7 @@ import { Table } from './ui'
 const pct = (v) => (v == null ? '—' : `${new Intl.NumberFormat('fa-IR', { maximumFractionDigits: 1 }).format(v * 100)}٪`)
 const PIE_COLORS = ['#2563eb', '#0f766e', '#8b5cf6', '#f59e0b', '#ec4899', '#0ea5e9', '#84cc16', '#ef4444', '#94a3b8']
 const PIE_BY = [['branch', 'شعبه'], ['region', 'منطقه'], ['brand', 'برند'], ['sales_type', 'کانال فروش'], ['group', 'لاین'], ['grade', 'گرید مشتری']]
-const FILTER_LABELS = { sales_type: 'کانال فروش', region: 'منطقه', state: 'منطقه شهرداری', city: 'شهر', brand: 'برند', group: 'لاین', grade: 'گرید مشتری', main_group: 'گروه کالای اصلی', sub_group: 'زیرگروه کالای اصلی', product: 'کالا' }
+const FILTER_LABELS = { sales_type: 'کانال فروش', region: 'شهر', group: 'لاین', state: 'منطقه شهرداری', brand: 'برند', main_group: 'گروه کالای اصلی', sub_group: 'زیرگروه کالای اصلی', product: 'کالا', grade: 'گرید مشتری' }
 const PRODUCT_GROUP_KEYS = ['main_group', 'sub_group', 'product'] // hidden while the data has no product groups (product.tsv not loaded)
 
 export const NAV = [
