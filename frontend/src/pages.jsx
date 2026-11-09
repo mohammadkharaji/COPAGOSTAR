@@ -65,19 +65,23 @@ export const QuantityPage = ({ p }) => {
   )
 }
 
-const pctChange = (v) => (v == null ? '—' : `${v > 0 ? '+' : ''}${(v * 100).toFixed(1)}٪`)
+const pctChange = (v) => (v == null ? '—' : `${v > 0 ? '▲' : '▼'} ${fa(Math.abs(v * 100).toFixed(1))}٪`)
 
 function QuantityMonthCompare({ p }) {
   const m = useApi('/quantity-monthly', p)
   const months = Array.isArray(m.data) ? m.data : []
   const last = months[months.length - 1]
   const prev = months[months.length - 2]
+  const change = last?.change_percent
+  const delta = last && prev ? last.net_qty - prev.net_qty : null
+  const tone = change == null ? '' : change < 0 ? 'neg' : 'teal'
   return (
-    <Panel title="مقایسه با ماه قبل" note={last && prev ? `${monthLabel(last.month)} نسبت به ${monthLabel(prev.month)} · تعداد خالص` : ''} full>
-      <div className="exec-grid">
-        <Kpi label={last ? monthLabel(last.month) : 'ماه جاری'} value={last ? fa(last.net_qty) : '—'} unit="تعداد خالص" />
+    <Panel title="مقایسه با ماه قبل" note={last && prev ? `تعداد خالص ${monthLabel(last.month)} نسبت به ${monthLabel(prev.month)}` : ''} full>
+      <div className="kpis">
+        <Kpi label={last ? monthLabel(last.month) : 'ماه جاری'} value={last ? fa(last.net_qty) : '—'} unit="تعداد خالص" tone="primary" />
         <Kpi label={prev ? monthLabel(prev.month) : 'ماه قبل'} value={prev ? fa(prev.net_qty) : '—'} unit="تعداد خالص" />
-        <Kpi label="تغییر" value={pctChange(last?.change_percent)} unit="نسبت به ماه قبل" />
+        <Kpi label="تغییر" value={pctChange(change)} unit="نسبت به ماه قبل" tone={tone}
+             hint={delta == null ? undefined : `${delta > 0 ? '▲' : '▼'} ${fa(Math.abs(delta))} عدد`} />
       </div>
     </Panel>
   )
