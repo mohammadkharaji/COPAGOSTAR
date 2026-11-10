@@ -181,6 +181,18 @@ def test_dimension_filter_and_breakdown(client):
     assert client.get("/api/filters").json()["branch"] == ["شعبه تهران"]
 
 
+def test_hidden_brand_is_not_offered_as_a_filter_option(tmp_path, monkeypatch):
+    s = "SRSalesProcedure1405"
+    c = build_client(tmp_path, monkeypatch, {"sr_kg_140507": [
+        make_row(s, "1", "C1", "1000", "10", brand="کوپا"),
+        make_row(s, "2", "C2", "500", "5", brand="دومینو")]})
+    opts = c.get("/api/filters").json()
+    assert opts["brand"] == ["کوپا"]
+    # the rows themselves are untouched: totals still include them
+    assert c.get("/api/overview").json()["sum_rial_vat"] == 1500
+    assert {r["key"] for r in c.get("/api/breakdown", params={"by": "brand"}).json()} >= {"کوپا"}
+
+
 def test_geo_filter_options_follow_selected_branch(client):
     allopts = client.get("/api/filters").json()
     assert allopts["city"] == ["تهران"] and allopts["state"] == ["منطقه ۱"]

@@ -308,6 +308,8 @@ BREAKDOWN_BY = {**DIMS, "month": "year_month", "day": "jdate_key", "product": "p
 SALES_ONLY = "NOT is_promo AND NOT is_return"
 # Personal purchases (خرید پرسنلی in the Guild column) are not visitor sales: one total, not per-visitor ranks.
 PERSONNEL_GUILD = "خرید پرسنلی"
+# Brand values that are not ours and must never be offered as a filter option (the rows stay in the data).
+HIDDEN_BRANDS = ("دومینو",)
 VISITOR_SALES = f"({SALES_ONLY} AND (guild IS NULL OR guild <> '{PERSONNEL_GUILD}'))"
 
 
@@ -343,6 +345,9 @@ def filters(request: Request, core: str = DEFAULT_CORE):
                 order = f"{col}"
             else:
                 order = "COUNT(*) DESC"
+            if key == "brand":
+                where += f" AND {col} NOT IN ({','.join('?' * len(HIDDEN_BRANDS))})"
+                args += list(HIDDEN_BRANDS)
             out[key] = [r[0] for r in con.execute(
                 f"SELECT {col} FROM fact_sales WHERE core=? AND {col} IS NOT NULL{where}{scope} GROUP BY 1 ORDER BY {order} LIMIT 300",
                 [name, *args, *sargs]).fetchall()]
@@ -1127,6 +1132,26 @@ from . import admin as _admin  # noqa: E402  (users, roles, audit log; admin-onl
 app.include_router(_admin.router)
 from . import tickets as _tickets  # noqa: E402  (support tickets; every signed-in user, admins answer)
 app.include_router(_tickets.router)
+
+
+# ---------- AI sales agent ----------
+
+class ChatBody(BaseModel):
+    question: str = Field(min_length=1, max_length=2000)
+
+
+@app.post("/api/chat")
+def chat(body: ChatBody):
+    """Runs the LangGraph sales agent. Login + RBAC come from the /api/ middleware (admin-only, fail closed)."""
+    rbac.require()
+    from .agent.graph import run as agent_run   # local import: langgraph loads on first use, not at server start
+    try:
+        result = agent_run(body.question)
+    except RuntimeError as exc:   # LLM env vars missing
+        raise HTTPException(503, str(exc))
+    return {"answer": result["answer"], "used_memory": result.get("used_memory", False),
+            "used_db": result.get("used_db", False)}
+
 
 DIST = ROOT / "frontend" / "dist"
 if DIST.is_dir():
