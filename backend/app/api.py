@@ -309,7 +309,7 @@ SALES_ONLY = "NOT is_promo AND NOT is_return"
 # Personal purchases (خرید پرسنلی in the Guild column) are not visitor sales: one total, not per-visitor ranks.
 PERSONNEL_GUILD = "خرید پرسنلی"
 # Brand values that are not ours and must never be offered as a filter option (the rows stay in the data).
-HIDDEN_BRANDS = ("دومینو",)
+HIDDEN_BRANDS = ("دومینو", "TBS", "متفرقه", "آروما")
 VISITOR_SALES = f"({SALES_ONLY} AND (guild IS NULL OR guild <> '{PERSONNEL_GUILD}'))"
 
 
@@ -930,6 +930,81 @@ def inactive_customers_export(request: Request, core: str = DEFAULT_CORE, days: 
     stamp = (j["as_of"] or "").replace("/", "-")
     return Response(body, media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                     headers={"Content-Disposition": f'attachment; filename="inactive-customers-{core}-{stamp}.xlsx"'})
+
+
+POTENTIAL_LAPSE_DAYS = 120
+POTENTIAL_MAX_INVOICES = 2
+
+
+def _key_of(g: date) -> int:
+    return int(format_jdate(*gregorian_to_jalali(g)).replace("/", ""))
+
+
+def _potential_report(request: Request, core: str, days: int, lapse_days: int, max_invoices: int) -> dict:
+    """Two groups of customers from paid sales, measured against the same window as the inactive report.
+
+    lapsed: last purchase before the window, but no earlier than `lapse_days` before the window starts (recoverable).
+    low_frequency: bought inside the window on at most `max_invoices` invoices.
+    """
+    name = _core(core)
+    dim, dargs = _dims(request)
+    con = _con()
+    try:
+        l_scope, l_args = rbac.scope_clause()
+        latest = con.execute(f"SELECT MAX(jdate_key) FROM fact_sales WHERE core=? AND jdate_key IS NOT NULL{l_scope}",
+                             [name, *l_args]).fetchone()[0]
+        if latest is None:
+            return {"available": False, "days": days, "reason": "داده‌ای برای این هسته بارگذاری نشده است."}
+        latest_g = jalali_to_gregorian(*_jtuple(latest))
+        cutoff_key = _key_of(latest_g - timedelta(days=days - 1))
+        lapse_key = _key_of(latest_g - timedelta(days=days - 1 + lapse_days))
+        rows = con.execute(
+            f"""WITH paid AS (
+                    SELECT customer_code, customer_name, visitor_code, visitor, branch, city_name, grade, invoice_code,
+                           jdate_key, rial_vat,
+                           ROW_NUMBER() OVER (PARTITION BY customer_code ORDER BY jdate_key DESC, invoice_code DESC) AS rn
+                    FROM fact_sales
+                    WHERE core=? AND {SALES_ONLY} AND rial_vat > 0 AND customer_code IS NOT NULL
+                          AND jdate_key IS NOT NULL{dim}),
+                agg AS (
+                    SELECT customer_code, SUM(rial_vat) AS sales, COUNT(DISTINCT invoice_code) AS invoices,
+                           MIN(jdate_key) AS first_key, MAX(jdate_key) AS last_key,
+                           COALESCE(SUM(rial_vat) FILTER (WHERE jdate_key >= ?), 0) AS win_sales,
+                           COUNT(DISTINCT invoice_code) FILTER (WHERE jdate_key >= ?) AS win_invoices
+                    FROM paid GROUP BY 1)
+                SELECT a.customer_code, p.customer_name, p.visitor_code, p.visitor, p.branch, p.city_name, p.grade,
+                       a.sales, a.invoices, a.first_key, a.last_key, a.win_sales, a.win_invoices
+                FROM agg a JOIN paid p ON p.customer_code = a.customer_code AND p.rn = 1
+                ORDER BY a.sales DESC, a.customer_code""", [name, *dargs, cutoff_key, cutoff_key]).fetchall()
+    finally:
+        con.close()
+    lapsed = [r for r in rows if lapse_key <= r[10] < cutoff_key]
+    low = [r for r in rows if 1 <= r[12] <= max_invoices]
+
+    def item(rank: int, r: tuple) -> dict:
+        code, cname, vcode, vname, branch, city, grade, sales, invoices, first_key, last_key, win_sales, win_invoices = r
+        return {"rank": rank, "code": code, "name": cname, "visitor_code": vcode, "visitor": vname, "branch": branch,
+                "city": city, "grade": grade, "first_purchase": _jdate(first_key), "last_purchase": _jdate(last_key),
+                "days_since": (latest_g - jalali_to_gregorian(*_jtuple(last_key))).days, "invoices": invoices,
+                "sales_rial": sales, "window_invoices": win_invoices, "window_sales_rial": win_sales,
+                "avg_invoice_rial": (sales / invoices) if invoices else None}
+
+    lapsed_items = [item(i, r) for i, r in enumerate(lapsed, 1)]
+    low_items = [item(i, r) for i, r in enumerate(low, 1)]
+    return {
+        "available": True, "days": days, "lapse_days": lapse_days, "max_invoices": max_invoices,
+        "as_of": _jdate(latest), "window_start": _jdate(cutoff_key), "lapse_start": _jdate(lapse_key),
+        "total_customers": len(rows),
+        "lapsed": {"count": len(lapsed_items), "sales_rial": sum(i["sales_rial"] for i in lapsed_items), "items": lapsed_items},
+        "low_frequency": {"count": len(low_items), "sales_rial": sum(i["window_sales_rial"] for i in low_items), "items": low_items},
+    }
+
+
+@app.get("/api/potential-customers")
+def potential_customers(request: Request, core: str = DEFAULT_CORE, days: int = Query(INACTIVE_DAYS, ge=7, le=365),
+                        lapse_days: int = Query(POTENTIAL_LAPSE_DAYS, ge=30, le=365),
+                        max_invoices: int = Query(POTENTIAL_MAX_INVOICES, ge=1, le=10)):
+    return _potential_report(request, core, days, lapse_days, max_invoices)
 
 
 @app.get("/api/invoice-bands")

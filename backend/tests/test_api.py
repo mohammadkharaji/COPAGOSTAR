@@ -185,11 +185,14 @@ def test_hidden_brand_is_not_offered_as_a_filter_option(tmp_path, monkeypatch):
     s = "SRSalesProcedure1405"
     c = build_client(tmp_path, monkeypatch, {"sr_kg_140507": [
         make_row(s, "1", "C1", "1000", "10", brand="کوپا"),
-        make_row(s, "2", "C2", "500", "5", brand="دومینو")]})
+        make_row(s, "2", "C2", "500", "5", brand="دومینو"),
+        make_row(s, "3", "C3", "300", "3", brand="TBS"),
+        make_row(s, "4", "C4", "200", "2", brand="متفرقه"),
+        make_row(s, "5", "C5", "100", "1", brand="آروما")]})
     opts = c.get("/api/filters").json()
     assert opts["brand"] == ["کوپا"]
     # the rows themselves are untouched: totals still include them
-    assert c.get("/api/overview").json()["sum_rial_vat"] == 1500
+    assert c.get("/api/overview").json()["sum_rial_vat"] == 2100
     assert {r["key"] for r in c.get("/api/breakdown", params={"by": "brand"}).json()} >= {"کوپا"}
 
 
@@ -533,6 +536,26 @@ def test_inactive_window_length_filters_and_core(inactive_client):
     assert inactive_client.get("/api/inactive-customers", params={"core": "zz"}).status_code == 400
     assert inactive_client.get("/api/inactive-customers", params={"core": "ch"}).json()["available"] is False
     assert inactive_client.get("/api/inactive-customers/export", params={"core": "ch"}).status_code == 404
+
+
+def test_potential_customers_lapsed_and_low_frequency(inactive_client):
+    j = inactive_client.get("/api/potential-customers").json()
+    assert j["available"] and j["window_start"] == "1405/05/21" and j["lapse_start"] == "1405/01/25"
+    # lapsed: last purchase in [lapse_start, window_start). A (05/20), C (04/01), D (03/01), F (04/20) qualify; B and G do not
+    lapsed = {i["code"]: i for i in j["lapsed"]["items"]}
+    assert set(lapsed) == {"A", "C", "D", "F"} and j["lapsed"]["count"] == 4
+    assert lapsed["C"]["last_purchase"] == "1405/04/01" and j["lapsed"]["sales_rial"] == 100 + 300 + 400 + 1100
+    # low frequency: bought inside the window on at most 2 invoices: B (1 invoice, window day one) and G; A bought before it
+    low = {i["code"]: i for i in j["low_frequency"]["items"]}
+    assert set(low) == {"B", "G"} and j["low_frequency"]["count"] == 2
+    assert j["low_frequency"]["sales_rial"] == 200 + 50
+    # E (promotion only) is in neither group
+    assert "E" not in lapsed and "E" not in low
+    j2 = inactive_client.get("/api/potential-customers", params={"max_invoices": 1, "lapse_days": 30}).json()
+    assert {i["code"] for i in j2["lapsed"]["items"]} == {"A"} and j2["lapse_start"] == "1405/04/22"
+    assert {i["code"] for i in j2["low_frequency"]["items"]} == {"B", "G"}
+    assert inactive_client.get("/api/potential-customers", params={"lapse_days": 10}).status_code == 422
+    assert inactive_client.get("/api/potential-customers", params={"core": "ch"}).json()["available"] is False
 
 
 def test_inactive_customers_export_is_a_valid_xlsx(inactive_client):
