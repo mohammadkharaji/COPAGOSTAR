@@ -30,7 +30,7 @@ from . import auth, config
 from .config import CORES
 
 PAGES = ("overview", "trend", "monthly", "growth", "target", "branch", "product", "profile", "pareto", "invoice",
-         "customer", "visitor", "returns", "inactive", "health", "quantity")
+         "customer", "visitor", "returns", "inactive", "health", "quantity", "potential")
 USERNAME_RE = re.compile(r"^[A-Za-z0-9_.@-]{3,64}$")
 MIN_PASSWORD = 8
 SCOPE_MODES = ("all", "branch", "supervisor")
@@ -324,7 +324,8 @@ EXACT = {
     "/api/invoice-bands": ("invoice",), "/api/invoice-lines": ("invoice",), "/api/quantity": ("quantity",), "/api/quantity-monthly": ("quantity",), "/api/quantity-split": ("quantity",),
 }
 PREFIX = (("/api/visitor", ("visitor",)), ("/api/customer", ("customer",)), ("/api/profile", ("profile",)),
-          ("/api/returns", ("returns",)), ("/api/target", ("target",)), ("/api/inactive-customers", ("inactive",)))
+          ("/api/returns", ("returns",)), ("/api/target", ("target",)), ("/api/inactive-customers", ("inactive",)),
+          ("/api/potential-customers", ("potential",)))
 
 
 def access_for(method: str, path: str) -> tuple[str, tuple[str, ...]]:

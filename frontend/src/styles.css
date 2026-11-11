@@ -629,3 +629,52 @@ tbody tr:hover, tbody tr.sel { background: #fbf3e0; }
 .pie-legend { margin: 0; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); }
 .pie-legend button { min-height: 40px; }
 .pie-legend span:nth-of-type(1) { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ---------- AI chat (src/ChatPage.jsx) ---------- */
+.chat { display: grid; grid-template-rows: auto 1fr auto; gap: 10px; height: calc(100vh - 210px); min-height: 420px; max-width: 900px; }
+.chat-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+.chat-head b { font-size: 15px; }
+.chat-head small { display: block; color: var(--muted); font-size: 12px; line-height: 1.6; }
+.chat-clear { display: inline-flex; align-items: center; gap: 6px; height: 34px; padding: 0 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--card); font-size: 13px; font-weight: 600; color: var(--muted); flex: none; }
+.chat-clear:hover { border-color: var(--petrol); color: var(--petrol); }
+
+.chat-scroll { overflow-y: auto; padding: 16px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--card); }
+.chat-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 14px; }
+
+.chat-msg { display: flex; gap: 10px; align-items: flex-start; }
+.chat-msg.user { justify-content: flex-start; }
+.chat-avatar { flex: none; width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; background: #174c5a14; color: var(--petrol); }
+.chat-body { padding: 10px 14px; border-radius: 12px; background: var(--paper); border: 1px solid var(--line); max-width: 76ch; }
+.chat-body p { margin: 0; white-space: pre-wrap; line-height: 1.9; }
+.chat-msg.user .chat-body { background: #174c5a0d; border-color: #174c5a26; }
+.chat-msg.assistant .chat-body { background: var(--card); }
+.chat-typing { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 13px; }
+.spin { animation: chat-spin 1s linear infinite; }
+@keyframes chat-spin { to { transform: rotate(360deg); } }
+
+.chat-empty { display: grid; justify-items: center; gap: 10px; padding: 40px 20px; text-align: center; }
+.chat-empty-icon { width: 46px; height: 46px; border-radius: 50%; display: grid; place-items: center; background: #e4a53a22; color: var(--saffron-deep); }
+.chat-empty p { margin: 0; color: var(--muted); max-width: 46ch; }
+.chat-samples { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-top: 6px; }
+.chat-samples button { border: 1px solid var(--line); background: var(--paper); color: var(--ink); border-radius: 999px; padding: 7px 14px; font: inherit; font-size: 13px; }
+.chat-samples button:hover { border-color: var(--saffron); background: #e4a53a14; }
+
+.chat-error { margin: 0; display: flex; align-items: center; gap: 6px; color: var(--neg); font-size: 13px; font-weight: 600; }
+
+.chat-compose { display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: end; border: 1px solid var(--line); border-radius: var(--radius); background: var(--card); padding: 8px 8px 8px 12px; }
+.chat-compose:focus-within { border-color: var(--saffron); }
+.chat-compose textarea { border: 0; resize: none; font: inherit; color: var(--ink); background: none; padding: 8px 4px; max-height: 132px; min-height: 38px; field-sizing: content; }
+.chat-compose textarea:focus { outline: none; }
+.chat-compose button { width: 40px; height: 40px; border: 0; border-radius: 10px; background: var(--ink); color: #fff; display: grid; place-items: center; }
+.chat-compose button:disabled { opacity: .45; cursor: not-allowed; }
+.chat-hint { margin: 0; display: flex; align-items: center; gap: 6px; color: var(--muted); font-size: 12px; }
+
+@media (max-width: 720px) {
+  /* The page header above the chat grows on a phone, so the box keeps the composer on screen. */
+  .chat { height: calc(100dvh - 400px); min-height: 320px; }
+  .chat-body { max-width: 100%; }
+  .chat-head small { font-size: 11.5px; }
+  .chat-hint { font-size: 11px; }
+  .chat-empty { padding: 24px 12px; }
+  .chat-samples button { font-size: 12px; padding: 6px 11px; }
+}

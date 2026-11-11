@@ -30,6 +30,7 @@ import {
   TrendingUp,
   Undo2,
   UserCheck,
+  UserPlus,
   UserRound,
   UserX,
   Users,
@@ -52,20 +53,21 @@ export const NAV = [
   ['overview', 'نمای کلی', LayoutDashboard], ['trend', 'روند روزانه', Activity], ['monthly', 'روند ماهانه', BarChart3],
   ['growth', 'آنالیز رشد و افت', Percent], ['target', 'تارگت', Target],
   ['branch', 'شعب و مناطق', MapPin], ['product', 'کالا و برند', ShoppingBag], ['profile', 'تحلیل شعبه و برند', Building2],
-  ['pareto', 'تحلیل پارتو', TrendingUp], ['inactive', 'مشتریان غیرفعال', UserX], ['returns', 'برگشتی حواله', Undo2],
+  ['pareto', 'تحلیل پارتو', TrendingUp], ['inactive', 'مشتریان غیرفعال', UserX], ['potential', 'مشتریان بالقوه', UserPlus], ['returns', 'برگشتی حواله', Undo2],
   ['quantity', 'تحلیل تعداد کالا', PackageSearch],
   ['invoice', 'تحلیل فاکتور', FileText], ['customer', 'پروفایل مشتری', UserRound], ['visitor', 'پروفایل ویزیتور', UserCheck],
-  ['health', 'سلامت داده', HeartPulse], ['tickets', 'تیکت‌ها', MessageSquare],
+  ['health', 'سلامت داده', HeartPulse], ['tickets', 'تیکت‌ها', MessageSquare], ['chat', 'دستیار هوشمند', Sparkles],
 ]
 
 // Sidebar grouping only; NAV keeps its [id, label, Icon] shape for App.jsx routing.
 // The third field marks a group as an expandable sub-menu.
 const NAV_GROUPS = [
   ['فروش', ['overview', 'trend', 'monthly', 'growth', 'target'], false],
-  ['تحلیل', ['branch', 'product', 'profile', 'pareto', 'inactive', 'returns', 'quantity'], true],
+  ['تحلیل', ['branch', 'product', 'profile', 'pareto', 'inactive', 'potential', 'returns', 'quantity'], true],
   ['مشتری و فاکتور', ['invoice', 'customer', 'visitor'], true],
   ['سیستم', ['health'], true],
   ['پشتیبانی', ['tickets'], false],
+  ['تحلیل هوشمند', ['chat'], false],
 ]
 // The admin entry is not a report page: App adds it only for principals with is_admin.
 export const ADMIN_NAV = ['admin', 'مدیریت کاربران', ShieldCheck]

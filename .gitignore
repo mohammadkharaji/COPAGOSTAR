@@ -9,3 +9,10 @@ dist/
 .env
 .claude/
 .omc/
+.impeccable/
+
+# Source workbooks and exports never belong in the repo (they are hundreds of MB).
+*.xlsx
+*.tsv
+*.bak
+*.bak-*

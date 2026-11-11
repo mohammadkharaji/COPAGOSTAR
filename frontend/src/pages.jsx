@@ -370,6 +370,61 @@ function ProfileLink({ onClick, children }) {
   )
 }
 
+export function PotentialCustomersPage({ p, openCustomer, openVisitor }) {
+  const [days, setDays] = useState('60')
+  const { month: _m, start: _s, end: _e, v: _v, ...query } = p
+  const r = useApi('/potential-customers', { ...query, days, v: p.v })
+  return (
+    <>
+      <div className="toolbar">
+        <Toggle label="بازه بررسی" value={days} onChange={setDays} options={INACTIVE_DAYS} />
+      </div>
+      <Status state={r}>{(j) => {
+        if (!j.available) return <div className="banner">{j.reason}</div>
+        const low = j.low_frequency
+        const lapsed = j.lapsed
+        const rows = (items) => items.map((x) => ({ ...x }))
+        return (
+          <>
+            <section className="kpis" style={{ marginTop: 16 }}>
+              <Kpi label="مشتری در حال بازگشت" value={fa(lapsed.count)} unit={`خرید بین ${faDate(j.lapse_start.replace(/\//g, ''))} تا قبل از بازه`} tone="primary" />
+              <Kpi label="فروش قبلی بازگشتی‌ها" value={rial(lapsed.sales_rial)} unit="ریال · فروش عادی" />
+              <Kpi label="مشتری کم‌خرید فعال" value={fa(low.count)} unit={`تا ${fa(j.max_invoices)} فاکتور در بازهٔ بررسی`} tone="teal" />
+              <Kpi label="فروش این گروه در بازه" value={rial(low.sales_rial)} unit="ریال · فروش عادی در بازه" />
+            </section>
+            <Panel title="مشتریان در حال بازگشت" note="آخرین خرید قبل از بازه، ولی در بازهٔ اخیر‌تر (پیش از این بازه) · با کلیک روی ردیف، پروفایل مشتری باز می‌شود" full>
+              <Table name="مشتریان-در-حال-بازگشت" rows={rows(lapsed.items)} pageSize={INACTIVE_PAGE_SIZE} onRow={(x) => openCustomer(x.code)} columns={[
+                { label: 'رتبه', render: (x) => fa(x.rank), value: (x) => x.rank },
+                { label: 'کد مشتری', render: (x) => x.code, value: (x) => String(x.code) },
+                { label: 'مشتری', render: (x) => <ProfileLink onClick={() => openCustomer(x.code)}>{x.name ?? x.code}</ProfileLink>, value: (x) => String(x.name ?? '') },
+                { label: 'ویزیتور', render: (x) => (x.visitor_code ? <ProfileLink onClick={() => openVisitor(x.visitor_code)}>{x.visitor ?? x.visitor_code}</ProfileLink> : '—'), value: (x) => String(x.visitor ?? '') },
+                { label: 'شعبه', render: (x) => x.branch ?? '—', value: (x) => String(x.branch ?? '') },
+                { label: 'آخرین خرید', render: (x) => x.last_purchase, value: (x) => x.last_purchase },
+                { label: 'روز بدون خرید', render: (x) => fa(x.days_since), value: (x) => x.days_since },
+                { label: 'تعداد فاکتور', render: (x) => fa(x.invoices), value: (x) => x.invoices },
+                { label: 'فروش قبلی (ریال)', render: (x) => rial(x.sales_rial), value: (x) => x.sales_rial },
+              ]} />
+            </Panel>
+            <Panel title="مشتریان کم‌خرید فعال" note={`خرید در بازه با حداکثر ${fa(j.max_invoices)} فاکتور · با کلیک روی ردیف، پروفایل مشتری باز می‌شود`} full>
+              <Table name="مشتریان-کم-خرید" rows={rows(low.items)} pageSize={INACTIVE_PAGE_SIZE} onRow={(x) => openCustomer(x.code)} columns={[
+                { label: 'رتبه', render: (x) => fa(x.rank), value: (x) => x.rank },
+                { label: 'کد مشتری', render: (x) => x.code, value: (x) => String(x.code) },
+                { label: 'مشتری', render: (x) => <ProfileLink onClick={() => openCustomer(x.code)}>{x.name ?? x.code}</ProfileLink>, value: (x) => String(x.name ?? '') },
+                { label: 'ویزیتور', render: (x) => (x.visitor_code ? <ProfileLink onClick={() => openVisitor(x.visitor_code)}>{x.visitor ?? x.visitor_code}</ProfileLink> : '—'), value: (x) => String(x.visitor ?? '') },
+                { label: 'شعبه', render: (x) => x.branch ?? '—', value: (x) => String(x.branch ?? '') },
+                { label: 'فاکتور در بازه', render: (x) => fa(x.window_invoices), value: (x) => x.window_invoices },
+                { label: 'فروش در بازه (ریال)', render: (x) => rial(x.window_sales_rial), value: (x) => x.window_sales_rial },
+                { label: 'آخرین خرید', render: (x) => x.last_purchase, value: (x) => x.last_purchase },
+                { label: 'فروش کل (ریال)', render: (x) => rial(x.sales_rial), value: (x) => x.sales_rial },
+              ]} />
+            </Panel>
+          </>
+        )
+      }}</Status>
+    </>
+  )
+}
+
 export function InactiveCustomersPage({ p, openCustomer, openVisitor }) {
   const [days, setDays] = useState('60')
   const [selVisitor, setSelVisitor] = useState(null)

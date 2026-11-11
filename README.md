@@ -93,6 +93,12 @@ curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1:8000/api/overview
 | `SR_RAW_DIR` | پوشهٔ فایل‌های `.tsv` | `<SR_DATA_DIR>/raw` |
 | `SR_DB_PATH` | فایل دیتابیس | `<SR_DATA_DIR>/sr.duckdb` |
 | `SR_HOLIDAYS` | تعطیلات اضافه با تاریخ جلالی، جداشده با کاما، مثل `1405/08/05,1405/08/12` | خالی (جمعه‌ها همیشه تعطیل‌اند) |
+| `AGENT_LLM_API_KEY` | کلید دستیار هوشمند (فقط صفحهٔ `/chat`، ادمین‌ها) | خالی |
+| `AGENT_LLM_BASE_URL` | آدرس سرویس مدل سازگار با OpenAI | خالی |
+| `AGENT_LLM_MODEL` | نام مدل | خالی |
+| `SR_AGENT_DB` | فایل حافظهٔ دستیار | `<SR_DATA_DIR>/agent_memory.sqlite` |
+
+اگر سه متغیر `AGENT_LLM_*` تنظیم نشده باشند، بقیهٔ داشبورد عادی کار می‌کند و فقط `/api/chat` پاسخ ۵۰۳ («تنظیم نشده») می‌دهد؛ صفحهٔ «دستیار هوشمند» هم فقط برای ادمین‌ها در نوار کنار دیده می‌شود. این متغیرها را در `/etc/sr/agent.env` بگذارید (نه داخل مخزن) و از سرویس `sr-api` بخوانید.
 
 برای تغییر متغیرها، خط `Environment=` را در `/etc/systemd/system/sr-api.service` ویرایش کنید و سپس `systemctl daemon-reload && systemctl restart sr-api` را بزنید.
 

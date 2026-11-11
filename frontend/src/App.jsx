@@ -1,10 +1,11 @@
 import TargetPage from './TargetPage'
 import AdminPage from './AdminPage'
+import ChatPage from './ChatPage'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { get, post, useApi } from './api'
 import { monthLabel, monthRange } from './format'
 import ExecutiveDashboard, { ExecShell, NAV } from './ExecutiveDashboard'
-import { BranchRegionPage, CustomerPage, GrowthPage, HealthPage, InactiveCustomersPage, InvoicePage, MonthlyTrendPage, QuantityPage, TicketsPage, ParetoPage, ProductBrandPage, ProfilePage, ReturnsPage, TrendPage, VisitorPage } from './pages'
+import { BranchRegionPage, CustomerPage, GrowthPage, HealthPage, InactiveCustomersPage, InvoicePage, MonthlyTrendPage, PotentialCustomersPage, QuantityPage, TicketsPage, ParetoPage, ProductBrandPage, ProfilePage, ReturnsPage, TrendPage, VisitorPage } from './pages'
 
 const CORES = { kg: 'کوپا گستر', ch: 'زنجیره‌ای' }
 const SHARED_KEYS = ['month', 'branch', 'region', 'state', 'city', 'brand', 'group', 'grade', 'sales_type', 'main_group', 'sub_group', 'product', 'reason']
@@ -42,7 +43,9 @@ export default function App({ onLogout }) {
   // What this user may open comes from /auth/me (pages, cores, is_admin); the backend enforces the same rules.
   const me = useApi('/auth/me', {})
   const principal = me.data
-  const allowedPages = useMemo(() => [...(principal?.pages ?? []), 'tickets'], [principal])
+  // `chat` is admin-only on the backend (not listed in rbac.EXACT/SHELL, so access_for() fails closed), so the
+  // sidebar entry is offered to admins only — otherwise the page would load and every question would 403.
+  const allowedPages = useMemo(() => [...(principal?.pages ?? []), 'tickets', ...(principal?.is_admin ? ['chat'] : [])], [principal])
   const allowedCores = useMemo(() => Object.keys(CORES).filter((k) => principal?.cores?.includes(k)), [principal])
   const visibleCores = useMemo(() => Object.fromEntries(allowedCores.map((k) => [k, CORES[k]])), [allowedCores])
   const isAdmin = Boolean(principal?.is_admin)
@@ -136,7 +139,9 @@ export default function App({ onLogout }) {
   if (me.error) return <div className="exec-alert err" role="alert" dir="rtl">دریافت اطلاعات حساب ناموفق بود.</div>
   if (!principal) return <div className="banner" dir="rtl">در حال بارگذاری…</div>
   const title = page === 'admin' ? 'مدیریت کاربران و نقش‌ها' : page ? NAV.find(([k]) => k === page)[1] : 'بدون دسترسی'
-  const subtitle = page === 'admin'
+  const subtitle = page === 'chat'
+    ? 'پرسش و پاسخ روی دادهٔ فروش · پاسخ‌ها فقط از هسته‌ها و شعب مجاز همین حساب خوانده می‌شوند'
+    : page === 'admin'
     ? 'کاربران، نقش‌ها و گزارش رویدادهای سامانه'
     : !page
       ? 'برای این حساب صفحه‌ای فعال نشده است؛ با مدیر سامانه تماس بگیرید.'
@@ -150,11 +155,12 @@ export default function App({ onLogout }) {
     <ExecShell
       page={page} onNavigate={go} core={core} cores={visibleCores} setCore={setCore} title={title} subtitle={subtitle}
       month={month} setMonth={setMonth} filters={options.data ?? {}} dims={dims} onFilterChange={setDim}
-      onReset={() => { setMonth(''); setDims({}) }} showFilters={reports && page !== 'health' && page !== 'customer' && page !== 'target'} hideMonth={page === 'monthly' || page === 'growth' || page === 'inactive'}
+      onReset={() => { setMonth(''); setDims({}) }} showFilters={reports && !['health', 'customer', 'target', 'chat'].includes(page)} hideMonth={['monthly', 'growth', 'inactive', 'potential', 'chat'].includes(page)}
       error={error} partial={partial} lastDataDate={health?.last_data_date} syncState={syncState} syncNotice={syncNotice} onDismissNotice={() => setSyncNotice('')} onRefresh={startSync} onLogout={onLogout} user={principal.user}
       allowedPages={allowedPages} isAdmin={isAdmin} canSync={isAdmin}
     >
       {page === 'admin' && isAdmin && <AdminPage />}
+      {page === 'chat' && <ChatPage />}
       {page && page !== 'admin' && !allowedCores.length && <div className="empty">برای این حساب هسته‌ای فعال نشده است.</div>}
       {reports && page !== 'admin' && <>
       {page === 'overview' && <ExecutiveDashboard p={p} cal={cal} month={month} setMonth={setMonth} onOpenReturns={() => go('returns')} />}
@@ -171,6 +177,7 @@ export default function App({ onLogout }) {
       {page === 'quantity' && <QuantityPage p={p} />}
       {page === 'invoice' && <InvoicePage p={p} />}
       {page === 'inactive' && <InactiveCustomersPage p={p} openCustomer={(c) => go('customer', c)} openVisitor={(c) => go('visitor', c)} />}
+      {page === 'potential' && <PotentialCustomersPage p={p} openCustomer={(c) => go('customer', c)} openVisitor={(c) => go('visitor', c)} />}
       {page === 'customer' && <CustomerPage key={arg} core={core} code={arg} setCode={(c) => go('customer', c)} openReturns={(a) => go('returns', a)} />}
       {page === 'health' && <HealthPage health={health} meta={meta} quality={quality} />}
       {page === 'tickets' && <TicketsPage isAdmin={!!me.data?.is_admin} />}
