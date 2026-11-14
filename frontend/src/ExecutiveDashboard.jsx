@@ -14,9 +14,11 @@ import {
   Filter,
   HeartPulse,
   LayoutDashboard,
+  LayoutGrid,
   ListOrdered,
   LogOut,
   MapPin,
+  Menu,
   PackageSearch,
   Percent,
   Printer,
@@ -41,7 +43,7 @@ import { Area, AreaChart, Bar, BarChart, CartesianGrid, ResponsiveContainer, Too
 import { postJson, useApi } from './api'
 import { dayLabel, fa, fa2, faDigits, monthLabel, monthName } from './format'
 import { Table } from './ui'
-import { motion } from 'motion/react'
+import { motion, AnimatePresence } from 'motion/react'
 import { StatusIsland, HeroMetricCard, ForecastRings, CalendarGlass, KpiSpotlight, ShareTabsCard, CompareBento } from './overview/kokonut-overview'
 
 const pct = (v) => (v == null ? '—' : `${new Intl.NumberFormat('fa-IR', { maximumFractionDigits: 1 }).format(v * 100)}٪`)
@@ -175,15 +177,58 @@ export function ExecShell({
   showFilters = true, hideMonth = false, error, partial, lastDataDate, syncState = 'never', syncNotice, onDismissNotice, onRefresh, onLogout, user, allowedPages = null, isAdmin = false, canSync = false, children,
 }) {
   const [pwOpen, setPwOpen] = useState(false)
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const sections = useMemo(() => buildSections(allowedPages, isAdmin), [allowedPages, isAdmin])
   const [collapsed, setCollapsed] = useState(false)
   const [advanced, setAdvanced] = useState(false)
   const [openGroups, setOpenGroups] = useState({})
   const running = syncState === 'running'
   const hasFilters = Boolean(month) || Object.keys(dims).length > 0
+
+  const currentPageLabel = useMemo(() => {
+    if (page === 'admin') return 'مدیریت کاربران'
+    const found = NAV.find(([id]) => id === page)
+    return found ? found[1] : (title || 'صفحه اصلی')
+  }, [page, title])
+
+  const DOCK_TABS = [
+    { id: 'overview', label: 'نمای کلی', icon: LayoutDashboard },
+    { id: 'trend', label: 'روند روزانه', icon: Activity },
+    { id: 'target', label: 'تارگت', icon: Target },
+    { id: 'profile', label: 'تحلیل', icon: Building2 },
+  ]
+  const isMoreActive = mobileMenuOpen || !DOCK_TABS.some((t) => t.id === page)
+
   return (
     <div className={`exec-root ${collapsed ? 'exec-collapsed' : ''}`} dir="rtl">
-      <aside className="exec-sidebar bg-[#1C1C1E] border-l border-white/10 shadow-2xl backdrop-blur-xl">
+
+      {/* ── 1. Minimalist iOS Frosted Top Bar (Mobile / Tablet < 1024px) ── */}
+      <header className="lg:hidden sticky top-0 z-40 h-14 px-4 bg-[#1C1C1E]/85 backdrop-blur-2xl border-b border-white/10 flex items-center justify-between w-full shrink-0 select-none">
+        {/* Right side (RTL): squircle logo + title + active page badge */}
+        <div className="flex items-center gap-2.5 min-w-0">
+          <span className="w-8 h-8 rounded-xl bg-white flex items-center justify-center overflow-hidden shrink-0 shadow-md shadow-black/20">
+            <img src="/logo.jpg" alt="لوگوی کوپا گستر" className="w-full h-full object-cover" />
+          </span>
+          <b className="text-sm font-bold text-white tracking-tight shrink-0">نبض فروش</b>
+          <span className="text-[11px] font-semibold text-[#38BDF8] bg-[#0071E3]/20 border border-[#0071E3]/30 px-2.5 py-0.5 rounded-full truncate max-w-[130px]">
+            {currentPageLabel}
+          </span>
+        </div>
+
+        {/* Left side (RTL): sleek glass trigger button */}
+        <button
+          type="button"
+          onClick={() => setMobileMenuOpen(true)}
+          className="bg-white/10 hover:bg-white/15 active:scale-95 text-white rounded-full p-2 transition-all shrink-0 flex items-center justify-center shadow-sm"
+          aria-label="باز کردن منو"
+          title="منوها"
+        >
+          <Menu size={18} />
+        </button>
+      </header>
+
+      {/* Desktop Right Sidebar (hidden lg:flex) */}
+      <aside className="exec-sidebar hidden lg:flex flex-col bg-[#1C1C1E] border-l border-white/10 shadow-2xl backdrop-blur-xl">
         <div className="exec-brand flex items-center gap-3 px-2 py-3 border-b border-white/[0.08] mb-2">
           <span className="w-10 h-10 rounded-2xl bg-white flex items-center justify-center shadow-md shadow-black/20 overflow-hidden shrink-0">
             <img src="/logo.jpg" alt="لوگوی کوپا گستر" className="w-full h-full object-cover" />
@@ -225,7 +270,6 @@ export function ExecShell({
                 </button>
                 <small className="text-[10px] text-white/40 block">حساب کاربری</small>
               </div>
-              {pwOpen && <PasswordDialog onClose={() => setPwOpen(false)} />}
               <button
                 type="button"
                 className="w-8 h-8 rounded-lg flex items-center justify-center text-white/40 hover:text-red-400 hover:bg-red-500/10 transition-colors shrink-0"
@@ -240,7 +284,7 @@ export function ExecShell({
         </div>
       </aside>
 
-      <main className="exec-main">
+      <main className="exec-main flex-1 min-w-0">
         <header className="exec-header">
           <div>
             <div className="exec-eyebrow">داشبورد اجرایی · سال مالی ۱۴۰۵</div>
@@ -310,8 +354,187 @@ export function ExecShell({
           </>
         )}
 
-        <div className="exec-page w-full max-w-[1600px] mx-auto px-2 sm:px-6">{children}</div>
+        <div className="exec-page w-full max-w-[1600px] mx-auto px-2 sm:px-6 pb-24 lg:pb-6">{children}</div>
       </main>
+
+      {/* ── 2. Floating iOS Glass Bottom Dock (Mobile / Tablet < 1024px) ── */}
+      <nav
+        className="lg:hidden fixed bottom-3 inset-x-3 z-40 h-16 bg-[#1C1C1E]/90 backdrop-blur-3xl border border-white/15 shadow-[0_20px_50px_rgba(0,0,0,0.45)] rounded-[26px] px-2 flex items-center justify-around select-none"
+        aria-label="ناوبری اصلی موبایل"
+      >
+        {DOCK_TABS.map((tab) => {
+          const Icon = tab.icon
+          const active = page === tab.id
+          return (
+            <button
+              key={tab.id}
+              type="button"
+              onClick={() => {
+                setMobileMenuOpen(false)
+                onNavigate(tab.id)
+              }}
+              className={`flex items-center gap-1.5 transition-all duration-200 ${
+                active
+                  ? 'bg-[#0071E3] text-white rounded-2xl px-3 py-1.5 shadow-lg shadow-[#0071E3]/30'
+                  : 'flex-col justify-center text-white/50 hover:text-white/80 py-1 px-2'
+              }`}
+            >
+              <Icon size={active ? 16 : 18} />
+              <span className={active ? 'text-[10px] font-bold whitespace-nowrap' : 'text-[10px] font-medium whitespace-nowrap mt-0.5'}>
+                {tab.label}
+              </span>
+            </button>
+          )
+        })}
+
+        {/* 5th Tab: منوها (More button) */}
+        <button
+          type="button"
+          onClick={() => setMobileMenuOpen((v) => !v)}
+          className={`flex items-center gap-1.5 transition-all duration-200 ${
+            isMoreActive
+              ? 'bg-[#0071E3] text-white rounded-2xl px-3 py-1.5 shadow-lg shadow-[#0071E3]/30'
+              : 'flex-col justify-center text-white/50 hover:text-white/80 py-1 px-2'
+          }`}
+          aria-expanded={mobileMenuOpen}
+          aria-label="سایر منوها"
+        >
+          <LayoutGrid size={isMoreActive ? 16 : 18} />
+          <span className={isMoreActive ? 'text-[10px] font-bold whitespace-nowrap' : 'text-[10px] font-medium whitespace-nowrap mt-0.5'}>
+            منوها
+          </span>
+        </button>
+      </nav>
+
+      {/* ── 3. iOS Grouped Menu Sheet (Mobile / Tablet < 1024px) ── */}
+      <AnimatePresence>
+        {mobileMenuOpen && (
+          <>
+            {/* Backdrop */}
+            <motion.div
+              key="mobileMenuBackdrop"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              onClick={() => setMobileMenuOpen(false)}
+              className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 lg:hidden"
+              aria-hidden="true"
+            />
+
+            {/* Bottom Sheet */}
+            <motion.div
+              key="mobileMenuSheet"
+              initial={{ y: '100%' }}
+              animate={{ y: 0 }}
+              exit={{ y: '100%' }}
+              transition={{ type: 'spring', damping: 28, stiffness: 300 }}
+              className="fixed bottom-0 inset-x-0 z-50 rounded-t-[32px] bg-[#1C1C1E]/95 backdrop-blur-3xl border-t border-white/15 max-h-[82vh] overflow-y-auto p-5 pb-8 lg:hidden flex flex-col gap-4 text-right shadow-2xl"
+              role="dialog"
+              aria-modal="true"
+              aria-label="منوی بخش‌ها"
+            >
+              {/* Drag Handle Pill */}
+              <div className="w-10 h-1.5 bg-white/20 rounded-full mx-auto mb-1 shrink-0" />
+
+              {/* Sheet Header */}
+              <div className="flex items-center justify-between pb-2 border-b border-white/10 shrink-0">
+                <div className="flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-[#0071E3]" />
+                  <h3 className="text-sm font-bold text-white">منوی کامل داشبورد</h3>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/15 text-white/70 hover:text-white flex items-center justify-center transition-colors"
+                  aria-label="بستن"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+
+              {/* Grouped Category Cards */}
+              <div className="space-y-4 flex-1">
+                {sections.map(([group, items]) => (
+                  <div key={group} className="space-y-1.5">
+                    <span className="text-[11px] font-bold text-white/40 px-2 tracking-wider block">
+                      {group}
+                    </span>
+                    <div className="bg-white/[0.06] rounded-2xl p-1.5 grid grid-cols-2 gap-1.5 border border-white/[0.04]">
+                      {items.map(([id, itemLabel, Icon]) => {
+                        const active = id === page
+                        return (
+                          <button
+                            key={id}
+                            type="button"
+                            onClick={() => {
+                              onNavigate(id)
+                              setMobileMenuOpen(false)
+                            }}
+                            className={`flex items-center gap-2.5 p-2.5 rounded-xl text-xs transition-all text-right select-none ${
+                              active
+                                ? 'bg-[#0071E3] text-white font-bold shadow-md shadow-[#0071E3]/25'
+                                : 'text-white/80 hover:bg-white/5 hover:text-white'
+                            }`}
+                          >
+                            <div
+                              className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${
+                                active ? 'bg-white/20 text-white' : 'bg-white/10 text-white/70'
+                              }`}
+                            >
+                              <Icon size={15} />
+                            </div>
+                            <span className="truncate flex-1 font-medium">{itemLabel}</span>
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* User Profile & Logout at Bottom */}
+              {onLogout && (
+                <div className="mt-2 pt-3 border-t border-white/10 flex items-center justify-between bg-white/[0.04] p-3 rounded-2xl shrink-0">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <span className="w-9 h-9 rounded-xl bg-gradient-to-tr from-[#FF9500] to-[#FFB340] text-white flex items-center justify-center shadow-md shadow-orange-500/25 shrink-0">
+                      <UserRound size={16} />
+                    </span>
+                    <div className="min-w-0">
+                      <button
+                        type="button"
+                        className="text-right font-bold text-xs text-white/90 truncate block hover:text-white"
+                        onClick={() => {
+                          setPwOpen(true)
+                          setMobileMenuOpen(false)
+                        }}
+                        title="تغییر رمز"
+                      >
+                        <span dir="ltr">{user || 'کاربر'}</span>
+                      </button>
+                      <small className="text-[10px] text-white/40 block">حساب کاربری (تغییر رمز)</small>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMobileMenuOpen(false)
+                      onLogout()
+                    }}
+                    className="flex items-center gap-1.5 text-xs font-semibold text-rose-400 bg-rose-500/10 hover:bg-rose-500/20 px-3 py-1.5 rounded-xl transition-colors shrink-0"
+                    aria-label="خروج از حساب"
+                  >
+                    <LogOut size={14} />
+                    <span>خروج</span>
+                  </button>
+                </div>
+              )}
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
+      {pwOpen && <PasswordDialog onClose={() => setPwOpen(false)} />}
     </div>
   )
 }

@@ -152,8 +152,13 @@ tbody tr:hover, tbody tr.sel { background: #fbf3e0; }
 .exec-calendar { position: relative; display: flex; align-items: center; flex-wrap: wrap; gap: 22px; margin-top: 18px; padding: 15px 18px; overflow: hidden; }.exec-calendar-date { display: flex; align-items: center; gap: 9px; color: #2563eb; min-width: 180px; }.exec-calendar-date div, .exec-calendar-stat { display: grid; gap: 1px; }.exec-calendar-date span, .exec-calendar-stat span { color: var(--exec-muted); font-size: 10px; }.exec-calendar-date b { color: #1e293b; font-size: 14px; }.exec-calendar-stat b { color: #1e293b; font-size: 19px; }.exec-calendar-stat.accent b { color: #d97706; }.exec-progress { position: absolute; bottom: 0; right: 0; left: 0; height: 3px; background: #e2e8f0; }.exec-progress i { display: block; height: 100%; background: linear-gradient(90deg, #2563eb, #14b8a6); margin-right: auto; }
 .exec-kpis { max-width: 1480px; margin: 18px auto; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; }.exec-metric { min-width: 0; background: #fff; border: 1px solid var(--exec-line); border-radius: 15px; padding: 15px; box-shadow: inset 0 3px 0 var(--tone, transparent), 0 4px 18px #0f172a08; }.exec-metric.wide { grid-column: span 1; }.exec-metric-top { display: flex; align-items: center; justify-content: space-between; color: var(--exec-muted); font-size: 11px; }.exec-metric-top svg { color: var(--tone); }.exec-metric { container-type: inline-size; }.exec-metric strong { display: block; white-space: nowrap; direction: rtl; margin-top: 8px; color: #0f172a; font-size: clamp(11px, 8.4cqi, 24px); letter-spacing: -.3px; }.exec-metric small { display: block; color: #94a3b8; font-size: 10px; margin-top: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }.exec-metric.blue { --tone: #2563eb; }.exec-metric.teal { --tone: #0f766e; }.exec-metric.violet { --tone: #8b5cf6; }.exec-metric.amber { --tone: #d97706; }.exec-metric.pink { --tone: #db2777; }.exec-metric.red { --tone: #dc2626; }
 .exec-content-grid { max-width: 1480px; margin: 0 auto; display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(300px, .65fr); gap: 14px; }.exec-card { min-width: 0; padding: 18px; }.wide-card { grid-column: span 1; }.exec-card-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }.exec-card-head h2 { margin: 0; color: #1e293b; font-size: 15px; }.exec-card-head p { margin: 3px 0 0; color: var(--exec-muted); font-size: 10px; }.exec-chip { display: inline-flex; align-items: center; gap: 4px; border-radius: 999px; padding: 5px 8px; font-size: 10px; font-weight: 700; }.exec-chip.blue { color: #2563eb; background: #eff6ff; }.exec-chip.teal { color: #0f766e; background: #ccfbf1; }.exec-link { display: inline-flex; align-items: center; gap: 3px; color: #2563eb; background: transparent; border: 0; font-size: 11px; }.exec-chart { direction: ltr; height: 245px; margin-top: 15px; }.exec-table-card { grid-column: 1 / -1; }.exec-table-wrap { overflow-x: auto; margin-top: 13px; }.exec-table-wrap table { min-width: 620px; }.exec-table-wrap th { background: #f8fafc; color: #64748b; font-size: 10px; font-weight: 700; }.exec-table-wrap td { color: #334155; font-size: 11px; }.exec-table-wrap tbody tr { cursor: pointer; transition: background .15s; }.exec-table-wrap tbody tr:hover, .exec-table-wrap tbody tr.selected { background: #eff6ff; }.exec-percent { color: #b45309; background: #fffbeb; border-radius: 5px; padding: 3px 6px; }
-@media (max-width: 1100px) { .exec-root { grid-template-columns: 210px minmax(0,1fr); }.exec-kpis { grid-template-columns: repeat(3, 1fr); }.exec-content-grid { grid-template-columns: 1fr; }.exec-card, .exec-table-card { grid-column: auto; } }
-@media (max-width: 720px) { .exec-root, .exec-collapsed { display: block; }.exec-sidebar { position: static; height: auto; min-height: 0; padding: 12px; }.exec-brand { padding-bottom: 12px; }.exec-collapse { display: none; }.exec-nav-label, .exec-sidebar-bottom { display: none; }.exec-nav { display: flex; overflow-x: auto; gap: 5px; }.exec-nav button { flex: 0 0 auto; width: auto; padding: 8px 10px; }.exec-nav button span { font-size: 11px; }.exec-main { padding: 22px 12px 36px; }.exec-header h1 { font-size: 24px; }.exec-filterbar { align-items: stretch; }.exec-filter-title { width: 100%; }.exec-select { flex: 1 1 130px; min-width: 0; }.exec-advanced-toggle { margin-right: 0; }.exec-calendar { gap: 14px; }.exec-calendar-date { width: 100%; }.exec-kpis { grid-template-columns: repeat(2, minmax(0,1fr)); gap: 8px; }.exec-metric { padding: 12px; }.exec-metric.wide { grid-column: span 2; }.exec-header-actions { display: none; } }
+@media (max-width: 1023px) {
+  .exec-root, .exec-collapsed { display: flex !important; flex-direction: column !important; width: 100% !important; min-height: 100vh !important; }
+  .exec-sidebar { display: none !important; }
+  .exec-kpis { grid-template-columns: repeat(2, minmax(0,1fr)); gap: 8px; }
+  .exec-content-grid { grid-template-columns: 1fr; }
+  .exec-card, .exec-table-card { grid-column: auto; }
+}
 
 /* Executive shell: shared layout, alerts, grid, pie */
 :root { --blue: #2563eb; --sky: #0ea5e9; }
@@ -514,14 +519,13 @@ tbody tr:hover, tbody tr.sel { background: #fbf3e0; }
 @media (max-width: 1100px) {
   .exec-page .exec-kpis.exec-kpis-overview { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
-@media (max-width: 720px) {
-  .exec-sidebar { position: relative; }
-  .exec-nav { display: flex; }
-  .exec-nav-group, .exec-nav-items, .exec-nav-items > div { display: contents; }
-  .exec-nav-group.closed .exec-nav-items > div { visibility: visible; }
-  .exec-nav .exec-nav-toggle { display: none; }
-  .exec-nav-icon { width: 26px; height: 26px; }
-  .exec-nav button.active::after { display: none; }
+@media (max-width: 1023px) {
+  .exec-main {
+    width: 100% !important;
+    min-width: 0 !important;
+    overflow-x: clip !important;
+    overflow-y: visible !important;
+  }
   .exec-hero { padding: 20px; border-radius: 18px; }
   .exec-card { padding: 16px; }
   .exec-page .exec-kpis.exec-kpis-overview { gap: 10px; }
