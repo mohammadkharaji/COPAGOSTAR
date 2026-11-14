@@ -88,40 +88,61 @@ function buildSections(allowed, isAdmin) {
   return isAdmin ? [...out, ['مدیریت', [ADMIN_NAV], false]] : out
 }
 
-function NavGroup({ label, items, collapsible, page, onNavigate, open, onToggle, index }) {
+function NavGroup({ label, items, collapsible, page, onNavigate, open, onToggle, index, collapsed }) {
   const hasActive = items.some(([id]) => id === page)
   const listId = `exec-nav-items-${index}`
   return (
-    <div className={`exec-nav-group ${collapsible ? 'collapsible' : ''} ${collapsible && !open ? 'closed' : ''}`} role="group" aria-label={label}>
-      {collapsible ? (
-        <button
-          type="button"
-          className="exec-nav-toggle text-[11px] font-bold text-[#86868B] mb-2 mt-4 px-3 tracking-wider flex items-center justify-between w-full hover:text-[#1D1D1F] transition-colors select-none"
-          aria-expanded={open}
-          aria-controls={listId}
-          onClick={onToggle}
-        >
-          <span>{label}</span>
-          <div className="flex items-center gap-1.5">
-            {!open && hasActive && <span className="w-1.5 h-1.5 rounded-full bg-[#0071E3]" aria-label="صفحهٔ فعلی در این بخش است" />}
-            <ChevronDown size={14} className={`transition-transform duration-200 text-[#86868B] ${open ? '' : 'rotate-90'}`} aria-hidden="true" />
+    <div className={`exec-nav-group ${collapsible ? 'collapsible' : ''} ${collapsible && !open && !collapsed ? 'closed' : ''}`} role="group" aria-label={label}>
+      {!collapsed && (
+        collapsible ? (
+          <button
+            type="button"
+            className="exec-nav-toggle text-[11px] font-bold text-[#86868B] mb-2 mt-4 px-3 tracking-wider flex items-center justify-between w-full hover:text-[#1D1D1F] transition-colors select-none"
+            aria-expanded={open}
+            aria-controls={listId}
+            onClick={onToggle}
+          >
+            <span>{label}</span>
+            <div className="flex items-center gap-1.5">
+              {!open && hasActive && <span className="w-1.5 h-1.5 rounded-full bg-[#0071E3]" aria-label="صفحهٔ فعلی در این بخش است" />}
+              <ChevronDown size={14} className={`transition-transform duration-200 text-[#86868B] ${open ? '' : 'rotate-90'}`} aria-hidden="true" />
+            </div>
+          </button>
+        ) : (
+          <div className="text-[11px] font-bold text-[#86868B] mb-2 mt-4 px-3 tracking-wider select-none">
+            {label}
           </div>
-        </button>
-      ) : (
-        <div className="text-[11px] font-bold text-[#86868B] mb-2 mt-4 px-3 tracking-wider select-none">
-          {label}
-        </div>
+        )
       )}
       <div className="exec-nav-items" id={listId}>
-        <div className="space-y-1">
+        <div className={collapsed ? 'space-y-2 flex flex-col items-center py-1' : 'space-y-1'}>
           {items.map(([id, itemLabel, Icon]) => {
             const active = id === page
+            if (collapsed) {
+              return (
+                <button
+                  type="button"
+                  key={id}
+                  className={`w-10 h-10 mx-auto rounded-[14px] flex items-center justify-center transition-all select-none ${
+                    active
+                      ? 'bg-[#0071E3] !text-white shadow-[0_4px_14px_rgba(0,113,227,0.3)]'
+                      : 'text-[#86868B] hover:text-[#1D1D1F] hover:bg-black/[0.04]'
+                  }`}
+                  onClick={() => onNavigate(id)}
+                  title={itemLabel}
+                  aria-label={itemLabel}
+                  aria-current={active ? 'page' : undefined}
+                >
+                  <Icon size={18} className={active ? '!text-white' : undefined} />
+                </button>
+              )
+            }
             return (
               <button
                 type="button"
                 key={id}
                 className={`relative flex items-center gap-3 w-full px-3 py-2 rounded-xl text-xs font-medium transition-colors text-right select-none ${
-                  active ? 'bg-[#0071E3] !text-white font-bold shadow-md shadow-[#0071E3]/25' : 'text-[#1D1D1F] hover:bg-black/[0.04]'
+                  active ? 'bg-[#0071E3] !text-white font-bold shadow-[0_4px_14px_rgba(0,113,227,0.3)]' : 'text-[#1D1D1F] hover:bg-black/[0.04]'
                 }`}
                 onClick={() => onNavigate(id)}
                 title={itemLabel}
@@ -236,10 +257,12 @@ export function ExecShell({
           <span className="w-10 h-10 rounded-2xl bg-white flex items-center justify-center shadow-sm border border-slate-200/80 overflow-hidden shrink-0">
             <img src="/logo.jpg" alt="لوگوی کوپا گستر" className="w-full h-full object-cover" />
           </span>
-          <div className="exec-brand-copy flex-1 min-w-0">
-            <b className="text-sm font-bold text-[#1D1D1F] tracking-tight block">نبض فروش</b>
-            <small className="text-[11px] text-[#86868B] truncate block">{cores[core] ?? ''}</small>
-          </div>
+          {!collapsed && (
+            <div className="exec-brand-copy flex-1 min-w-0">
+              <b className="text-sm font-bold text-[#1D1D1F] tracking-tight block">نبض فروش</b>
+              <small className="text-[11px] text-[#86868B] truncate block">{cores[core] ?? ''}</small>
+            </div>
+          )}
           <button
             type="button"
             className="exec-collapse w-7 h-7 rounded-lg flex items-center justify-center text-[#86868B] hover:text-[#1D1D1F] hover:bg-black/[0.04] transition-colors"
@@ -262,8 +285,16 @@ export function ExecShell({
             const open = openGroups[group] ?? items.some(([id]) => id === page)
             return (
               <NavGroup
-                key={group} index={i} label={group} items={items} collapsible={collapsible} page={page} onNavigate={onNavigate}
-                open={open} onToggle={() => setOpenGroups((s) => ({ ...s, [group]: !open }))}
+                key={group}
+                index={i}
+                label={group}
+                items={items}
+                collapsible={collapsible}
+                page={page}
+                onNavigate={onNavigate}
+                open={open}
+                onToggle={() => setOpenGroups((s) => ({ ...s, [group]: !open }))}
+                collapsed={collapsed}
               />
             )
           })}
