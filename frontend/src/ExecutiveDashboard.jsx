@@ -129,13 +129,13 @@ function NavGroup({ label, items, collapsible, page, onNavigate, open, onToggle,
               >
                 <i
                   className={`relative z-10 w-7 h-7 rounded-lg flex items-center justify-center transition-colors shrink-0 ${
-                    active ? 'bg-white/20 text-white' : 'text-[#86868B]'
+                    active ? 'bg-white/20 !text-white' : 'text-[#86868B]'
                   }`}
                   aria-hidden="true"
                 >
-                  <Icon size={16} className={active ? 'text-white' : undefined} />
+                  <Icon size={16} className={active ? '!text-white' : undefined} />
                 </i>
-                <span className={`relative z-10 truncate ${active ? 'text-white font-bold' : 'text-[#1D1D1F]'}`}>{itemLabel}</span>
+                <span className={`relative z-10 truncate ${active ? '!text-white font-bold' : 'text-[#1D1D1F]'}`}>{itemLabel}</span>
               </button>
             )
           })}
@@ -198,11 +198,11 @@ export function ExecShell({
       {/* ── 1. Minimalist iOS Frosted Top Bar (Mobile / Tablet < 1024px) ── */}
       <header
         data-mobile-topbar
-        className="flex lg:!hidden sticky top-0 z-40 h-14 px-4 bg-white/90 backdrop-blur-2xl border-b border-black/[0.08] items-center justify-between w-full shrink-0 select-none text-[#1D1D1F]"
+        className="flex lg:!hidden sticky top-0 z-40 h-14 px-4 bg-white/90 backdrop-blur-2xl border-b border-slate-200/90 items-center justify-between w-full shrink-0 select-none text-[#1D1D1F] shadow-xs"
       >
         {/* Right side (RTL): squircle logo + title + active page badge */}
         <div className="flex items-center gap-2.5 min-w-0">
-          <span className="w-8 h-8 rounded-xl bg-white flex items-center justify-center overflow-hidden shrink-0 shadow-sm border border-black/[0.06]">
+          <span className="w-8 h-8 rounded-xl bg-white flex items-center justify-center overflow-hidden shrink-0 shadow-sm border border-slate-200/80">
             <img src="/logo.jpg" alt="لوگوی کوپا گستر" className="w-full h-full object-cover" />
           </span>
           <b className="text-sm font-bold text-[#1D1D1F] tracking-tight shrink-0">نبض فروش</b>
@@ -226,10 +226,10 @@ export function ExecShell({
       {/* Desktop Right Sidebar (hidden lg:flex) */}
       <aside
         data-desktop-sidebar
-        className="exec-sidebar hidden lg:flex flex-col bg-white/85 backdrop-blur-3xl border border-black/[0.06] shadow-[0_12px_40px_rgb(0,0,0,0.06)] text-[#1D1D1F] lg:my-3 lg:mr-3 lg:rounded-[28px] overflow-hidden sticky top-3 h-[calc(100vh-24px)] select-none"
+        className="exec-sidebar hidden lg:flex flex-col bg-white/90 backdrop-blur-2xl border border-slate-200/80 shadow-[0_10px_35px_rgba(15,23,42,0.06)] text-[#1D1D1F] lg:my-3 lg:mr-3 lg:rounded-[28px] overflow-hidden sticky top-3 h-[calc(100vh-24px)] select-none"
       >
-        <div className="exec-brand flex items-center gap-3 px-2 py-3 border-b border-black/[0.06] mb-2">
-          <span className="w-10 h-10 rounded-2xl bg-white flex items-center justify-center shadow-sm border border-black/[0.06] overflow-hidden shrink-0">
+        <div className="exec-brand flex items-center gap-3 px-2 py-3 border-b border-slate-200/80 mb-2">
+          <span className="w-10 h-10 rounded-2xl bg-white flex items-center justify-center shadow-sm border border-slate-200/80 overflow-hidden shrink-0">
             <img src="/logo.jpg" alt="لوگوی کوپا گستر" className="w-full h-full object-cover" />
           </span>
           <div className="exec-brand-copy flex-1 min-w-0">
@@ -359,7 +359,7 @@ export function ExecShell({
       {/* ── 2. Floating iOS Glass Bottom Dock (Mobile / Tablet < 1024px) ── */}
       <nav
         data-mobile-dock
-        className="flex lg:!hidden fixed bottom-3 inset-x-3 z-40 h-16 bg-white/90 backdrop-blur-2xl border border-black/[0.08] shadow-[0_12px_40px_rgb(0,0,0,0.12)] rounded-[26px] px-2 items-center justify-around select-none text-[#1D1D1F]"
+        className="flex lg:!hidden fixed bottom-3 inset-x-3 z-40 h-16 bg-white/90 backdrop-blur-2xl border border-slate-200/90 shadow-lg rounded-[26px] px-2 items-center justify-around select-none text-[#1D1D1F]"
         aria-label="ناوبری اصلی موبایل"
       >
         {DOCK_TABS.map((tab) => {
@@ -379,8 +379,8 @@ export function ExecShell({
                   : 'flex-col justify-center text-[#86868B] hover:text-[#1D1D1F] py-1 px-2'
               }`}
             >
-              <Icon size={active ? 16 : 18} className={active ? 'text-white' : undefined} />
-              <span className={active ? 'text-[10px] font-bold whitespace-nowrap text-white' : 'text-[10px] font-medium whitespace-nowrap mt-0.5'}>
+              <Icon size={active ? 16 : 18} className={active ? '!text-white' : undefined} />
+              <span className={active ? 'text-[10px] font-bold whitespace-nowrap !text-white' : 'text-[10px] font-medium whitespace-nowrap mt-0.5'}>
                 {tab.label}
               </span>
             </button>
@@ -399,8 +399,8 @@ export function ExecShell({
           aria-expanded={mobileMenuOpen}
           aria-label="سایر منوها"
         >
-          <LayoutGrid size={isMoreActive ? 16 : 18} className={isMoreActive ? 'text-white' : undefined} />
-          <span className={isMoreActive ? 'text-[10px] font-bold whitespace-nowrap text-white' : 'text-[10px] font-medium whitespace-nowrap mt-0.5'}>
+          <LayoutGrid size={isMoreActive ? 16 : 18} className={isMoreActive ? '!text-white' : undefined} />
+          <span className={isMoreActive ? 'text-[10px] font-bold whitespace-nowrap !text-white' : 'text-[10px] font-medium whitespace-nowrap mt-0.5'}>
             منوها
           </span>
         </button>
@@ -431,7 +431,7 @@ export function ExecShell({
               animate={{ y: 0 }}
               exit={{ y: '100%' }}
               transition={{ type: 'spring', damping: 28, stiffness: 300 }}
-              className="fixed bottom-0 inset-x-0 z-50 rounded-t-[32px] bg-white/95 backdrop-blur-3xl border-t border-black/[0.08] max-h-[82vh] overflow-y-auto p-5 pb-8 lg:!hidden flex flex-col gap-4 text-right shadow-[0_-10px_40px_rgb(0,0,0,0.15)] text-[#1D1D1F]"
+              className="fixed bottom-0 inset-x-0 z-50 rounded-t-[32px] bg-[#F5F5F7]/95 backdrop-blur-3xl border-t border-slate-200/90 max-h-[82vh] overflow-y-auto p-5 pb-8 lg:!hidden flex flex-col gap-4 text-right shadow-[0_-10px_40px_rgb(0,0,0,0.15)] text-[#1D1D1F]"
               role="dialog"
               aria-modal="true"
               aria-label="منوی بخش‌ها"
@@ -440,7 +440,7 @@ export function ExecShell({
               <div className="w-10 h-1.5 bg-black/20 rounded-full mx-auto mb-1 shrink-0" />
 
               {/* Sheet Header */}
-              <div className="flex items-center justify-between pb-2 border-b border-black/[0.06] shrink-0">
+              <div className="flex items-center justify-between pb-2 border-b border-slate-200/80 shrink-0">
                 <div className="flex items-center gap-2">
                   <span className="w-2 h-2 rounded-full bg-[#0071E3]" />
                   <h3 className="text-sm font-bold text-[#1D1D1F]">منوی کامل داشبورد</h3>
@@ -462,7 +462,7 @@ export function ExecShell({
                     <span className="text-[11px] font-bold text-[#86868B] px-2 tracking-wider block">
                       {group}
                     </span>
-                    <div className="bg-white border border-black/[0.06] rounded-2xl p-1.5 grid grid-cols-2 gap-1.5 shadow-xs">
+                    <div className="bg-white border border-slate-200/80 rounded-2xl p-1.5 grid grid-cols-2 gap-1.5 shadow-xs">
                       {items.map(([id, itemLabel, Icon]) => {
                         const active = id === page
                         return (
@@ -481,12 +481,12 @@ export function ExecShell({
                           >
                             <div
                               className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${
-                                active ? 'bg-white/20 text-white' : 'bg-black/[0.04] text-[#86868B]'
+                                active ? 'bg-white/20 !text-white' : 'bg-black/[0.04] text-[#86868B]'
                               }`}
                             >
-                              <Icon size={15} className={active ? 'text-white' : undefined} />
+                              <Icon size={15} className={active ? '!text-white' : undefined} />
                             </div>
-                            <span className={`truncate flex-1 font-medium ${active ? 'text-white font-bold' : 'text-[#1D1D1F]'}`}>{itemLabel}</span>
+                            <span className={`truncate flex-1 font-medium ${active ? '!text-white font-bold' : 'text-[#1D1D1F]'}`}>{itemLabel}</span>
                           </button>
                         )
                       })}
@@ -497,7 +497,7 @@ export function ExecShell({
 
               {/* User Profile & Logout at Bottom */}
               {onLogout && (
-                <div className="mt-2 pt-3 border-t border-black/[0.06] flex items-center justify-between bg-black/[0.02] p-3 rounded-2xl shrink-0">
+                <div className="mt-2 pt-3 border-t border-slate-200/80 flex items-center justify-between bg-black/[0.02] p-3 rounded-2xl shrink-0">
                   <div className="flex items-center gap-2.5 min-w-0">
                     <span className="w-9 h-9 rounded-xl bg-gradient-to-tr from-[#FF9500] to-[#FFB340] text-white flex items-center justify-center shadow-md shadow-orange-500/25 shrink-0">
                       <UserRound size={16} />

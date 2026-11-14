@@ -1,3 +1,4 @@
+import { useMemo } from 'react'
 import { motion, useReducedMotion } from 'motion/react'
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts'
 import { fa, monthLabel, dayLabel } from '../format'
@@ -46,24 +47,68 @@ export function StatusIsland({ core, cores, setCore, lastDataDate, syncState }) 
 }
 
 /* ─────────────────────────────────────────────────────────────
-   HeroMetricCard  — Apple dark-gradient hero (8-col)
+   HeroMetricCard  — Apple Indigo / Lavender Glass Mesh (8-col)
    Layout: Top badges -> Big Revenue Number -> 3 stats grid
-   Clean, no overlapping boxes or random wrappers
+   Clean, luminous aesthetic with ambient glow and sparkline
 ───────────────────────────────────────────────────────────── */
 export function HeroMetricCard({ rows, period, o, growth, growthLabel }) {
   const gross    = o ? o.sum_rial_vat / 1e9 : null
   const promo    = o ? o.promo_total_rial / 1e9 : null
   const promoPct = o ? o.promo_percent : null
 
+  const sparklineData = useMemo(() => {
+    const raw = (rows && rows.length >= 2)
+      ? rows.map((r) => Number(r.net_rial ?? r.sum_rial_vat ?? 0))
+      : [32, 45, 38, 58, 52, 68, 75, 92]
+    const min = Math.min(...raw)
+    const max = Math.max(...raw)
+    const range = max - min || 1
+    const width = 300
+    const height = 70
+    const padding = 6
+    const step = (width - padding * 2) / (raw.length - 1)
+
+    const coords = raw.map((val, idx) => {
+      const x = padding + idx * step
+      const y = height - padding - ((val - min) / range) * (height - padding * 2)
+      return { x, y }
+    })
+
+    const linePath = coords.reduce((acc, pt, i) => `${acc} ${i === 0 ? 'M' : 'L'} ${pt.x.toFixed(1)},${pt.y.toFixed(1)}`, '')
+    const lastX = coords[coords.length - 1].x.toFixed(1)
+    const firstX = coords[0].x.toFixed(1)
+    const fillPath = `${linePath} L ${lastX},${height} L ${firstX},${height} Z`
+
+    return { linePath, fillPath }
+  }, [rows])
+
   return (
-    <div className="lg:col-span-8 flex flex-col justify-between relative overflow-hidden rounded-[24px] sm:rounded-[28px] bg-gradient-to-br from-[#0A1128] via-[#102542] to-[#1D3557] text-white p-4 sm:p-7 shadow-[0_20px_50px_rgba(16,37,66,0.22)] min-h-[260px] sm:min-h-[300px] w-full max-w-full">
+    <div className="lg:col-span-8 flex flex-col justify-between relative overflow-hidden rounded-[28px] bg-gradient-to-br from-[#EEF2FF] via-[#F3E8FF]/90 to-[#E0E7FF] border border-[#6366F1]/20 shadow-[0_16px_40px_rgba(99,102,241,0.10)] text-[#1E1B4B] p-4 sm:p-7 min-h-[260px] sm:min-h-[300px] w-full max-w-full">
+      {/* Ambient Glows */}
+      <div className="absolute -top-12 -right-12 w-48 h-48 rounded-full bg-[#8B5CF6]/15 blur-3xl pointer-events-none" />
+      <div className="absolute -bottom-12 -left-12 w-48 h-48 rounded-full bg-[#3B82F6]/15 blur-3xl pointer-events-none" />
+
+      {/* Sparkline SVG */}
+      <div className="absolute inset-x-0 bottom-0 h-24 sm:h-28 pointer-events-none opacity-60 z-0">
+        <svg className="w-full h-full" viewBox="0 0 300 70" preserveAspectRatio="none">
+          <defs>
+            <linearGradient id="heroSparklineGrad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#8B5CF6" stopOpacity="0.35" />
+              <stop offset="100%" stopColor="#8B5CF6" stopOpacity="0.0" />
+            </linearGradient>
+          </defs>
+          <path d={sparklineData.fillPath} fill="url(#heroSparklineGrad)" className="opacity-20" />
+          <path d={sparklineData.linePath} fill="none" stroke="#6366F1" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      </div>
+
       {/* Top badges */}
       <div className="relative z-10 flex items-center justify-between flex-wrap gap-2">
-        <span className="px-2.5 sm:px-3 py-1 rounded-full text-[11px] sm:text-xs font-medium bg-white/10 backdrop-blur-md border border-white/15">
+        <span className="bg-white/80 backdrop-blur-md border border-indigo-200/70 text-[#312E81] font-bold px-3.5 py-1 rounded-full text-xs">
           فروش خالص (پس از کسر پروموشن) · {period}
         </span>
         {growth != null && (
-          <span className={`px-2.5 py-1 rounded-full text-[11px] sm:text-xs font-semibold tabular-nums ${growth >= 0 ? 'bg-emerald-500/20 text-emerald-300' : 'bg-red-400/20 text-red-300'}`}>
+          <span className={`px-2.5 py-1 rounded-full text-[11px] sm:text-xs font-bold tabular-nums border ${growth >= 0 ? 'bg-emerald-500/15 text-emerald-800 border-emerald-500/25' : 'bg-red-500/15 text-red-800 border-red-500/25'}`}>
             {growth >= 0 ? '▲' : '▼'} {pct(Math.abs(growth))} {growthLabel ?? ''}
           </span>
         )}
@@ -71,24 +116,24 @@ export function HeroMetricCard({ rows, period, o, growth, growthLabel }) {
 
       {/* Big Revenue Number */}
       <div className="relative z-10 my-4 sm:my-6">
-        <div className="text-2xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight tabular-nums break-all">
-          {o ? fa(o.net_rial) : '—'} <span className="text-xs sm:text-base font-normal text-white/60 mr-1 sm:mr-2">ریال</span>
+        <div className="text-2xl sm:text-4xl lg:text-5xl font-black tracking-tight text-[#1E1B4B] tabular-nums break-all">
+          {o ? fa(o.net_rial) : '—'} <span className="text-xs sm:text-base font-bold text-[#4338CA]/80 mr-1 sm:mr-2">ریال</span>
         </div>
       </div>
 
       {/* Bottom 3 stats */}
       <div className="relative z-10 grid grid-cols-3 gap-2 sm:gap-3 w-full">
-        <div className="rounded-xl sm:rounded-2xl bg-white/10 backdrop-blur-md border border-white/10 p-2.5 sm:p-3.5 min-w-0">
-          <p className="text-[10px] sm:text-xs text-white/65 truncate">فروش ناخالص</p>
-          <p className="text-xs sm:text-lg font-bold mt-1 tabular-nums truncate">{gross == null ? '—' : `${fa(gross)} م`}</p>
+        <div className="bg-white/85 backdrop-blur-xl border border-white shadow-[0_4px_15px_rgba(99,102,241,0.06)] rounded-2xl p-2.5 sm:p-3.5 min-w-0">
+          <p className="text-[#64748B] text-[11px] sm:text-xs font-medium truncate">فروش ناخالص</p>
+          <p className="text-[#1E1B4B] font-extrabold text-xs sm:text-lg mt-1 tabular-nums truncate">{gross == null ? '—' : `${fa(gross)} م`}</p>
         </div>
-        <div className="rounded-xl sm:rounded-2xl bg-white/10 backdrop-blur-md border border-white/10 p-2.5 sm:p-3.5 min-w-0">
-          <p className="text-[10px] sm:text-xs text-white/65 truncate">مجموع پروموشن</p>
-          <p className="text-xs sm:text-lg font-bold mt-1 tabular-nums truncate">{promo == null ? '—' : `${fa(promo)} م`}</p>
+        <div className="bg-white/85 backdrop-blur-xl border border-white shadow-[0_4px_15px_rgba(99,102,241,0.06)] rounded-2xl p-2.5 sm:p-3.5 min-w-0">
+          <p className="text-[#64748B] text-[11px] sm:text-xs font-medium truncate">مجموع پروموشن</p>
+          <p className="text-[#1E1B4B] font-extrabold text-xs sm:text-lg mt-1 tabular-nums truncate">{promo == null ? '—' : `${fa(promo)} م`}</p>
         </div>
-        <div className="rounded-xl sm:rounded-2xl bg-white/10 backdrop-blur-md border border-white/10 p-2.5 sm:p-3.5 min-w-0">
-          <p className="text-[10px] sm:text-xs text-white/65 truncate">درصد پروموشن</p>
-          <p className="text-xs sm:text-lg font-bold mt-1 tabular-nums truncate">{promoPct == null ? '—' : pct(promoPct)}</p>
+        <div className="bg-white/85 backdrop-blur-xl border border-white shadow-[0_4px_15px_rgba(99,102,241,0.06)] rounded-2xl p-2.5 sm:p-3.5 min-w-0">
+          <p className="text-[#64748B] text-[11px] sm:text-xs font-medium truncate">درصد پروموشن</p>
+          <p className="text-[#1E1B4B] font-extrabold text-xs sm:text-lg mt-1 tabular-nums truncate">{promoPct == null ? '—' : pct(promoPct)}</p>
         </div>
       </div>
     </div>
