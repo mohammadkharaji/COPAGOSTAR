@@ -226,7 +226,11 @@ export function ExecShell({
       {/* Desktop Right Sidebar (hidden lg:flex) */}
       <aside
         data-desktop-sidebar
-        className="exec-sidebar hidden lg:flex flex-col bg-white/90 backdrop-blur-2xl border border-slate-200/80 shadow-[0_10px_35px_rgba(15,23,42,0.06)] text-[#1D1D1F] lg:my-3 lg:mr-3 lg:rounded-[28px] overflow-hidden sticky top-3 h-[calc(100vh-24px)] select-none"
+        className={`exec-sidebar hidden lg:flex flex-col bg-white/90 backdrop-blur-2xl border border-slate-200/80 shadow-[0_10px_35px_rgba(15,23,42,0.06)] text-[#1D1D1F] lg:my-3 lg:mr-3 lg:rounded-[28px] sticky top-3 h-[calc(100vh-24px)] select-none ${
+          collapsed
+            ? 'overflow-hidden overflow-y-hidden [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]'
+            : 'overflow-hidden overflow-y-auto'
+        }`}
       >
         <div className="exec-brand flex items-center gap-3 px-2 py-3 border-b border-slate-200/80 mb-2">
           <span className="w-10 h-10 rounded-2xl bg-white flex items-center justify-center shadow-sm border border-slate-200/80 overflow-hidden shrink-0">
@@ -245,7 +249,14 @@ export function ExecShell({
             {collapsed ? <ChevronLeft size={16} /> : <ChevronRight size={16} />}
           </button>
         </div>
-        <nav className="exec-nav" aria-label="گزارش‌ها">
+        <nav
+          className={`exec-nav ${
+            collapsed
+              ? 'overflow-hidden overflow-y-hidden [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]'
+              : 'overflow-y-auto'
+          }`}
+          aria-label="گزارش‌ها"
+        >
           {sections.map(([group, items, collapsible], i) => {
             // A group the user has not toggled opens when it holds the current page.
             const open = openGroups[group] ?? items.some(([id]) => id === page)
@@ -257,21 +268,38 @@ export function ExecShell({
             )
           })}
         </nav>
-        <div className="exec-sidebar-bottom">
+        <div className={`exec-sidebar-bottom ${collapsed ? 'px-0 flex flex-col items-center' : ''}`}>
           {onLogout && (
-            <div className="exec-profile bg-black/[0.03] border border-black/[0.06] rounded-2xl p-3 mx-2 mb-4 hover:bg-black/[0.05] cursor-pointer transition-all">
-              <span className="w-9 h-9 rounded-xl bg-gradient-to-tr from-[#FF9500] to-[#FFB340] text-white flex items-center justify-center shadow-md shadow-orange-500/25 shrink-0" aria-hidden="true">
-                <UserRound size={17} />
+            <div
+              className={`exec-profile bg-black/[0.03] border border-black/[0.06] rounded-2xl hover:bg-black/[0.05] cursor-pointer transition-all ${
+                collapsed
+                  ? 'flex flex-col items-center justify-center p-2 mx-auto w-12 gap-2 mb-3'
+                  : 'flex items-center gap-2.5 p-3 mx-2 mb-4'
+              }`}
+            >
+              <span
+                className={`rounded-xl bg-gradient-to-tr from-[#FF9500] to-[#FFB340] text-white flex items-center justify-center shadow-md shadow-orange-500/25 shrink-0 ${
+                  collapsed ? 'w-10 h-10 mx-auto' : 'w-9 h-9'
+                }`}
+                aria-hidden="true"
+                onClick={() => collapsed && setPwOpen(true)}
+                title="تغییر رمز"
+              >
+                <UserRound size={collapsed ? 18 : 17} />
               </span>
-              <div className="exec-profile-copy min-w-0 flex-1 px-1">
-                <button type="button" className="exec-user-btn text-right font-bold text-xs text-[#1D1D1F] hover:text-[#0071E3] truncate block w-full" onClick={() => setPwOpen(true)} title="تغییر رمز">
-                  <b dir="ltr">{user || 'کاربر'}</b>
-                </button>
-                <small className="text-[10px] text-[#86868B] block">حساب کاربری</small>
-              </div>
+              {!collapsed && (
+                <div className="exec-profile-copy min-w-0 flex-1 px-1">
+                  <button type="button" className="exec-user-btn text-right font-bold text-xs text-[#1D1D1F] hover:text-[#0071E3] truncate block w-full" onClick={() => setPwOpen(true)} title="تغییر رمز">
+                    <b dir="ltr">{user || 'کاربر'}</b>
+                  </button>
+                  <small className="text-[10px] text-[#86868B] block">حساب کاربری</small>
+                </div>
+              )}
               <button
                 type="button"
-                className="exec-logout w-8 h-8 rounded-lg flex items-center justify-center text-[#86868B] hover:text-red-500 hover:bg-red-50 transition-colors shrink-0"
+                className={`exec-logout rounded-lg flex items-center justify-center text-[#86868B] hover:text-red-500 hover:bg-red-50 transition-colors shrink-0 ${
+                  collapsed ? 'w-8 h-8 mx-auto mt-0.5' : 'w-8 h-8'
+                }`}
                 onClick={onLogout}
                 aria-label="خروج از حساب"
                 title="خروج از حساب"

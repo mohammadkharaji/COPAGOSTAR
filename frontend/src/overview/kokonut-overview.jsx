@@ -124,16 +124,16 @@ export function HeroMetricCard({ rows, period, o, growth, growthLabel }) {
       {/* Bottom 3 stats */}
       <div className="relative z-10 grid grid-cols-3 gap-2 sm:gap-3 w-full">
         <div className="bg-white/85 backdrop-blur-xl border border-white shadow-[0_4px_15px_rgba(99,102,241,0.06)] rounded-2xl p-2.5 sm:p-3.5 min-w-0">
-          <p className="text-[#64748B] text-[11px] sm:text-xs font-medium truncate">فروش ناخالص</p>
-          <p className="text-[#1E1B4B] font-extrabold text-xs sm:text-lg mt-1 tabular-nums truncate">{gross == null ? '—' : `${fa(gross)} م`}</p>
+          <p className="text-[#64748B] text-[11px] sm:text-xs font-medium truncate" style={{ color: '#64748B' }}>فروش ناخالص</p>
+          <p className="text-[#1E1B4B] !text-[#1E1B4B] font-extrabold text-base mt-1 tabular-nums truncate" style={{ color: '#1E1B4B' }}>{gross == null ? '—' : `${fa(gross)} م`}</p>
         </div>
         <div className="bg-white/85 backdrop-blur-xl border border-white shadow-[0_4px_15px_rgba(99,102,241,0.06)] rounded-2xl p-2.5 sm:p-3.5 min-w-0">
-          <p className="text-[#64748B] text-[11px] sm:text-xs font-medium truncate">مجموع پروموشن</p>
-          <p className="text-[#1E1B4B] font-extrabold text-xs sm:text-lg mt-1 tabular-nums truncate">{promo == null ? '—' : `${fa(promo)} م`}</p>
+          <p className="text-[#64748B] text-[11px] sm:text-xs font-medium truncate" style={{ color: '#64748B' }}>مجموع پروموشن</p>
+          <p className="text-[#1E1B4B] !text-[#1E1B4B] font-extrabold text-base mt-1 tabular-nums truncate" style={{ color: '#1E1B4B' }}>{promo == null ? '—' : `${fa(promo)} م`}</p>
         </div>
         <div className="bg-white/85 backdrop-blur-xl border border-white shadow-[0_4px_15px_rgba(99,102,241,0.06)] rounded-2xl p-2.5 sm:p-3.5 min-w-0">
-          <p className="text-[#64748B] text-[11px] sm:text-xs font-medium truncate">درصد پروموشن</p>
-          <p className="text-[#1E1B4B] font-extrabold text-xs sm:text-lg mt-1 tabular-nums truncate">{promoPct == null ? '—' : pct(promoPct)}</p>
+          <p className="text-[#64748B] text-[11px] sm:text-xs font-medium truncate" style={{ color: '#64748B' }}>درصد پروموشن</p>
+          <p className="text-[#1E1B4B] !text-[#1E1B4B] font-extrabold text-base mt-1 tabular-nums truncate" style={{ color: '#1E1B4B' }}>{promoPct == null ? '—' : pct(promoPct)}</p>
         </div>
       </div>
     </div>
