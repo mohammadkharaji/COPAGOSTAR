@@ -14,11 +14,13 @@ python "%~dp0convert_returns.py" "%WORKBOOK%" --dry-run
 if errorlevel 1 goto end
 choice /M "Write the delta file locally (state is updated)"
 if errorlevel 2 goto end
-set /p SERVER=Server to upload to (e.g. root@194.5.205.59, empty = local only):
+set /p SERVER=Server to upload to (e.g. root@178.252.136.184, empty = local only):
 if "%SERVER%"=="" (
   python "%~dp0convert_returns.py" "%WORKBOOK%"
 ) else (
-  python "%~dp0convert_returns.py" "%WORKBOOK%" --upload "%SERVER%" --key "%USERPROFILE%\.ssh\sr_deploy"
+  set /p PORT=SSH port (Enter = 2222):
+  if "%PORT%"=="" set "PORT=2222"
+  python "%~dp0convert_returns.py" "%WORKBOOK%" --upload "%SERVER%" --key "%USERPROFILE%\.ssh\sr_deploy" --port %PORT%
 )
 :end
 pause

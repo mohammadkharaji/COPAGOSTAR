@@ -135,7 +135,7 @@ def test_default_roles_are_created_once(client):
     r = client.post("/api/admin/roles/defaults")
     assert r.status_code == 200
     created = set(r.json()["created"])
-    assert created == {"مدیرعامل", "معاونت فروش", "مدیر شعبه", "سرپرست شعبه"}
+    assert created == {"مدیرعامل", "معاونت فروش", "مدیر شعبه", "سرپرست شعبه", "CustomerClub", "Sales Power Club"}
     roles = {r["name"]: r for r in client.get("/api/admin/roles").json()}
     assert roles["مدیرعامل"]["scope_mode"] == "all" and roles["مدیرعامل"]["is_admin"] is False
     assert roles["مدیر شعبه"]["scope_mode"] == "branch"

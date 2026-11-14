@@ -4,12 +4,13 @@ import {
   ArrowDownLeft,
   BarChart3,
   Building2,
-  CalendarDays,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
   CircleDollarSign,
   FileText,
+  Medal,
+  Store,
   Filter,
   HeartPulse,
   LayoutDashboard,
@@ -18,7 +19,6 @@ import {
   MapPin,
   PackageSearch,
   Percent,
-  PieChart as PieIcon,
   Printer,
   RefreshCw,
   ShoppingBag,
@@ -34,19 +34,20 @@ import {
   UserRound,
   UserX,
   Users,
-  Wallet,
   X,
   MessageSquare,
 } from 'lucide-react'
-import { Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
+import { Area, AreaChart, Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { postJson, useApi } from './api'
 import { dayLabel, fa, fa2, faDigits, monthLabel, monthName } from './format'
 import { Table } from './ui'
+import { motion } from 'motion/react'
+import { StatusIsland, HeroMetricCard, ForecastRings, CalendarGlass, KpiSpotlight, ShareTabsCard, CompareBento } from './overview/kokonut-overview'
 
 const pct = (v) => (v == null ? '—' : `${new Intl.NumberFormat('fa-IR', { maximumFractionDigits: 1 }).format(v * 100)}٪`)
 const PIE_COLORS = ['#2563eb', '#0f766e', '#8b5cf6', '#f59e0b', '#ec4899', '#0ea5e9', '#84cc16', '#ef4444', '#94a3b8']
 const PIE_BY = [['branch', 'شعبه'], ['region', 'منطقه'], ['brand', 'برند'], ['sales_type', 'کانال فروش'], ['group', 'لاین'], ['grade', 'گرید مشتری']]
-const FILTER_LABELS = { sales_type: 'کانال فروش', region: 'شهر', group: 'لاین', state: 'منطقه شهرداری', brand: 'برند', main_group: 'گروه کالای اصلی', sub_group: 'زیرگروه کالای اصلی', product: 'کالا', grade: 'گرید مشتری' }
+const FILTER_LABELS = { group: 'لاین', city: 'شهر', state: 'منطقه شهرداری', brand: 'برند', main_group: 'گروه کالای اصلی', sub_group: 'زیرگروه کالای اصلی', product: 'کالا', grade: 'گرید مشتری' }
 const PRODUCT_GROUP_KEYS = ['main_group', 'sub_group', 'product'] // hidden while the data has no product groups (product.tsv not loaded)
 
 export const NAV = [
@@ -57,6 +58,7 @@ export const NAV = [
   ['quantity', 'تحلیل تعداد کالا', PackageSearch],
   ['invoice', 'تحلیل فاکتور', FileText], ['customer', 'پروفایل مشتری', UserRound], ['visitor', 'پروفایل ویزیتور', UserCheck],
   ['health', 'سلامت داده', HeartPulse], ['tickets', 'تیکت‌ها', MessageSquare], ['chat', 'دستیار هوشمند', Sparkles],
+  ['club_b2b', 'باشگاه مشتریان (B2B)', Store], ['club_visitor', 'باشگاه ویزیتورها', Medal],
 ]
 
 // Sidebar grouping only; NAV keeps its [id, label, Icon] shape for App.jsx routing.
@@ -68,6 +70,7 @@ const NAV_GROUPS = [
   ['سیستم', ['health'], true],
   ['پشتیبانی', ['tickets'], false],
   ['تحلیل هوشمند', ['chat'], false],
+  ['باشگاه‌ها', ['club_b2b', 'club_visitor'], true],
 ]
 // The admin entry is not a report page: App adds it only for principals with is_admin.
 export const ADMIN_NAV = ['admin', 'مدیریت کاربران', ShieldCheck]
@@ -89,19 +92,58 @@ function NavGroup({ label, items, collapsible, page, onNavigate, open, onToggle,
   return (
     <div className={`exec-nav-group ${collapsible ? 'collapsible' : ''} ${collapsible && !open ? 'closed' : ''}`} role="group" aria-label={label}>
       {collapsible ? (
-        <button type="button" className="exec-nav-toggle" aria-expanded={open} aria-controls={listId} onClick={onToggle}>
+        <button
+          type="button"
+          className="exec-nav-toggle text-[11px] font-bold text-white/40 mb-2 mt-6 px-3 tracking-wider flex items-center justify-between w-full hover:text-white/70 transition-colors select-none"
+          aria-expanded={open}
+          aria-controls={listId}
+          onClick={onToggle}
+        >
           <span>{label}</span>
-          {!open && hasActive && <em className="exec-nav-marker" aria-label="صفحهٔ فعلی در این بخش است" />}
-          <ChevronDown size={15} className="exec-nav-chevron" aria-hidden="true" />
+          <div className="flex items-center gap-1.5">
+            {!open && hasActive && <span className="w-1.5 h-1.5 rounded-full bg-[#0071E3]" aria-label="صفحهٔ فعلی در این بخش است" />}
+            <ChevronDown size={14} className={`transition-transform duration-200 text-white/40 ${open ? '' : 'rotate-90'}`} aria-hidden="true" />
+          </div>
         </button>
-      ) : <div className="exec-nav-label">{label}</div>}
+      ) : (
+        <div className="text-[11px] font-bold text-white/40 mb-2 mt-6 px-3 tracking-wider select-none">
+          {label}
+        </div>
+      )}
       <div className="exec-nav-items" id={listId}>
-        <div>
-          {items.map(([id, itemLabel, Icon]) => (
-            <button type="button" key={id} className={id === page ? 'active' : ''} onClick={() => onNavigate(id)} title={itemLabel} aria-current={id === page ? 'page' : undefined}>
-              <i className="exec-nav-icon" aria-hidden="true"><Icon size={16} /></i><span>{itemLabel}</span>
-            </button>
-          ))}
+        <div className="space-y-1">
+          {items.map(([id, itemLabel, Icon]) => {
+            const active = id === page
+            return (
+              <button
+                type="button"
+                key={id}
+                className={`relative flex items-center gap-3 w-full px-3 py-2 rounded-xl text-xs font-medium transition-colors text-right select-none ${
+                  active ? 'text-[#38BDF8] font-bold' : 'text-white/65 hover:bg-white/5 hover:text-white'
+                }`}
+                onClick={() => onNavigate(id)}
+                title={itemLabel}
+                aria-current={active ? 'page' : undefined}
+              >
+                {active && (
+                  <motion.div
+                    layoutId="sidebarActive"
+                    className="absolute inset-0 rounded-xl bg-[#0071E3]/15 border border-[#0071E3]/30"
+                    transition={{ type: 'spring', stiffness: 420, damping: 35 }}
+                  />
+                )}
+                <i
+                  className={`relative z-10 w-7 h-7 rounded-lg flex items-center justify-center transition-colors shrink-0 ${
+                    active ? 'bg-[#0071E3]/20 text-[#38BDF8]' : 'text-white/50'
+                  }`}
+                  aria-hidden="true"
+                >
+                  <Icon size={16} />
+                </i>
+                <span className="relative z-10 truncate">{itemLabel}</span>
+              </button>
+            )
+          })}
         </div>
       </div>
     </div>
@@ -112,6 +154,8 @@ const TIP = {
   itemStyle: { color: '#fff' },
   labelStyle: { color: '#93a7c9', marginBottom: 4 },
 }
+
+const cleanDistrictLabel = (label) => (typeof label === 'string' ? label.replace(/\s*[-_]\s*[\d۰-۹]+$/, '').trim() : label)
 
 function QuickSelect({ label, value, options, onChange, format = (x) => x }) {
   return (
@@ -139,12 +183,22 @@ export function ExecShell({
   const hasFilters = Boolean(month) || Object.keys(dims).length > 0
   return (
     <div className={`exec-root ${collapsed ? 'exec-collapsed' : ''}`} dir="rtl">
-      <aside className="exec-sidebar">
-        <div className="exec-brand">
-          <span className="exec-logo"><img src="/logo.jpg" alt="لوگوی کوپا گستر" /></span>
-          <div className="exec-brand-copy"><b>نبض فروش</b><small>{cores[core] ?? ''}</small></div>
-          <button type="button" className="exec-collapse" aria-label={collapsed ? 'باز کردن منو' : 'جمع کردن منو'} onClick={() => setCollapsed((v) => !v)}>
-            {collapsed ? <ChevronLeft size={17} /> : <ChevronRight size={17} />}
+      <aside className="exec-sidebar bg-[#1C1C1E] border-l border-white/10 shadow-2xl backdrop-blur-xl">
+        <div className="exec-brand flex items-center gap-3 px-2 py-3 border-b border-white/[0.08] mb-2">
+          <span className="w-10 h-10 rounded-2xl bg-white flex items-center justify-center shadow-md shadow-black/20 overflow-hidden shrink-0">
+            <img src="/logo.jpg" alt="لوگوی کوپا گستر" className="w-full h-full object-cover" />
+          </span>
+          <div className="exec-brand-copy flex-1 min-w-0">
+            <b className="text-sm font-bold text-white tracking-tight block">نبض فروش</b>
+            <small className="text-[11px] text-white/40 truncate block">{cores[core] ?? ''}</small>
+          </div>
+          <button
+            type="button"
+            className="exec-collapse w-7 h-7 rounded-lg flex items-center justify-center text-white/40 hover:text-white hover:bg-white/5 transition-colors"
+            aria-label={collapsed ? 'باز کردن منو' : 'جمع کردن منو'}
+            onClick={() => setCollapsed((v) => !v)}
+          >
+            {collapsed ? <ChevronLeft size={16} /> : <ChevronRight size={16} />}
           </button>
         </div>
         <nav className="exec-nav" aria-label="گزارش‌ها">
@@ -161,11 +215,26 @@ export function ExecShell({
         </nav>
         <div className="exec-sidebar-bottom">
           {onLogout && (
-            <div className="exec-profile">
-              <span className="exec-avatar" aria-hidden="true"><UserRound size={17} /></span>
-              <div className="exec-profile-copy"><button type="button" className="exec-user-btn" onClick={() => setPwOpen(true)} title="تغییر رمز"><b dir="ltr">{user || 'کاربر'}</b></button><small>حساب کاربری</small></div>
+            <div className="exec-profile bg-white/5 border border-white/10 rounded-2xl p-3 mx-2 mb-4 hover:bg-white/10 cursor-pointer transition-all">
+              <span className="w-9 h-9 rounded-xl bg-gradient-to-tr from-[#FF9500] to-[#FFB340] text-white flex items-center justify-center shadow-md shadow-orange-500/25 shrink-0" aria-hidden="true">
+                <UserRound size={17} />
+              </span>
+              <div className="exec-profile-copy min-w-0 flex-1 px-1">
+                <button type="button" className="exec-user-btn text-right font-bold text-xs text-white/90 hover:text-white truncate block w-full" onClick={() => setPwOpen(true)} title="تغییر رمز">
+                  <b dir="ltr">{user || 'کاربر'}</b>
+                </button>
+                <small className="text-[10px] text-white/40 block">حساب کاربری</small>
+              </div>
               {pwOpen && <PasswordDialog onClose={() => setPwOpen(false)} />}
-              <button type="button" className="exec-logout" onClick={onLogout} aria-label="خروج از حساب" title="خروج از حساب"><LogOut size={17} /></button>
+              <button
+                type="button"
+                className="w-8 h-8 rounded-lg flex items-center justify-center text-white/40 hover:text-red-400 hover:bg-red-500/10 transition-colors shrink-0"
+                onClick={onLogout}
+                aria-label="خروج از حساب"
+                title="خروج از حساب"
+              >
+                <LogOut size={16} />
+              </button>
             </div>
           )}
         </div>
@@ -179,14 +248,7 @@ export function ExecShell({
             <p>{subtitle}</p>
           </div>
           <div className="exec-header-actions">
-            {lastDataDate && <span className="exec-live" title="آخرین روز دارای داده در پایگاه"><i /> داده تا {dayLabel(lastDataDate)}</span>}
-            {page !== 'admin' && Object.keys(cores).length > 1 && (
-              <div className="seg" role="tablist" aria-label="هسته فروش">
-                {Object.entries(cores).map(([k, v]) => (
-                  <button type="button" key={k} role="tab" aria-selected={core === k} className={core === k ? 'on' : ''} onClick={() => setCore(k)}>{v}</button>
-                ))}
-              </div>
-            )}
+            <StatusIsland core={core} cores={cores} setCore={page === 'admin' ? () => {} : setCore} lastDataDate={lastDataDate} syncState={syncState} />
             {canSync && (
               <button type="button" className="exec-refresh-mini" onClick={onRefresh} disabled={running} aria-label="به‌روزرسانی داده" title="به‌روزرسانی داده">
                 <RefreshCw size={17} className={running ? 'spin' : ''} />
@@ -229,16 +291,26 @@ export function ExecShell({
               <section className="exec-advanced">
                 <div className="exec-advanced-head"><b>فیلترهای تحلیلی</b><span>روی همهٔ نمودارها و جدول‌های این صفحه اعمال می‌شود</span></div>
                 <div className="exec-advanced-grid">
-                  {Object.entries(FILTER_LABELS).filter(([k]) => !PRODUCT_GROUP_KEYS.includes(k) || filters[k]?.length || dims[k]).map(([k, label]) => (
-                    <QuickSelect key={k} label={label} value={dims[k] ?? ''} options={filters[k] ?? []} onChange={(v) => onFilterChange(k, v)} />
-                  ))}
+                  {Object.entries(FILTER_LABELS).filter(([k]) => !PRODUCT_GROUP_KEYS.includes(k) || filters[k]?.length || dims[k]).map(([k, label]) => {
+                    const rawOptions = filters[k] ?? []
+                    const options = k === 'city'
+                      ? rawOptions.filter((c) => typeof c === 'string' && !c.includes('منطقه'))
+                      : k === 'state'
+                      ? (rawOptions.some((c) => typeof c === 'string' && c.includes('منطقه'))
+                          ? rawOptions.filter((c) => typeof c === 'string' && !c.includes('استان'))
+                          : (filters.region ?? []).filter((c) => typeof c === 'string' && c.includes('منطقه')))
+                      : rawOptions
+                    return (
+                      <QuickSelect key={k} label={label} value={dims[k] ?? ''} options={options} onChange={(v) => onFilterChange(k, v)} format={k === 'state' ? cleanDistrictLabel : (x) => x} />
+                    )
+                  })}
                 </div>
               </section>
             )}
           </>
         )}
 
-        <div className="exec-page">{children}</div>
+        <div className="exec-page w-full max-w-[1600px] mx-auto">{children}</div>
       </main>
     </div>
   )
@@ -256,50 +328,6 @@ function Metric({ icon: Icon, label, value, unit, tone = 'blue', onClick }) {
   )
 }
 
-// Net-rial trend line for the hero, built from the real /monthly rows; latest month on the left (RTL time axis).
-function sparkPaths(values) {
-  if (values.length < 2) return null
-  const min = Math.min(...values)
-  const range = Math.max(...values) - min || 1
-  const pts = values.map((v, i) => [600 - (i * 600) / (values.length - 1), 82 - ((v - min) / range) * 70])
-  const line = pts.map(([x, y], i) => `${i ? 'L' : 'M'}${x.toFixed(1)} ${y.toFixed(1)}`).join(' ')
-  return { line, area: `${line} L0 90 L600 90 Z` }
-}
-
-function HeroCard({ o, rows, period, growth, growthLabel }) {
-  const spark = useMemo(() => sparkPaths(rows.map((r) => r.net_rial)), [rows])
-  return (
-    <article className="exec-hero exec-span-7">
-      {spark && (
-        <svg className="exec-hero-spark" viewBox="0 0 600 90" preserveAspectRatio="none" aria-hidden="true">
-          <defs>
-            <linearGradient id="execHeroFill" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0" stopColor="#fff" stopOpacity=".4" />
-              <stop offset="1" stopColor="#fff" stopOpacity="0" />
-            </linearGradient>
-          </defs>
-          <path d={spark.area} fill="url(#execHeroFill)" />
-          <path d={spark.line} fill="none" stroke="#fff" strokeWidth="2.5" vectorEffect="non-scaling-stroke" />
-        </svg>
-      )}
-      <div className="exec-hero-head">
-        <span className="exec-hero-title"><i aria-hidden="true"><Wallet size={18} /></i>فروش خالص (ریال خالص)</span>
-        {growth != null && (
-          <span className={`exec-hero-pill ${growth < 0 ? 'down' : ''}`} title="نسبت به دورهٔ مشابه ماه قبل">
-            {growth < 0 ? <TrendingDown size={14} /> : <TrendingUp size={14} />}{pct(Math.abs(growth))} {growth < 0 ? 'افت' : 'رشد'} {growthLabel}
-          </span>
-        )}
-      </div>
-      <div className="exec-hero-value"><strong>{o ? fa(o.net_rial) : '—'}</strong><small>ریال</small></div>
-      <div className="exec-hero-sub">پس از کسر پروموشن · {period}</div>
-      <div className="exec-hero-stats">
-        <div><small>فروش ناخالص</small><b>{o ? `${fa(o.sum_rial_vat / 1e9)} میلیارد` : '—'}</b></div>
-        <div><small>مجموع پروموشن</small><b>{o ? `${fa(o.promo_total_rial / 1e9)} میلیارد` : '—'}</b></div>
-        <div><small>درصد پروموشن</small><b>{o ? pct(o.promo_percent) : '—'}</b></div>
-      </div>
-    </article>
-  )
-}
 
 function CardHead({ title, note, chip }) {
   return (
@@ -355,52 +383,20 @@ function DailyChart({ rows }) {
   )
 }
 
-function SharePieCard({ p }) {
+function ShareCardBento({ p }) {
   const [by, setBy] = useState('branch')
   const r = useApi('/breakdown', { ...p, by, limit: 40 })
   const slices = useMemo(() => {
     const pos = (r.data ?? []).filter((x) => x.sum_rial_vat > 0).sort((a, b) => b.sum_rial_vat - a.sum_rial_vat)
-    const top = pos.slice(0, 8).map((x) => ({ name: by === 'month' ? monthLabel(String(x.key)) : String(x.key), value: x.sum_rial_vat }))
+    const top = pos.slice(0, 8).map((x) => ({ name: String(x.key), value: x.sum_rial_vat }))
     const rest = pos.slice(8).reduce((s, x) => s + x.sum_rial_vat, 0)
     if (rest > 0) top.push({ name: 'سایر', value: rest })
     return top
   }, [r.data, by])
   const total = slices.reduce((s, x) => s + x.value, 0)
-  return (
-    <article className="exec-card exec-pie-card">
-      <CardHead title="سهم از فروش" note="فقط مقادیر مثبت؛ ۸ مورد برتر و بقیه در «سایر»"
-        chip={<span className="exec-chip violet"><PieIcon size={14} /> کیکی</span>} />
-      <div className="exec-pie-by" role="tablist" aria-label="بعد نمودار کیکی">
-        {PIE_BY.map(([k, label]) => (
-          <button type="button" key={k} role="tab" aria-selected={by === k} className={by === k ? 'on' : ''} onClick={() => setBy(k)}>{label}</button>
-        ))}
-      </div>
-      {r.error ? <div className="exec-empty">دریافت داده ناموفق بود.</div>
-        : !slices.length ? <div className="exec-empty">{r.loading ? 'در حال بارگذاری…' : 'داده‌ای برای این فیلترها وجود ندارد.'}</div> : (
-          <div className="exec-pie-wrap">
-            <ul className="exec-legend">
-              {slices.map((s, i) => (
-                <li key={s.name}>
-                  <i style={{ background: PIE_COLORS[i % PIE_COLORS.length] }} /><span>{s.name}</span><b>{pct(s.value / total)}</b>
-                  <em className="exec-legend-bar" aria-hidden="true"><u style={{ width: `${(s.value / total) * 100}%`, background: PIE_COLORS[i % PIE_COLORS.length] }} /></em>
-                </li>
-              ))}
-            </ul>
-            <div className="exec-pie">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie data={slices} dataKey="value" nameKey="name" innerRadius="66%" outerRadius="96%" paddingAngle={2} stroke="none">
-                    {slices.map((_, i) => <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />)}
-                  </Pie>
-                  <Tooltip {...TIP} formatter={(v, n) => [`${fa(v / 1e9)} میلیارد ریال (${pct(v / total)})`, n]} />
-                </PieChart>
-              </ResponsiveContainer>
-              <div className="exec-pie-center"><b>{fa(total / 1e9)}</b><small>میلیارد ریال</small></div>
-            </div>
-          </div>
-        )}
-    </article>
-  )
+  if (r.error) return <div className="ov-empty kok">دریافت داده ناموفق بود.</div>
+  if (!slices.length) return <div className="ov-empty kok">{r.loading ? 'در حال بارگذاری…' : 'داده‌ای وجود ندارد.'}</div>
+  return <ShareTabsCard by={by} setBy={setBy} options={PIE_BY} slices={slices} total={total} colors={PIE_COLORS} />
 }
 
 const prevMonthKey = (ym) => (Number(ym.slice(4)) > 1 ? `${ym.slice(0, 4)}${String(Number(ym.slice(4)) - 1).padStart(2, '0')}` : null)
@@ -411,39 +407,6 @@ function Delta({ cur, prev }) {
   const d = cur / prev - 1
   const up = d >= 0
   return <span className={`exec-delta ${up ? 'up' : 'down'}`}>{up ? <TrendingUp size={13} /> : <TrendingDown size={13} />}{pct(Math.abs(d))}</span>
-}
-
-function ForecastCard({ pace }) {
-  const d = pace.data?.available ? pace.data : null
-  const done = d?.remaining_working_days === 0
-  const share = d?.working_days ? Math.min(1, d.elapsed_working_days / d.working_days) : 0
-  return (
-    <article className="exec-card exec-forecast exec-span-5">
-      <CardHead title={d ? `پیش‌بینی پایان ${monthLabel(d.year_month)}` : 'پیش‌بینی پایان ماه'}
-        note="برآورد بر اساس میانگین فروش هر روز کاری" chip={<span className="exec-chip amber"><Target size={14} /> برآورد</span>} />
-      {!d ? <div className="exec-empty">{pace.loading ? 'در حال بارگذاری…' : 'داده‌ای برای برآورد وجود ندارد.'}</div> : (
-        <>
-          <div className="exec-forecast-body">
-            <div className="exec-ring" style={{ '--p': `${share * 360}deg` }} role="img"
-              aria-label={`${fa(d.elapsed_working_days)} از ${fa(d.working_days)} روز کاری سپری‌شده`}>
-              <div><b>{fa(d.elapsed_working_days)} از {fa(d.working_days)}</b><small>روز کاری سپری‌شده</small></div>
-            </div>
-            <div className="exec-forecast-value">
-              <small>{done ? 'ریال خالص ماه (کامل)' : 'ریال خالص برآوردی پایان ماه'}</small>
-              <strong>{fa(done ? d.net_rial : d.projected_net_rial)}</strong>
-              <small>ریال · خالص واقعی تا {dayLabel(d.last_date)}: {fa(d.net_rial)}</small>
-            </div>
-          </div>
-          <dl className="exec-facts">
-            <div><dt>ناخالص {done ? 'ماه' : 'برآوردی'}</dt><dd>{fa(done ? d.sum_rial_vat : d.projected_sum_rial_vat)}</dd></div>
-            <div><dt>ناخالص واقعی تا {dayLabel(d.last_date)}</dt><dd>{fa(d.sum_rial_vat)}</dd></div>
-            <div><dt>روز کاری باقی‌مانده</dt><dd>{fa(d.remaining_working_days)} روز</dd></div>
-          </dl>
-          <p className="exec-footnote">{d.method}. این عدد پیش‌بینی است، نه فروش ثبت‌شده.</p>
-        </>
-      )}
-    </article>
-  )
 }
 
 function CompareCard({ dims, month, pace, months }) {
@@ -460,24 +423,16 @@ function CompareCard({ dims, month, pace, months }) {
   const span = partial ? ` (۱ تا ${fa(lastDay)})` : ''
   const items = [['ریال خالص', 'net_rial'], ['فروش ناخالص', 'sum_rial_vat'], ['تعداد کالا', 'sum_qty'], ['تعداد فاکتور', 'invoice_count'], ['مشتری فعال', 'active_customers']]
   return (
-    <article className="exec-card exec-compare exec-span-7">
+    <div className="rounded-[28px] bg-white/85 backdrop-blur-xl border border-black/[0.04] shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-6 h-full flex flex-col">
       <CardHead title="مقایسه با ماه قبل"
         note={ready ? `${monthLabel(ym)}${span} در برابر ${monthLabel(pym)}${span}` : 'برای مقایسه به دو ماه متوالی داده نیاز است'}
         chip={<span className="exec-chip blue">{partial ? 'هم‌بازه' : 'ماه کامل'}</span>} />
-      {!c || !b ? <div className="exec-empty">{ready ? 'در حال بارگذاری…' : 'ماه قبلِ این دوره در داده موجود نیست.'}</div> : (
-        <div className="exec-table-wrap">
-          <table>
-            <thead><tr><th>شاخص</th><th>{monthLabel(ym)}</th><th>{monthLabel(pym)}</th><th>تغییر</th></tr></thead>
-            <tbody>
-              {items.map(([label, key]) => (
-                <tr key={key} style={{ cursor: 'default' }}><td>{label}</td><td>{fa(c[key])}</td><td>{fa(b[key])}</td><td><Delta cur={c[key]} prev={b[key]} /></td></tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-      {partial && <p className="exec-footnote">ماه جاری کامل نیست؛ برای انصاف، همان روزهای ابتدای ماه قبل مقایسه می‌شود.</p>}
-    </article>
+      <div className="flex-1 mt-4">
+        {!c || !b ? <div className="exec-empty">{ready ? 'در حال بارگذاری…' : 'ماه قبلِ این دوره در داده موجود نیست.'}</div>
+          : <CompareBento c={c} b={b} items={items} Delta={Delta} />}
+      </div>
+      {partial && <p className="exec-footnote mt-3">ماه جاری کامل نیست؛ برای انصاف، همان روزهای ابتدای ماه قبل مقایسه می‌شود.</p>}
+    </div>
   )
 }
 
@@ -545,53 +500,62 @@ export default function ExecutiveDashboard({ p, cal, month, setMonth, onOpenRetu
   const days = trend.data ?? []
   const toggle = (ym) => setMonth(ym === month ? '' : ym)
   return (
-    <>
-      <section className="exec-calendar" aria-label="تقویم کاری">
-        <div className="exec-calendar-date"><CalendarDays size={20} />
-          <div><span>وضعیت امروز</span><b>{cal ? `${cal.weekday_name} ${fa(cal.day)} ${cal.month_name} ${faDigits(cal.year)}` : '—'}</b></div>
-        </div>
-        <div className="exec-calendar-stat"><span>روز کاری</span><b>{cal ? fa(cal.working_days) : '—'}</b></div>
-        <div className="exec-calendar-stat"><span>سپری‌شده</span><b>{cal ? fa(cal.days_passed) : '—'}</b></div>
-        <div className="exec-calendar-stat accent"><span>باقی‌مانده</span><b>{cal ? fa(cal.days_remaining) : '—'}</b></div>
-        <div className="exec-progress"><i style={{ width: cal ? `${(cal.days_passed / cal.working_days) * 100}%` : 0 }} /></div>
-      </section>
+    <div className="w-full max-w-[1600px] mx-auto space-y-5">
 
-      <section className="exec-grid exec-hero-row">
-        <HeroCard o={o} rows={rows} period={month ? monthLabel(month) : 'همه ماه‌ها'} growth={netGrowth} growthLabel={growthLabel} />
-        <ForecastCard pace={pace} />
-      </section>
+      {/* ── Calendar status bar ──────────────────────────────── */}
+      <CalendarGlass cal={cal} />
 
-      <section className="exec-kpis exec-kpis-overview">
-        <Metric icon={CircleDollarSign} label="فروش ناخالص" value={o ? fa(o.sum_rial_vat) : '—'} unit="ریال · شامل مالیات و عوارض" tone="blue" />
-        <Metric icon={PackageSearch} label="تعداد کالا" value={o ? fa(o.sum_qty) : '—'} unit="عدد" tone="violet" />
-        <Metric icon={PackageSearch} label="تعداد کالا خالص" value={o ? fa(o.sum_qty_net) : '—'} unit="عدد · منهای مرجوعی، بدون پروموشن" tone="violet" />
-        <Metric icon={FileText} label="تعداد فاکتور" value={o ? fa(o.invoice_count) : '—'} unit="فقره" tone="amber" />
-        <Metric icon={TrendingUp} label="درصد رشد فاکتور" value={pct(invoiceGrowth)} unit={growthLabel ? `${growthLabel} نسبت به دورهٔ مشابه ماه قبل` : 'مقایسه با ماه قبل'} tone="teal" />
-        <Metric icon={ListOrdered} label="میانگین سطر فاکتور" value={invoiceLines.data ? fa2(invoiceLines.data.avg_lines_per_invoice) : '—'} unit="سطر در هر فاکتور · فقط فروش عادی" tone="sky" />
-        <Metric icon={Users} label="مشتری فعال" value={o ? fa(o.active_customers) : '—'} unit="مشتری یکتا" tone="pink" />
-        <Metric icon={ArrowDownLeft} label="مجموع پروموشن" value={o ? fa(o.promo_total_rial) : '—'} unit="ریال" tone="red" />
-        <Metric icon={Percent} label="درصد کل پروموشن" value={o ? pct(o.promo_percent) : '—'} unit="از فروش ناخالص · دورهٔ انتخاب‌شده" tone="red" />
-        <Metric icon={Undo2} label="حواله‌های برگشتی" value={retTotal ? fa(retTotal.returned_orders) : '—'} unit={retNote ?? `${pct(retTotal.returned_order_percent)} از ${fa(retTotal.orders)} حواله پخش`} tone="amber"  onClick={onOpenReturns}/>
-        <Metric icon={PackageX} label="درصد برگشتی حواله" value={retTotal ? pct(retTotal.return_percent) : '—'} unit={retNote ?? `${fa(retTotal.return_rial)} ریال برگشتی از ${fa(retTotal.order_rial)} ریال حواله`} tone="red"  onClick={onOpenReturns}/>
-        <Metric icon={PackageX} label="تعداد فاکتور تحویلی" value={retTotal ? fa(retTotal.invoiced_orders) : '—'} unit={retNote ?? `${pct(retTotal.invoiced_order_percent)} درصد تحویل حواله‌ها · ${pct(retTotal.invoiced_rial_percent)} درصد ریال`} tone="blue"  onClick={onOpenReturns}/>
-      </section>
+      {/* ── Hero Bento Row (Equal Height 8 Cols + 4 Cols) ──── */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-stretch w-full">
+        <HeroMetricCard rows={rows} o={o} growth={netGrowth} growthLabel={growthLabel} period={month ? monthLabel(month) : 'همه ماه‌ها'} />
+        <ForecastRings pace={pace} />
+      </div>
 
-      <section className="exec-grid">
-        <article className="exec-card exec-span-8">
+      {/* ── 6×2 KPI widget grid ─────────────────────────────── */}
+      <KpiSpotlight items={[
+        { icon: CircleDollarSign, label: 'فروش ناخالص', value: o ? fa(o.sum_rial_vat) : '—', unit: 'ریال · شامل مالیات و عوارض', tone: 'blue' },
+        { icon: PackageSearch, label: 'تعداد کالا', value: o ? fa(o.sum_qty) : '—', unit: 'عدد', tone: 'violet' },
+        { icon: PackageSearch, label: 'تعداد کالا خالص', value: o ? fa(o.sum_qty_net) : '—', unit: 'عدد · منهای مرجوعی', tone: 'violet' },
+        { icon: FileText, label: 'تعداد فاکتور', value: o ? fa(o.invoice_count) : '—', unit: 'فقره', tone: 'amber' },
+        { icon: TrendingUp, label: 'درصد رشد فاکتور', value: pct(invoiceGrowth), unit: growthLabel ? `${growthLabel} نسبت به ماه قبل` : 'مقایسه با ماه قبل', tone: 'teal' },
+        { icon: ListOrdered, label: 'میانگین سطر فاکتور', value: invoiceLines.data ? fa2(invoiceLines.data.avg_lines_per_invoice) : '—', unit: 'سطر در هر فاکتور', tone: 'sky' },
+        { icon: Users, label: 'مشتری فعال', value: o ? fa(o.active_customers) : '—', unit: 'مشتری یکتا', tone: 'pink' },
+        { icon: ArrowDownLeft, label: 'مجموع پروموشن', value: o ? fa(o.promo_total_rial) : '—', unit: 'ریال', tone: 'red' },
+        { icon: Percent, label: 'درصد کل پروموشن', value: o ? pct(o.promo_percent) : '—', unit: 'از فروش ناخالص', tone: 'red' },
+        { icon: Undo2, label: 'حواله‌های برگشتی', value: retTotal ? fa(retTotal.returned_orders) : '—', unit: retNote ?? `${pct(retTotal.returned_order_percent)} از ${fa(retTotal.orders)} حواله`, tone: 'amber', onClick: onOpenReturns },
+        { icon: PackageX, label: 'درصد برگشتی حواله', value: retTotal ? pct(retTotal.return_percent) : '—', unit: retNote ?? `${fa(retTotal.return_rial)} ریال برگشتی`, tone: 'red', onClick: onOpenReturns },
+        { icon: PackageX, label: 'تعداد فاکتور تحویلی', value: retTotal ? fa(retTotal.invoiced_orders) : '—', unit: retNote ?? `${pct(retTotal.invoiced_order_percent)} درصد تحویل`, tone: 'blue', onClick: onOpenReturns },
+      ]} />
+
+      {/* ── Bottom content grid ──────────────────────────────── */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 w-full">
+
+        {/* Monthly sales chart */}
+        <div className="lg:col-span-8 rounded-[28px] bg-white/85 backdrop-blur-xl border border-black/[0.04] shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-6 flex flex-col">
           <CardHead title="روند فروش ماهانه" note="ریال خالص و فروش ناخالص · میلیارد ریال"
             chip={<span className="exec-legend-inline"><i style={{ background: '#2563eb' }} />خالص<i style={{ background: '#14b8a6' }} />ناخالص</span>} />
           <SalesChart rows={rows} />
-        </article>
-        <div className="exec-span-4"><SharePieCard p={p} /></div>
+        </div>
 
-        <CompareCard dims={dims} month={month} pace={pace} months={rows.map((r) => r.year_month)} />
-        <article className="exec-card exec-daily exec-span-5">
+        {/* Sales share */}
+        <div className="lg:col-span-4">
+          <ShareCardBento p={p} />
+        </div>
+
+        {/* Month comparison */}
+        <div className="lg:col-span-7">
+          <CompareCard dims={dims} month={month} pace={pace} months={rows.map((r) => r.year_month)} />
+        </div>
+
+        {/* Daily trend chart */}
+        <div className="lg:col-span-5 rounded-[28px] bg-white/85 backdrop-blur-xl border border-black/[0.04] shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-6 flex flex-col exec-daily">
           <CardHead title="روند فروش روزانه" note={month ? `روزهای ${monthLabel(month)} · میلیارد ریال` : 'روزهای دورهٔ انتخاب‌شده · میلیارد ریال'}
             chip={<span className="exec-chip blue">Rial+Vat</span>} />
           <DailyChart rows={days} />
-        </article>
+        </div>
 
-        <article className="exec-card exec-span-12">
+        {/* Monthly summary table */}
+        <div className="lg:col-span-12 rounded-[28px] bg-white/85 backdrop-blur-xl border border-black/[0.04] shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-6">
           <CardHead title="خلاصهٔ ماهانه" note="برای تمرکز روی یک ماه، ردیف آن را انتخاب کنید"
             chip={<span className="exec-chip blue">مدل Power Pivot</span>} />
           <Table name="خلاصه-ماهانه" rows={rows} onRow={(r) => toggle(r.year_month)} highlight={(r) => month === r.year_month}
@@ -602,8 +566,9 @@ export default function ExecutiveDashboard({ p, cal, month, setMonth, onOpenRetu
               { label: 'فاکتور', render: (r) => fa(r.invoice_count), value: (r) => r.invoice_count },
               { label: 'پروموشن', render: (r) => pct(r.promo_percent), value: (r) => r.promo_percent * 100, unit: '٪' },
             ]} />
-        </article>
-      </section>
-    </>
+        </div>
+
+      </div>
+    </div>
   )
 }

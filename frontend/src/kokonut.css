@@ -1,0 +1,57 @@
+/* Kokonut UI components ship with Tailwind utility classes; this app styles with
+   plain CSS, so the utilities they use are defined here once, scoped to .kok. */
+.kok { --kn-fg: #0f172a; --kn-muted: #64748b; --kn-line: #e2e8f0; color: var(--kn-fg); }
+
+.kok .relative{position:relative}.kok .absolute{position:absolute}.kok .fixed{position:fixed}
+.kok .inset-0{inset:0}.kok .inset-x-0{left:0;right:0}.kok .top-0{top:0}.kok .bottom-0{bottom:0}
+.kok .top-2{top:.5rem}.kok .top-4{top:1rem}.kok .right-2{right:.5rem}.kok .right-4{right:1rem}
+.kok .bottom-4{bottom:1rem}.kok .left-0{left:0}.kok .left-4{left:1rem}
+.kok .-z-10{z-index:-10}.kok .z-10{z-index:10}.kok .z-20{z-index:20}
+.kok .flex{display:flex}.kok .inline-flex{display:inline-flex}.kok .grid{display:grid}
+.kok .hidden{display:none}.kok .block{display:block}
+.kok .flex-col{flex-direction:column}.kok .flex-row{flex-direction:row}
+.kok .flex-wrap{flex-wrap:wrap}.kok .flex-1{flex:1 1 0%}.kok .shrink-0{flex-shrink:0}
+.kok .items-center{align-items:center}.kok .items-start{align-items:flex-start}.kok .items-end{align-items:flex-end}
+.kok .justify-between{justify-content:space-between}.kok .justify-center{justify-content:center}.kok .justify-end{justify-content:flex-end}
+.kok .gap-1{gap:.25rem}.kok .gap-1\.5{gap:.375rem}.kok .gap-2{gap:.5rem}.kok .gap-3{gap:.75rem}
+.kok .gap-4{gap:1rem}.kok .gap-6{gap:1.5rem}.kok .gap-8{gap:2rem}
+.kok .mx-auto{margin-left:auto;margin-right:auto}.kok .mt-1{margin-top:.25rem}.kok .mt-2{margin-top:.5rem}
+.kok .mt-4{margin-top:1rem}.kok .mb-2{margin-bottom:.5rem}.kok .ml-auto{margin-left:auto}
+.kok .p-2{padding:.5rem}.kok .p-3{padding:.75rem}.kok .p-4{padding:1rem}.kok .p-6{padding:1.5rem}.kok .p-8{padding:2rem}
+.kok .px-2{padding-left:.5rem;padding-right:.5rem}.kok .px-3{padding-left:.75rem;padding-right:.75rem}
+.kok .px-4{padding-left:1rem;padding-right:1rem}.kok .py-1{padding-top:.25rem;padding-bottom:.25rem}
+.kok .py-2{padding-top:.5rem;padding-bottom:.5rem}.kok .py-3{padding-top:.75rem;padding-bottom:.75rem}
+.kok .pt-2{padding-top:.5rem}.kok .pt-4{padding-top:1rem}.kok .pb-2{padding-bottom:.5rem}.kok .pb-4{padding-bottom:1rem}
+.kok .w-full{width:100%}.kok .h-full{height:100%}.kok .w-2{width:.5rem}.kok .h-2{height:.5rem}
+.kok .w-8{width:2rem}.kok .h-8{height:2rem}.kok .w-10{width:2.5rem}.kok .h-10{height:2.5rem}
+.kok .w-12{width:3rem}.kok .h-12{height:3rem}.kok .w-16{width:4rem}.kok .h-16{height:4rem}
+.kok .size-4{width:1rem;height:1rem}.kok .size-5{width:1.25rem;height:1.25rem}
+.kok .overflow-hidden{overflow:hidden}.kok .overflow-visible{overflow:visible}
+.kok .text-xs{font-size:.75rem;line-height:1.1rem}.kok .text-sm{font-size:.875rem;line-height:1.3rem}
+.kok .text-base{font-size:1rem;line-height:1.5rem}.kok .text-lg{font-size:1.125rem;line-height:1.7rem}
+.kok .text-xl{font-size:1.25rem;line-height:1.75rem}.kok .text-2xl{font-size:1.5rem;line-height:2rem}
+.kok .text-3xl{font-size:1.875rem;line-height:2.2rem}
+.kok .font-medium{font-weight:500}.kok .font-semibold{font-weight:600}.kok .font-bold{font-weight:700}
+.kok .tabular-nums{font-variant-numeric:tabular-nums}
+.kok .text-center{text-align:center}.kok .text-right{text-align:right}
+.kok .text-zinc-400{color:#a1a1aa}.kok .text-zinc-500{color:#71717a}.kok .text-zinc-600{color:#52525b}
+.kok .text-zinc-900{color:#18181b}.kok .text-white{color:#fff}
+.kok .text-emerald-600{color:#059669}.kok .text-red-500{color:#ef4444}
+.kok .bg-white{background:#fff}.kok .bg-zinc-900{background:#18181b}.kok .bg-zinc-100{background:#f4f4f5}
+.kok .bg-zinc-200{background:#e4e4e7}.kok .bg-zinc-300{background:#d4d4d8}.kok .bg-zinc-400{background:#a1a1aa}
+.kok .bg-zinc-700{background:#3f3f46}.kok .bg-zinc-800{background:#27272a}
+.kok .bg-white\/40{background:rgba(255,255,255,.4)}.kok .bg-black\/20{background:rgba(0,0,0,.2)}
+.kok .bg-emerald-500{background:#10b981}.kok .bg-red-500{background:#ef4444}.kok .bg-blue-500{background:#3b82f6}
+.kok .border{border-width:1px;border-style:solid}.kok .border-transparent{border-color:transparent}
+.kok .border-zinc-200{border-color:#e4e4e7}.kok .border-zinc-800{border-color:#27272a}
+.kok .border-white\/10{border-color:rgba(255,255,255,.1)}.kok .border-white\/20{border-color:rgba(255,255,255,.2)}
+.kok .rounded{border-radius:.25rem}.kok .rounded-md{border-radius:.375rem}.kok .rounded-lg{border-radius:.5rem}
+.kok .rounded-xl{border-radius:.75rem}.kok .rounded-2xl{border-radius:1rem}.kok .rounded-3xl{border-radius:1.5rem}
+.kok .rounded-full{border-radius:9999px}
+.kok .shadow-sm{box-shadow:0 1px 2px rgba(0,0,0,.06)}.kok .shadow-lg{box-shadow:0 10px 24px -10px rgba(15,23,42,.25)}
+.kok .uppercase{text-transform:uppercase}.kok .tracking-wide{letter-spacing:.04em}.kok .whitespace-nowrap{white-space:nowrap}
+.kok .cursor-pointer{cursor:pointer}.kok .select-none{user-select:none}
+.kok .transition{transition:all .2s ease}.kok .backdrop-blur-xl{backdrop-filter:blur(24px)}
+.kok .opacity-0{opacity:0}.kok .opacity-50{opacity:.5}
+.kok button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+.kok h2,.kok h3,.kok p{margin:0}

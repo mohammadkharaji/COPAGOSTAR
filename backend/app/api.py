@@ -157,8 +157,13 @@ def _dims(request: Request, skip: tuple[str, ...] = ()) -> tuple[str, list]:
             continue
         vals = [v for v in request.query_params.getlist(key) if v]
         if vals:
-            sql += f" AND {col} IN ({','.join('?' * len(vals))})"
-            args += vals
+            if key == "state":
+                placeholders = ",".join("?" * len(vals))
+                sql += f" AND (state IN ({placeholders}) OR region IN ({placeholders}))"
+                args += vals + vals
+            else:
+                sql += f" AND {col} IN ({','.join('?' * len(vals))})"
+                args += vals
     scope, sargs = rbac.scope_clause()   # the user's branch scope, applied even when `branch` is skipped
     return sql + scope, args + sargs
 
@@ -343,14 +348,26 @@ def filters(request: Request, core: str = DEFAULT_CORE):
                 order = r"CAST(NULLIF(regexp_extract(" + col + r", '-(\d+)$', 1), '') AS INTEGER) NULLS LAST, " + col
             elif key == "region":
                 order = f"{col}"
+            elif key == "city":
+                order = f"{col} ASC"
             else:
                 order = "COUNT(*) DESC"
+            if key == "city":
+                where += f" AND {col} NOT LIKE '%منطقه%'"
             if key == "brand":
                 where += f" AND {col} NOT IN ({','.join('?' * len(HIDDEN_BRANDS))})"
                 args += list(HIDDEN_BRANDS)
             out[key] = [r[0] for r in con.execute(
                 f"SELECT {col} FROM fact_sales WHERE core=? AND {col} IS NOT NULL{where}{scope} GROUP BY 1 ORDER BY {order} LIMIT 300",
                 [name, *args, *sargs]).fetchall()]
+        # Ensure municipal districts from region (if any) are also available in state options
+        # while keeping city strictly free of districts
+        if not out.get("state") or not any("منطقه" in str(x) for x in out.get("state", [])):
+            districts = [r[0] for r in con.execute(
+                f"SELECT region FROM fact_sales WHERE core=? AND region IS NOT NULL AND region LIKE '%منطقه%'{scope} GROUP BY 1 ORDER BY 1 LIMIT 300",
+                [name, *sargs]).fetchall()]
+            if districts:
+                out["state"] = sorted(set(out.get("state", []) + districts), key=lambda x: str(x))
         out["month"] = [r[0] for r in con.execute(
             f"SELECT DISTINCT year_month FROM fact_sales WHERE core=? AND year_month IS NOT NULL{scope} ORDER BY 1",
             [name, *sargs]).fetchall()]
@@ -1207,6 +1224,8 @@ from . import admin as _admin  # noqa: E402  (users, roles, audit log; admin-onl
 app.include_router(_admin.router)
 from . import tickets as _tickets  # noqa: E402  (support tickets; every signed-in user, admins answer)
 app.include_router(_tickets.router)
+from . import club as _club  # noqa: E402  (loyalty clubs: plans and points; rbac.PREFIX gates them)
+app.include_router(_club.router)
 
 
 # ---------- AI sales agent ----------

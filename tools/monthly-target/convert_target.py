@@ -212,21 +212,26 @@ def replace_policy(assume_yes: bool) -> Callable[[], bool] | None:
     return lambda: input("روی سرور فایل این ماه هست و جایگزین می‌شود. ادامه می‌دهید؟ (y/N): ").strip().lower() in ("y", "yes")
 
 
-def _ssh(server: str, key: str | None, script: str) -> subprocess.CompletedProcess:
+def _ssh(server: str, key: str | None, script: str, port: int | None = None) -> subprocess.CompletedProcess:
     ssh = ["ssh", "-o", "BatchMode=yes", "-o", "ConnectTimeout=20"] + (["-i", key] if key else [])
+    if port:
+        ssh += ["-p", str(port)]
     return subprocess.run(ssh + [server, script], capture_output=True, text=True)
 
 
 def upload(path: Path, server: str, key: str | None, remote: str,
-           confirm_replace: Callable[[], bool] | None = None) -> bool:
+           confirm_replace: Callable[[], bool] | None = None,
+           port: int | None = None) -> bool:
     """Copy to a unique .part next to the destination, check its SHA256, then swap it in atomically.
 
     Returns False when the operator declines a replacement; the server is untouched in that case.
     """
     scp = ["scp", "-o", "BatchMode=yes", "-o", "ConnectTimeout=20"] + (["-i", key] if key else [])
+    if port:
+        scp += ["-P", str(port)]
     dest = f"{remote.rstrip('/')}/raw/{path.name}"
     q = shlex.quote(dest)
-    probe = _ssh(server, key, f"if test -e {q}; then printf 'EXISTS'; else printf 'MISSING'; fi")
+    probe = _ssh(server, key, f"if test -e {q}; then printf 'EXISTS'; else printf 'MISSING'; fi", port)
     if probe.returncode != 0 or probe.stdout not in ("EXISTS", "MISSING"):
         raise UploadError(f"بررسی فایل روی سرور ناموفق بود (کد {probe.returncode}): {probe.stderr.strip()}")
     if probe.stdout == "EXISTS":
@@ -241,17 +246,17 @@ def upload(path: Path, server: str, key: str | None, remote: str,
             subprocess.run(scp + [str(path), f"{server}:{part}"], check=True)
         except subprocess.CalledProcessError as e:
             raise UploadError(f"کپی فایل روی سرور ناموفق بود (کد {e.returncode})") from e
-        remote_sum = _ssh(server, key, f"sha256sum {qp}")
+        remote_sum = _ssh(server, key, f"sha256sum {qp}", port)
         if remote_sum.returncode != 0:
             raise UploadError(f"محاسبه هش روی سرور ناموفق بود: {remote_sum.stderr.strip()}")
         if remote_sum.stdout.split()[:1] != [sha256_file(path)]:
             raise UploadError("هش فایل روی سرور با فایل محلی نمی‌خواند؛ فایل قبلی دست‌نخورده ماند")
-        swap = _ssh(server, key, f"chown sr:sr {qp} && mv -f {qp} {q}")
+        swap = _ssh(server, key, f"chown sr:sr {qp} && mv -f {qp} {q}", port)
         if swap.returncode != 0:
             raise UploadError(f"جایگزینی فایل روی سرور ناموفق بود: {swap.stderr.strip()}")
     except BaseException:
         try:  # best effort: remove the staged copy; the destination was never written to
-            _ssh(server, key, f"rm -f {qp}")
+            _ssh(server, key, f"rm -f {qp}", port)
         except OSError:
             pass
         raise
@@ -269,6 +274,7 @@ def main() -> int:
     ap.add_argument("--check", action="store_true", help="فقط اعتبارسنجی و گزارش؛ چیزی نوشته نمی‌شود")
     ap.add_argument("--upload", metavar="USER@HOST", help="پس از تبدیل روی سرور بارگذاری شود")
     ap.add_argument("--key", help="مسیر کلید SSH")
+    ap.add_argument("--port", type=int, default=22, help="پورت SSH سرور (پیش‌فرض 22)")
     ap.add_argument("--yes", action="store_true", help="فایل موجود روی سرور را بدون پرسش جایگزین کن")
     ap.add_argument("--remote-data", default="/opt/sr/data")
     a = ap.parse_args()
@@ -305,7 +311,8 @@ def main() -> int:
     print(f"نوشته شد: {dest}")
     if a.upload:
         try:
-            done = upload(dest, a.upload, a.key, a.remote_data, confirm_replace=replace_policy(a.yes))
+            done = upload(dest, a.upload, a.key, a.remote_data, confirm_replace=replace_policy(a.yes),
+                          port=a.port)
         except (UploadError, subprocess.CalledProcessError, OSError) as e:
             print(f"بارگذاری روی سرور ناموفق بود: {e}", file=sys.stderr)
             return 1

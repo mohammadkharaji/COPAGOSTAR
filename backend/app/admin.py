@@ -270,12 +270,15 @@ def update_role(role_id: int, body: RolePatch, request: Request):
     return _unique(write)
 
 
-_SCOPED_PAGES = [p for p in rbac.PAGES if p != "health"]
+_CLUB_PAGES = ("club_b2b", "club_visitor")
+_SCOPED_PAGES = [p for p in rbac.PAGES if p != "health" and p not in _CLUB_PAGES]
 DEFAULT_ROLES = (
     ("مدیرعامل", "دسترسی به همهٔ گزارش‌ها و هسته‌ها", list(rbac.PAGES), "all"),
     ("معاونت فروش", "دسترسی به همهٔ گزارش‌ها و هسته‌ها", list(rbac.PAGES), "all"),
     ("مدیر شعبه", "گزارش‌های شعبه‌های واگذارشده", _SCOPED_PAGES, "branch"),
     ("سرپرست شعبه", "گزارش‌های سرپرست‌های زیرمجموعه", _SCOPED_PAGES, "supervisor"),
+    ("CustomerClub", "باشگاه مشتریان B2B: مشاهدهٔ امتیاز و طرح‌های فعال خود", ["club_b2b"], "all"),
+    ("Sales Power Club", "باشگاه ویزیتورها: پیشرفت خود و مشتریانش", ["club_visitor"], "all"),
 )
 
 

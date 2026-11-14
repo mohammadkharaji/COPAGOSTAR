@@ -354,9 +354,12 @@ def write_tsv(path: Path, records: list[dict]) -> None:
     tmp.replace(path)
 
 
-def upload(path: Path, server: str, key: str | None, remote: str) -> None:
+def upload(path: Path, server: str, key: str | None, remote: str, port: int | None = None) -> None:
     ssh = ["ssh", "-o", "BatchMode=yes", "-o", "ConnectTimeout=20"] + (["-i", key] if key else [])
     scp = ["scp", "-o", "BatchMode=yes", "-o", "ConnectTimeout=20"] + (["-i", key] if key else [])
+    if port:
+        ssh += ["-p", str(port)]
+        scp += ["-P", str(port)]
     dest = f"{remote.rstrip('/')}/raw/{path.name}"
     subprocess.run(scp + [str(path), f"{server}:{dest}.part"], check=True)
     subprocess.run(ssh + [server, f"chown sr:sr {shlex.quote(dest)}.part && mv -f {shlex.quote(dest)}.part {shlex.quote(dest)}"], check=True)
@@ -379,6 +382,7 @@ def main(argv: list[str] | None = None, now: datetime | None = None) -> int:
     mode.add_argument("--dry-run", action="store_true", help="مثل اجرای واقعی ولی بدون نوشتن فایل خروجی و وضعیت")
     ap.add_argument("--upload", metavar="USER@HOST", help="پس از تبدیل روی سرور بارگذاری شود (فقط با درخواست صریح)")
     ap.add_argument("--key", help="مسیر کلید SSH")
+    ap.add_argument("--port", type=int, default=22, help="پورت SSH سرور (پیش‌فرض 22)")
     ap.add_argument("--remote-data", default="/opt/sr/data")
     a = ap.parse_args(argv)
     if a.upload and (a.check or a.dry_run):
@@ -428,7 +432,7 @@ def main(argv: list[str] | None = None, now: datetime | None = None) -> int:
     print(f"نوشته شد: {dest} ({len(out):,} ردیف)؛ وضعیت در انتظار تأیید: {pending_path}")
     if a.upload:
         try:
-            upload(dest, a.upload, a.key, a.remote_data)
+            upload(dest, a.upload, a.key, a.remote_data, a.port)
         except (subprocess.CalledProcessError, OSError) as e:
             print(f"بارگذاری روی سرور ناموفق بود: {e}\nفایل {dest} حفظ شده و وضعیت به‌روز است؛ بارگذاری را دستی تکرار کنید.",
                   file=sys.stderr)

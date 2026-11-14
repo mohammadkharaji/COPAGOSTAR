@@ -1,7 +1,8 @@
 # Publish sales (DAX) and optional returns: verify SHA-256 on the server, activate, start and wait for sr-sync.
 # -Scope all: every sales query (full recovery). -Scope recent: current and previous Jalali month, plus product and salesunit.
 param(
-  [string]$Server = 'root@194.5.205.59',
+  [string]$Server = 'root@178.252.136.184',
+  [int]$Port = 2222,
   [string]$KeyFile = (Join-Path $env:USERPROFILE '.ssh\sr_deploy'),
   [string]$RemoteData = '/opt/sr/data',
   [string]$SalesWorkbook = (Join-Path (Split-Path -Parent $PSScriptRoot) 'SR-1405.xlsx'),
@@ -20,10 +21,12 @@ $Converter = Join-Path $Root 'tools\returns\convert_returns.py'
 $State = Join-Path $Root 'data\returns_state_kg.json'
 $Export = Join-Path $Root ('data\export_' + (Get-Date -Format 'yyyyMMdd_HHmmss'))
 $SshOpts = @('-i', $KeyFile, '-o', 'BatchMode=yes', '-o', 'ConnectTimeout=20')
+$SshPortOpt = @('-p', "$Port")
+$ScpPortOpt = @('-P', "$Port")
 
 function Fail([string]$Message) { throw $Message }
 function Remote([string]$Command) {
-  $out = & ssh -n @SshOpts -o ServerAliveInterval=15 -o ServerAliveCountMax=2 $Server $Command
+  $out = & ssh -n @SshOpts @SshPortOpt -o ServerAliveInterval=15 -o ServerAliveCountMax=2 $Server $Command
   if ($LASTEXITCODE -ne 0) { Fail "remote command failed: $Command" }
   return $out
 }
@@ -110,7 +113,7 @@ try {
   $start = (Remote 'date +%Y-%m-%dT%H:%M:%S' | Select-Object -First 1).Trim()
   Remote "mkdir -p $stage" | Out-Null
   foreach ($f in $files) {
-    & scp @SshOpts $f.FullName "${Server}:$stage/$($f.Name)"
+    & scp @SshOpts @ScpPortOpt $f.FullName "${Server}:$stage/$($f.Name)"
     if ($LASTEXITCODE -ne 0) { Fail "upload failed: $($f.Name); staging kept at $stage" }
   }
 

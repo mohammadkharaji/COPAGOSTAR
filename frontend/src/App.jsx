@@ -1,4 +1,5 @@
 import TargetPage from './TargetPage'
+import { ClubPage, MyClub, MyVisitorClub } from './ClubPages'
 import AdminPage from './AdminPage'
 import ChatPage from './ChatPage'
 import { useEffect, useMemo, useRef, useState } from 'react'
@@ -10,6 +11,7 @@ import { BranchRegionPage, CustomerPage, GrowthPage, HealthPage, InactiveCustome
 const CORES = { kg: 'کوپا گستر', ch: 'زنجیره‌ای' }
 const SHARED_KEYS = ['month', 'branch', 'region', 'state', 'city', 'brand', 'group', 'grade', 'sales_type', 'main_group', 'sub_group', 'product', 'reason']
 const PAGE_IDS = [...NAV.map(([k]) => k), 'admin']
+const CLUB_KIND = { club_b2b: 'b2b', club_visitor: 'visitor' }
 // An unknown page is '' here; App turns it (and any page the user may not open) into the first page they can access.
 const parseHash = () => {
   const [path, query = ''] = location.hash.slice(1).split('?')
@@ -49,7 +51,9 @@ export default function App({ onLogout }) {
   const allowedCores = useMemo(() => Object.keys(CORES).filter((k) => principal?.cores?.includes(k)), [principal])
   const visibleCores = useMemo(() => Object.fromEntries(allowedCores.map((k) => [k, CORES[k]])), [allowedCores])
   const isAdmin = Boolean(principal?.is_admin)
-  const home = NAV.find(([k]) => allowedPages.includes(k))?.[0] ?? (isAdmin ? 'admin' : null)
+  // A club account lands on its own club page; tickets stays available but is never the landing page.
+  const clubPage = NAV.find(([k]) => CLUB_KIND[k] && allowedPages.includes(k))?.[0]
+  const home = clubPage ?? NAV.find(([k]) => allowedPages.includes(k))?.[0] ?? (isAdmin ? 'admin' : null)
   const canOpen = (pg) => (pg === 'admin' ? isAdmin : allowedPages.includes(pg))
   // A hash for a page the user may not open falls back to their first allowed page.
   const page = principal ? (canOpen(route.page) ? route.page : home) : null
@@ -127,6 +131,7 @@ export default function App({ onLogout }) {
     const n = { ...d }
     if (v) n[k] = v; else delete n[k]
     if (k === 'branch' && d.branch !== v) { delete n.region; delete n.state; delete n.city }
+    if (k === 'city' && d.city !== v) { delete n.state; delete n.region }
     if (k === 'main_group' && d.main_group !== v) delete n.sub_group
     return n
   })
@@ -155,12 +160,15 @@ export default function App({ onLogout }) {
     <ExecShell
       page={page} onNavigate={go} core={core} cores={visibleCores} setCore={setCore} title={title} subtitle={subtitle}
       month={month} setMonth={setMonth} filters={options.data ?? {}} dims={dims} onFilterChange={setDim}
-      onReset={() => { setMonth(''); setDims({}) }} showFilters={reports && !['health', 'customer', 'target', 'chat'].includes(page)} hideMonth={['monthly', 'growth', 'inactive', 'potential', 'chat'].includes(page)}
+      onReset={() => { setMonth(''); setDims({}) }} showFilters={reports && !['health', 'customer', 'target', 'chat', 'club_b2b', 'club_visitor'].includes(page)} hideMonth={['monthly', 'growth', 'inactive', 'potential', 'chat', 'club_b2b', 'club_visitor'].includes(page)}
       error={error} partial={partial} lastDataDate={health?.last_data_date} syncState={syncState} syncNotice={syncNotice} onDismissNotice={() => setSyncNotice('')} onRefresh={startSync} onLogout={onLogout} user={principal.user}
       allowedPages={allowedPages} isAdmin={isAdmin} canSync={isAdmin}
     >
       {page === 'admin' && isAdmin && <AdminPage />}
       {page === 'chat' && <ChatPage />}
+      {page in CLUB_KIND && reports && (principal.is_admin
+        ? <ClubPage kind={CLUB_KIND[page]} core={core} />
+        : CLUB_KIND[page] === 'visitor' ? <MyVisitorClub /> : <MyClub />)}
       {page && page !== 'admin' && !allowedCores.length && <div className="empty">برای این حساب هسته‌ای فعال نشده است.</div>}
       {reports && page !== 'admin' && <>
       {page === 'overview' && <ExecutiveDashboard p={p} cal={cal} month={month} setMonth={setMonth} onOpenReturns={() => go('returns')} />}
