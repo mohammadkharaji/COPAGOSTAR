@@ -52,7 +52,13 @@ sudo bash install.sh --data /path/to/sr.duckdb
 - اجرای دوبارهٔ `install.sh` رمز را نگه می‌دارد؛ برای تغییر رمز، آن را با `SR_ADMIN_PASSWORD=<رمز جدید>` اجرا کنید.
 - همهٔ مسیرهای `/api` بدون نشست معتبر `401` می‌دهند. نشست ۱۲ ساعت اعتبار دارد و بعد از ۵ تلاش ناموفق، آدرس مهاجم ۱۵ دقیقه مسدود می‌شود.
 
-> هشدار: این سرور هنوز TLS ندارد و ورود روی HTTP ساده انجام می‌شود، یعنی رمز بدون رمزنگاری روی شبکه می‌رود. برای استفادهٔ واقعی، پشت یک دامنه و HTTPS (مثلاً Caddy) بگذارید و `Environment=SR_COOKIE_SECURE=1` را به `sr-api.service` اضافه کنید.
+## دامنه و HTTPS
+
+فایل‌های nginx در `deploy/nginx/` هستند: `copadash.amadehlaziz.com.conf` (پورت ۸۰: ریدایرکت به HTTPS، به‌جز مسیر ACME در `/var/www/acme`) و `copadash.amadehlaziz.com-ssl.conf` (پورت ۴۴۳، پراکسی به `127.0.0.1:8000`). گواهی در `/etc/nginx/ssl/copadash.amadehlaziz.com/{fullchain,privkey}.pem` است (Certum wildcard، اعتبار تا ۲۰۲۷-۰۴-۲۸؛ `fullchain` = گواهی + CA Bundle). `sr-api.service` با `--proxy-headers` اجرا می‌شود تا کوکی نشست زیر HTTPS خودکار `Secure` بگیرد.
+
+تمدید گواهی: فایل‌های جدید را جایگزین کنید و `sudo nginx -t && sudo systemctl reload nginx`.
+
+> هشدار: اگر سرور را بدون nginx و گواهی بالا بیاورید، ورود روی HTTP ساده انجام می‌شود و رمز بدون رمزنگاری روی شبکه می‌رود. پشت HTTPS (بخش بالا) کوکی نشست خودکار `Secure` می‌شود.
 
 ## به‌روزرسانی روی سرور
 
