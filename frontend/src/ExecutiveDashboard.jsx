@@ -46,7 +46,7 @@ import { StatusIsland, HeroMetricCard, ForecastRings, CalendarGlass, KpiSpotligh
 
 const pct = (v) => (v == null ? '—' : `${new Intl.NumberFormat('fa-IR', { maximumFractionDigits: 1 }).format(v * 100)}٪`)
 const PIE_COLORS = ['#2563eb', '#0f766e', '#8b5cf6', '#f59e0b', '#ec4899', '#0ea5e9', '#84cc16', '#ef4444', '#94a3b8']
-const PIE_BY = [['branch', 'شعبه'], ['region', 'منطقه'], ['brand', 'برند'], ['sales_type', 'کانال فروش'], ['group', 'لاین'], ['grade', 'گرید مشتری']]
+const PIE_BY = [['branch', 'شعبه'], ['region', 'منطقه'], ['brand', 'برند'], ['group', 'لاین'], ['grade', 'گرید مشتری']]
 const FILTER_LABELS = { group: 'لاین', city: 'شهر', state: 'منطقه شهرداری', brand: 'برند', main_group: 'گروه کالای اصلی', sub_group: 'زیرگروه کالای اصلی', product: 'کالا', grade: 'گرید مشتری' }
 const PRODUCT_GROUP_KEYS = ['main_group', 'sub_group', 'product'] // hidden while the data has no product groups (product.tsv not loaded)
 
@@ -310,7 +310,7 @@ export function ExecShell({
           </>
         )}
 
-        <div className="exec-page w-full max-w-[1600px] mx-auto">{children}</div>
+        <div className="exec-page w-full max-w-[1600px] mx-auto px-2 sm:px-6">{children}</div>
       </main>
     </div>
   )
@@ -500,7 +500,7 @@ export default function ExecutiveDashboard({ p, cal, month, setMonth, onOpenRetu
   const days = trend.data ?? []
   const toggle = (ym) => setMonth(ym === month ? '' : ym)
   return (
-    <div className="w-full max-w-[1600px] mx-auto space-y-5">
+    <div className="w-full max-w-[1600px] mx-auto space-y-3 sm:space-y-5 px-1 sm:px-0">
 
       {/* ── Calendar status bar ──────────────────────────────── */}
       <CalendarGlass cal={cal} />
@@ -531,7 +531,7 @@ export default function ExecutiveDashboard({ p, cal, month, setMonth, onOpenRetu
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 w-full">
 
         {/* Monthly sales chart */}
-        <div className="lg:col-span-8 rounded-[28px] bg-white/85 backdrop-blur-xl border border-black/[0.04] shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-6 flex flex-col">
+        <div className="lg:col-span-8 rounded-[24px] sm:rounded-[28px] bg-white/85 backdrop-blur-xl border border-black/[0.04] shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-4 sm:p-6 overflow-hidden w-full max-w-full flex flex-col">
           <CardHead title="روند فروش ماهانه" note="ریال خالص و فروش ناخالص · میلیارد ریال"
             chip={<span className="exec-legend-inline"><i style={{ background: '#2563eb' }} />خالص<i style={{ background: '#14b8a6' }} />ناخالص</span>} />
           <SalesChart rows={rows} />
@@ -548,24 +548,26 @@ export default function ExecutiveDashboard({ p, cal, month, setMonth, onOpenRetu
         </div>
 
         {/* Daily trend chart */}
-        <div className="lg:col-span-5 rounded-[28px] bg-white/85 backdrop-blur-xl border border-black/[0.04] shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-6 flex flex-col exec-daily">
+        <div className="lg:col-span-5 rounded-[24px] sm:rounded-[28px] bg-white/85 backdrop-blur-xl border border-black/[0.04] shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-4 sm:p-6 overflow-hidden w-full max-w-full flex flex-col exec-daily">
           <CardHead title="روند فروش روزانه" note={month ? `روزهای ${monthLabel(month)} · میلیارد ریال` : 'روزهای دورهٔ انتخاب‌شده · میلیارد ریال'}
             chip={<span className="exec-chip blue">Rial+Vat</span>} />
           <DailyChart rows={days} />
         </div>
 
         {/* Monthly summary table */}
-        <div className="lg:col-span-12 rounded-[28px] bg-white/85 backdrop-blur-xl border border-black/[0.04] shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-6">
+        <div className="lg:col-span-12 rounded-[24px] sm:rounded-[28px] bg-white/85 backdrop-blur-xl border border-black/[0.04] shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-4 sm:p-6 overflow-hidden w-full max-w-full">
           <CardHead title="خلاصهٔ ماهانه" note="برای تمرکز روی یک ماه، ردیف آن را انتخاب کنید"
             chip={<span className="exec-chip blue">مدل Power Pivot</span>} />
-          <Table name="خلاصه-ماهانه" rows={rows} onRow={(r) => toggle(r.year_month)} highlight={(r) => month === r.year_month}
-            columns={[
-              { label: 'ماه', render: (r) => monthName(r.year_month), value: (r) => r.year_month },
-              { label: 'فروش ناخالص', render: (r) => fa(r.sum_rial_vat), value: (r) => r.sum_rial_vat },
-              { label: 'ریال خالص', render: (r) => fa(r.net_rial), value: (r) => r.net_rial },
-              { label: 'فاکتور', render: (r) => fa(r.invoice_count), value: (r) => r.invoice_count },
-              { label: 'پروموشن', render: (r) => pct(r.promo_percent), value: (r) => r.promo_percent * 100, unit: '٪' },
-            ]} />
+          <div className="w-full overflow-x-auto -mx-2 px-2">
+            <Table name="خلاصه-ماهانه" rows={rows} onRow={(r) => toggle(r.year_month)} highlight={(r) => month === r.year_month}
+              columns={[
+                { label: 'ماه', render: (r) => monthName(r.year_month), value: (r) => r.year_month },
+                { label: 'فروش ناخالص', render: (r) => fa(r.sum_rial_vat), value: (r) => r.sum_rial_vat },
+                { label: 'ریال خالص', render: (r) => fa(r.net_rial), value: (r) => r.net_rial },
+                { label: 'فاکتور', render: (r) => fa(r.invoice_count), value: (r) => r.invoice_count },
+                { label: 'پروموشن', render: (r) => pct(r.promo_percent), value: (r) => r.promo_percent * 100, unit: '٪' },
+              ]} />
+          </div>
         </div>
 
       </div>

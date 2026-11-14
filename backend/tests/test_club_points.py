@@ -28,8 +28,8 @@ def test_points_match_hand_computed_values(tmp_path, monkeypatch):
     assert r.status_code == 201
     plan_id = r.json()["id"]
     rows = {x["code"]: x for x in c.get("/api/club/b2b/points", params={"plan_id": plan_id}).json()["rows"]}
-    # C1: 1,000,000 + 500,000 = 1,500,000 -> 3 points. Promo and return excluded.
-    assert rows["C1"]["sales_rial"] == 1500000 and rows["C1"]["points"] == 3
+    # C1: 1,000,000 + 500,000 sales - 200,000 return = 1,300,000 net sales -> 2 points. Promo excluded, return deducted.
+    assert rows["C1"]["sales_rial"] == 1300000 and rows["C1"]["points"] == 2
     # C2: 300,000 in window (the 100,000 before 1405/07/01 is out) -> 0 points, still listed with its sales.
     assert rows["C2"]["sales_rial"] == 300000 and rows["C2"]["points"] == 0
 
@@ -39,7 +39,7 @@ def test_points_floor_on_partial_block(tmp_path, monkeypatch):
     r = c.post("/api/club/b2b/plans", json={"name": "صد هزار", "core": "kg", "start_key": 14050701,
                                              "end_key": 14050731, "rial_per_point": 400000})
     rows = {x["code"]: x for x in c.get("/api/club/b2b/points", params={"plan_id": r.json()["id"]}).json()["rows"]}
-    # 1,500,000 / 400,000 = 3.75 -> 3 (floor, no partial points).
+    # 1,300,000 / 400,000 = 3.25 -> 3 (floor, no partial points).
     assert rows["C1"]["points"] == 3
 
 
@@ -62,7 +62,7 @@ def test_club_account_sees_only_its_own_code(tmp_path, monkeypatch):
     assert me.status_code == 200
     body = me.json()
     assert body["code"] == "C1" and body["kind"] == "b2b"
-    assert body["plans"][0]["points"] == 3
+    assert body["plans"][0]["points"] == 2
     # Isolation: the club user cannot reach the sales pages or another customer's data.
     assert u.get("/api/customer/C2").status_code == 403
     assert u.get("/api/admin/users").status_code == 403
@@ -94,14 +94,48 @@ def test_visitor_team_is_own_portfolio_and_months_add_up(tmp_path, monkeypatch):
     u = TestClient(app)
     assert u.post("/api/auth/login", json={"username": "visitor1", "password": "password-123"}).status_code == 200
     t = u.get("/api/club/visitor/team").json()
+    # Sections check:
+    assert "visitor_summary" in t and "portfolio_customers" in t
     # C1 1,500,000 -> 6, C2 300,000 -> 1 at 250,000/point; C3 belongs to V2 and must not appear.
     assert t["code"] == "V1" and t["customers"] == 2
-    assert [(r["code"], r["points"]) for r in t["team"]] == [("C1", 6), ("C2", 1)]
+    assert [(r["code"], r["points"]) for r in t["portfolio_customers"]] == [("C1", 6), ("C2", 1)]
+    assert t["visitor_summary"]["points"] == 7 and t["visitor_summary"]["sales_rial"] == 1800000
     assert t["points"] == 7 and t["sales_rial"] == 1800000
-    # Tier: 7 of a 10-point target -> 70% progress, third step (طلایی).
+    # Tier: 7 of a 10-point target -> 70% progress, third step (پله ۳).
     assert t["tier"]["progress"] == 0.7 and t["tier"]["level"] == "پله ۳"
+    assert t["tier"]["points_needed"] == 1 and t["tier"]["next_level"] == "پله ۴"
     # Month buckets sum to the total (floor applied on the running sum, not per month).
     assert [h["points"] for h in t["history"]] == [4, 3] and sum(h["points"] for h in t["history"]) == 7
+
+
+def test_custom_tier_points_array(tmp_path, monkeypatch):
+    c = seeded(tmp_path, monkeypatch)
+    # 4 explicit thresholds: [2, 4, 6, 8]
+    r = c.post("/api/club/b2b/plans", json={"name": "پله‌های سفارشی", "core": "kg", "start_key": 14050701,
+                                             "end_key": 14050731, "rial_per_point": 500000, "tier_points": [2, 4, 6, 8]})
+    assert r.status_code == 201
+    plan_id = r.json()["id"]
+    pts = c.get("/api/club/b2b/points", params={"plan_id": plan_id}).json()
+    p = pts["plan"]
+    assert p["tier_points"] == [2, 4, 6, 8]
+    # C1 has 2 points -> matches threshold t1 -> advances to "پله ۲"
+    tier_info = club._tier(2, p)
+    assert tier_info["level"] == "پله ۲"
+    assert tier_info["step"] == 1
+    assert tier_info["points_needed"] == 2 # 4 - 2 = 2 to reach پله ۳
+
+
+def test_points_cannot_be_negative(tmp_path, monkeypatch):
+    # If returns exceed sales, points must floor at 0
+    rows = [
+        make_row(S, "s1", "C9", "100000", "1", vcode="V1", vname="ویزیتور یک", date="1405/07/05"),
+        make_row(RET, "r9", "C9", "-500000", "-5", vcode="V1", vname="ویزیتور یک", date="1405/07/06"),
+    ]
+    c = build_client(tmp_path, monkeypatch, {"sr_kg_140507": rows})
+    r = c.post("/api/club/b2b/plans", json={"name": "برگشتی بیش از فروش", "core": "kg", "start_key": 14050701,
+                                             "end_key": 14050731, "rial_per_point": 100000})
+    rows_resp = {x["code"]: x for x in c.get("/api/club/b2b/points", params={"plan_id": r.json()["id"]}).json()["rows"]}
+    assert rows_resp["C9"]["points"] == 0
 
 
 def test_non_visitor_cannot_read_team(tmp_path, monkeypatch):

@@ -12,8 +12,8 @@ from fastapi import FastAPI, HTTPException, Query, Request, Response
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
-from . import auth, rbac
-from .config import CORES, DB_PATH, DEFAULT_CORE, HOLIDAYS, PROMO_KALA_SOURCES, RAW_DIR, ROOT
+from . import auth, rbac, config
+from .config import CORES, DEFAULT_CORE, HOLIDAYS, PROMO_KALA_SOURCES, RAW_DIR, ROOT
 from .db import connect
 from .jalali import (JALALI_MONTHS, JALALI_WEEKDAYS, days_in_jalali_month, format_jdate, gregorian_to_jalali,
                      jalali_to_gregorian, jalali_weekday, parse_jdate)
@@ -132,7 +132,7 @@ def _metrics(row) -> dict:
 
 
 def _con():
-    if not DB_PATH.exists():
+    if not config.DB_PATH.exists():
         raise HTTPException(503, "پایگاه داده هنوز ساخته نشده است")
     return connect(read_only=True)
 

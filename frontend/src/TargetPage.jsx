@@ -16,7 +16,7 @@ const optValue = (o) => (typeof o === 'string' ? o : o.value)
 /* ---------- Apple Bento Components ---------- */
 function AppleCard({ title, subtitle, badge, action, children, className = '' }) {
   return (
-    <div className={`rounded-[28px] bg-white/85 backdrop-blur-xl border border-black/[0.04] shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-6 ${className}`}>
+    <div className={`rounded-[24px] sm:rounded-[28px] bg-white/85 backdrop-blur-xl border border-black/[0.04] shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-4 sm:p-6 overflow-hidden w-full max-w-full ${className}`}>
       {(title || subtitle || badge || action) && (
         <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
           <div>
@@ -51,17 +51,17 @@ function AppleKpiCard({ label, value, unit, icon: Icon, tone = 'blue' }) {
   return (
     <motion.div
       whileHover={{ y: -3 }}
-      className="rounded-3xl bg-white/85 backdrop-blur-xl border border-black/[0.04] shadow-[0_4px_20px_rgb(0,0,0,0.03)] p-5 flex flex-col justify-between hover:shadow-[0_12px_30px_rgb(0,0,0,0.07)] transition-shadow text-right"
+      className="rounded-2xl sm:rounded-3xl bg-white/85 backdrop-blur-xl border border-black/[0.04] shadow-[0_4px_20px_rgb(0,0,0,0.03)] p-3 sm:p-5 flex flex-col justify-between hover:shadow-[0_12px_30px_rgb(0,0,0,0.07)] transition-shadow text-right"
     >
-      <div className="flex items-center justify-between mb-3">
-        <span className="text-xs font-medium text-[#86868B]">{label}</span>
-        <div className={`w-8 h-8 rounded-2xl flex items-center justify-center shrink-0 ${tones[tone] || tones.blue}`}>
-          {Icon ? <Icon size={16} /> : null}
+      <div className="flex items-center justify-between mb-2 sm:mb-3">
+        <span className="text-[11px] sm:text-xs font-medium text-[#86868B] truncate">{label}</span>
+        <div className={`w-7 h-7 sm:w-8 sm:h-8 rounded-xl sm:rounded-2xl flex items-center justify-center shrink-0 ${tones[tone] || tones.blue}`}>
+          {Icon ? <Icon size={14} className="sm:w-4 sm:h-4" /> : null}
         </div>
       </div>
       <div>
-        <div className="text-xl font-extrabold text-[#1D1D1F] tracking-tight tabular-nums truncate">{value}</div>
-        <div className="text-[11px] text-[#86868B] mt-1 truncate">{unit}</div>
+        <div className="text-sm sm:text-xl font-extrabold text-[#1D1D1F] tracking-tight tabular-nums truncate">{value}</div>
+        <div className="text-[10px] sm:text-[11px] text-[#86868B] mt-0.5 sm:mt-1 truncate">{unit}</div>
       </div>
     </motion.div>
   )
@@ -149,13 +149,13 @@ export default function TargetPage({ core, onUnavailable }) {
   const q = d.quality
 
   return (
-    <div className="w-full max-w-[1600px] mx-auto space-y-6">
+    <div className="w-full max-w-[1600px] mx-auto space-y-4 sm:space-y-6 px-2 sm:px-6">
       {/* Apple Floating Glass Filter & Control Bar */}
-      <div className="rounded-[24px] bg-white/85 backdrop-blur-xl border border-black/[0.04] shadow-[0_4px_20px_rgb(0,0,0,0.03)] p-4 flex flex-col gap-3">
-        <div className="flex items-center justify-between gap-4 flex-wrap">
+      <div className="rounded-[24px] bg-white/85 backdrop-blur-xl border border-black/[0.04] shadow-[0_4px_20px_rgb(0,0,0,0.03)] p-4 flex flex-col gap-3 overflow-hidden w-full max-w-full">
+        <div className="flex items-center justify-between gap-3 flex-wrap">
           {/* Month Selector */}
           <div className="flex items-center gap-2">
-            <span className="text-xs font-bold text-[#86868B]">ماه تارگت:</span>
+            <span className="text-xs font-bold text-[#86868B] shrink-0">ماه تارگت:</span>
             <select
               value={d.month}
               onChange={(e) => { setMonth(e.target.value); setSel({}) }}
@@ -183,33 +183,38 @@ export default function TargetPage({ core, onUnavailable }) {
         </div>
 
         {/* Analytical Dimension Filters */}
-        <div className="flex items-center gap-2 flex-wrap pt-2 border-t border-black/[0.04]">
-          <span className="text-xs font-medium text-[#86868B] flex items-center gap-1"><Filter size={13} />فیلترها:</span>
-          {FILTERS.map(([k, label]) => (
-            <select
-              key={k}
-              value={d.filters[k]?.[0] ?? ''}
-              onChange={(e) => setFilter(k, e.target.value)}
-              className="bg-[#F5F5F7] border border-black/[0.06] rounded-xl px-2.5 py-1 text-xs text-[#1D1D1F] focus:outline-none focus:ring-2 focus:ring-[#0071E3]/25"
-            >
-              <option value="">همه {label}‌ها</option>
-              {d.options[k].map((o) => <option key={optValue(o)} value={optValue(o)}>{optLabel(o)}</option>)}
-            </select>
-          ))}
-          {Object.keys(sel).length > 0 && (
-            <button
-              type="button"
-              onClick={() => setSel({})}
-              className="text-xs font-semibold text-rose-600 hover:text-rose-700 px-3 py-1 rounded-xl bg-rose-50 hover:bg-rose-100 transition-colors"
-            >
-              پاک کردن فیلترها
-            </button>
-          )}
+        <div className="pt-2 border-t border-black/[0.04] w-full">
+          <div className="text-xs font-medium text-[#86868B] flex items-center gap-1 mb-2">
+            <Filter size={13} />
+            <span>فیلترها:</span>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5 w-full">
+            {FILTERS.map(([k, label]) => (
+              <select
+                key={k}
+                value={d.filters[k]?.[0] ?? ''}
+                onChange={(e) => setFilter(k, e.target.value)}
+                className="w-full truncate bg-[#F5F5F7] border border-black/[0.06] rounded-xl px-2.5 py-1.5 text-xs text-[#1D1D1F] focus:outline-none focus:ring-2 focus:ring-[#0071E3]/25"
+              >
+                <option value="">همه {label}‌ها</option>
+                {d.options[k].map((o) => <option key={optValue(o)} value={optValue(o)}>{optLabel(o)}</option>)}
+              </select>
+            ))}
+            {Object.keys(sel).length > 0 && (
+              <button
+                type="button"
+                onClick={() => setSel({})}
+                className="col-span-2 sm:col-span-1 text-xs font-semibold text-rose-600 hover:text-rose-700 px-3 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 transition-colors text-center"
+              >
+                پاک کردن فیلترها
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
       {/* 5 Apple Bento KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 w-full">
+      <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-5 gap-2.5 sm:gap-4 w-full">
         <AppleKpiCard label="هدف ماه" value={bn(s.target_rial)} unit="میلیارد ریال" icon={Target} tone="blue" />
         <AppleKpiCard label="تحقق تا امروز" value={bn(s.actual_rial)} unit={d.as_of ? `تا ${dayLabel(d.as_of)}` : 'میلیارد ریال'} icon={CheckCircle2} tone="teal" />
         <AppleKpiCard
@@ -288,7 +293,9 @@ export default function TargetPage({ core, onUnavailable }) {
         subtitle="روی عنوان ستون برای مرتب‌سازی کلیک کنید · درصد انتظار روزانه بر پایه روزهای کاری است"
         badge={by}
       >
-        <Table name={`target-${d.month}-${by}`} columns={columns} rows={d.rows} />
+        <div className="w-full overflow-x-auto -mx-2 px-2">
+          <Table name={`target-${d.month}-${by}`} columns={columns} rows={d.rows} />
+        </div>
       </AppleCard>
 
       {/* Data Quality Control Bento */}

@@ -9,7 +9,7 @@ import threading
 
 import duckdb
 
-from .config import DATA_DIR
+from . import config
 
 write_lock = threading.Lock()
 
@@ -28,20 +28,23 @@ DDL = (
 def _migrate(con: duckdb.DuckDBPyConnection) -> None:
     """Additive columns for files created before a field existed; existing rows keep working. DuckDB's PRAGMA can report
     the pre-DDL schema inside one connection, so a duplicate-column error means the column is already there."""
-    for col, typ in (("target_points", "BIGINT"), ("tier_points", "BIGINT"), ("rules", "VARCHAR")):
+    for col, typ in (("target_points", "BIGINT"), ("tier_points", "VARCHAR"), ("rules", "VARCHAR")):
         try:
             con.execute(f"ALTER TABLE plans ADD COLUMN {col} {typ}")
         except duckdb.CatalogException:
             pass
-
+    try:
+        con.execute("ALTER TABLE plans ALTER COLUMN tier_points TYPE VARCHAR")
+    except duckdb.CatalogException:
+        pass
 
 
 def path():
-    return DATA_DIR / "club.duckdb"
+    return config.DATA_DIR / "club.duckdb"
 
 
 def connect() -> duckdb.DuckDBPyConnection:
-    DATA_DIR.mkdir(parents=True, exist_ok=True)
+    config.DATA_DIR.mkdir(parents=True, exist_ok=True)
     con = duckdb.connect(str(path()))
     for stmt in DDL:
         con.execute(stmt)

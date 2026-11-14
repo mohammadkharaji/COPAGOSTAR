@@ -1,5 +1,5 @@
 import duckdb
-from .config import DB_PATH
+from . import config
 def connect(read_only=False):
-    DB_PATH.parent.mkdir(parents=True,exist_ok=True)
-    return duckdb.connect(str(DB_PATH),read_only=read_only)
+    config.DB_PATH.parent.mkdir(parents=True,exist_ok=True)
+    return duckdb.connect(str(config.DB_PATH),read_only=read_only)

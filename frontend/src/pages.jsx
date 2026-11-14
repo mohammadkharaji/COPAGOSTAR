@@ -166,21 +166,23 @@ function AppleKpiCard({ label, value, unit, icon: Icon, tone = 'blue' }) {
     amber: 'bg-amber-500/10 text-amber-600',
     violet: 'bg-violet-500/10 text-violet-600',
     pink: 'bg-pink-500/10 text-pink-600',
+    green: 'bg-emerald-500/10 text-emerald-600',
+    red: 'bg-rose-500/10 text-rose-600',
   }
   return (
     <motion.div
       whileHover={{ y: -3 }}
-      className="rounded-3xl bg-white/85 backdrop-blur-xl border border-black/[0.04] shadow-[0_4px_20px_rgb(0,0,0,0.03)] p-5 flex flex-col justify-between hover:shadow-[0_12px_30px_rgb(0,0,0,0.07)] transition-shadow text-right"
+      className="rounded-2xl sm:rounded-3xl bg-white/85 backdrop-blur-xl border border-black/[0.04] shadow-[0_4px_20px_rgb(0,0,0,0.03)] p-3 sm:p-5 flex flex-col justify-between hover:shadow-[0_12px_30px_rgb(0,0,0,0.07)] transition-shadow text-right"
     >
-      <div className="flex items-center justify-between mb-3">
-        <span className="text-xs font-medium text-[#86868B]">{label}</span>
-        <div className={`w-8 h-8 rounded-2xl flex items-center justify-center shrink-0 ${tones[tone] || tones.blue}`}>
-          {Icon ? <Icon size={16} /> : null}
+      <div className="flex items-center justify-between mb-2 sm:mb-3">
+        <span className="text-[11px] sm:text-xs font-medium text-[#86868B] truncate">{label}</span>
+        <div className={`w-7 h-7 sm:w-8 sm:h-8 rounded-xl sm:rounded-2xl flex items-center justify-center shrink-0 ${tones[tone] || tones.blue}`}>
+          {Icon ? <Icon size={14} className="sm:w-4 sm:h-4" /> : null}
         </div>
       </div>
       <div>
-        <div className="text-xl font-extrabold text-[#1D1D1F] tracking-tight tabular-nums truncate">{value}</div>
-        <div className="text-[11px] text-[#86868B] mt-1 truncate">{unit}</div>
+        <div className="text-sm sm:text-xl font-extrabold text-[#1D1D1F] tracking-tight tabular-nums truncate">{value}</div>
+        <div className="text-[10px] sm:text-[11px] text-[#86868B] mt-0.5 sm:mt-1 truncate">{unit}</div>
       </div>
     </motion.div>
   )
@@ -189,7 +191,7 @@ function AppleKpiCard({ label, value, unit, icon: Icon, tone = 'blue' }) {
 /* ---------- کامپوننت پوسته کارت اپل بنتو ---------- */
 function AppleCard({ title, subtitle, badge, action, children, className = '' }) {
   return (
-    <div className={`rounded-[28px] bg-white/85 backdrop-blur-xl border border-black/[0.04] shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-6 ${className}`}>
+    <div className={`rounded-[24px] sm:rounded-[28px] bg-white/85 backdrop-blur-xl border border-black/[0.04] shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-4 sm:p-6 overflow-hidden w-full max-w-full ${className}`}>
       {(title || subtitle || badge || action) && (
         <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
           <div>
@@ -213,13 +215,13 @@ function AppleCard({ title, subtitle, badge, action, children, className = '' })
 
 /* ---------- نمودار کیکی سهم فروش (طراحی مدرن اپل دنات) ---------- */
 const PIE_COLORS = ['#2563eb', '#0f766e', '#8b5cf6', '#f59e0b', '#ec4899', '#0ea5e9', '#84cc16', '#ef4444', '#94a3b8']
-const PIE_OPTIONS = [['branch', 'شعبه'], ['region', 'منطقه'], ['brand', 'برند'], ['sales_type', 'کانال فروش'], ['group', 'لاین'], ['grade', 'گرید مشتری'], ['month', 'ماه']]
+const PIE_OPTIONS = [['branch', 'شعبه'], ['region', 'منطقه'], ['brand', 'برند'], ['group', 'لاین'], ['grade', 'گرید مشتری'], ['month', 'ماه']]
 
 function SharePie({ p, defaultBy }) {
   const [by, setBy] = useState(defaultBy)
   const r = useApi('/breakdown', { ...p, by, limit: 40 })
   return (
-    <div className="rounded-[28px] bg-white/85 backdrop-blur-xl border border-black/[0.04] shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-6 h-full flex flex-col justify-between">
+    <div className="rounded-[24px] sm:rounded-[28px] bg-white/85 backdrop-blur-xl border border-black/[0.04] shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-4 sm:p-6 overflow-hidden w-full max-w-full h-full flex flex-col justify-between">
       <div>
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-base font-bold text-[#1D1D1F]">سهم از فروش</h2>
@@ -227,7 +229,7 @@ function SharePie({ p, defaultBy }) {
         </div>
 
         {/* Apple Segmented Control Bar */}
-        <div className="flex items-center gap-1 p-1 bg-[#E8E8ED]/80 rounded-2xl flex-wrap mb-3" role="tablist" aria-label="بعد نمودار">
+        <div className="flex items-center gap-1 p-1 bg-[#E8E8ED]/80 rounded-2xl flex-nowrap overflow-x-auto no-scrollbar max-w-full pb-1 mb-3" role="tablist" aria-label="بعد نمودار">
           {PIE_OPTIONS.map(([k, label]) => {
             const active = by === k
             return (
@@ -237,7 +239,7 @@ function SharePie({ p, defaultBy }) {
                 role="tab"
                 aria-selected={active}
                 onClick={() => setBy(k)}
-                className="relative px-3 py-1.5 rounded-xl text-xs font-medium transition-all select-none"
+                className="relative shrink-0 px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-xl text-xs font-medium transition-all select-none"
               >
                 {active && (
                   <motion.span
@@ -348,9 +350,9 @@ export function MonthlyTrendPage({ p }) {
       const total = rows.reduce((s, r) => s + r.sum_rial_vat, 0)
       const best = rows.reduce((a, r) => (r.sum_rial_vat > (a?.sum_rial_vat ?? -Infinity) ? r : a), null)
       return (
-        <div className="w-full max-w-[1600px] mx-auto space-y-6">
+        <div className="w-full max-w-[1600px] mx-auto space-y-4 sm:space-y-6 px-2 sm:px-6">
           {/* 4 Apple Bento KPI Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 w-full">
+          <div className="grid grid-cols-2 xl:grid-cols-4 gap-2.5 sm:gap-4 w-full">
             <AppleKpiCard label="جمع فروش (Rial+Vat)" value={rial(total)} unit="ریال" icon={CircleDollarSign} tone="blue" />
             <AppleKpiCard label="تعداد ماه دارای فروش" value={fa(rows.length)} unit="ماه" icon={Calendar} tone="violet" />
             <AppleKpiCard label="میانگین فروش ماهانه" value={rows.length ? rial(total / rows.length) : '—'} unit="ریال" icon={TrendingUp} tone="teal" />
@@ -359,7 +361,7 @@ export function MonthlyTrendPage({ p }) {
 
           {/* Bento Row: Monthly Sales Bar Chart (8 cols) + Share Donut (4 cols) */}
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-stretch w-full">
-            <div className="lg:col-span-8 rounded-[28px] bg-white/85 backdrop-blur-xl border border-black/[0.04] shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-6 flex flex-col justify-between">
+            <div className="lg:col-span-8 rounded-[24px] sm:rounded-[28px] bg-white/85 backdrop-blur-xl border border-black/[0.04] shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-4 sm:p-6 overflow-hidden w-full max-w-full flex flex-col justify-between">
               <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
                 <div>
                   <h2 className="text-base font-bold text-[#1D1D1F]">روند ماهانه فروش</h2>
@@ -499,9 +501,9 @@ export function TrendPage({ p }) {
       const total = rows.reduce((s, r) => s + r.sum_rial_vat, 0)
       const best = rows.reduce((a, r) => (r.sum_rial_vat > (a?.sum_rial_vat ?? -Infinity) ? r : a), null)
       return (
-        <div className="w-full max-w-[1600px] mx-auto space-y-6">
+        <div className="w-full max-w-[1600px] mx-auto space-y-4 sm:space-y-6 px-2 sm:px-6">
           {/* 4 Apple Bento KPI Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 w-full">
+          <div className="grid grid-cols-2 xl:grid-cols-4 gap-2.5 sm:gap-4 w-full">
             <AppleKpiCard label="جمع فروش دوره" value={rial(total)} unit="ریال" icon={CircleDollarSign} tone="blue" />
             <AppleKpiCard label="تعداد روز دارای فروش" value={fa(rows.length)} unit="روز" icon={Calendar} tone="violet" />
             <AppleKpiCard label="میانگین فروش روزانه" value={rows.length ? rial(total / rows.length) : '—'} unit="ریال" icon={TrendingUp} tone="teal" />
@@ -510,7 +512,7 @@ export function TrendPage({ p }) {
 
           {/* Bento Row: Daily Sales Area Chart (8 cols) + Share Donut (4 cols) */}
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-stretch w-full">
-            <div className="lg:col-span-8 rounded-[28px] bg-white/85 backdrop-blur-xl border border-black/[0.04] shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-6 flex flex-col justify-between">
+            <div className="lg:col-span-8 rounded-[24px] sm:rounded-[28px] bg-white/85 backdrop-blur-xl border border-black/[0.04] shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-4 sm:p-6 overflow-hidden w-full max-w-full flex flex-col justify-between">
               <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
                 <div>
                   <h2 className="text-base font-bold text-[#1D1D1F]">روند روزانه فروش</h2>

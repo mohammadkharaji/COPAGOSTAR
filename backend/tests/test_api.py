@@ -54,13 +54,13 @@ def build_client(tmp_path, monkeypatch, chunks, product=None):
     monkeypatch.setenv("SR_RAW_DIR", str(raw))
     monkeypatch.setenv("SR_DB_PATH", str(tmp_path / "t.duckdb"))
     monkeypatch.setenv("SR_DATA_DIR", str(tmp_path / "data"))
-    from app import auth, config, db, ingest, api, rbac, admin
+    from app import auth, config, db, ingest, api, rbac, admin, club, club_store
     monkeypatch.setenv("SR_AUTH_USER", "admin")
     monkeypatch.setenv("SR_AUTH_PASS_HASH", auth.hash_password(TEST_PASSWORD))
     monkeypatch.setenv("SR_AUTH_SECRET", "t" * 40)
-    for m in (config, db, ingest, rbac, admin, api):
+    for m in (config, db, ingest, rbac, admin, club_store, club, api):
         importlib.reload(m)
-    assert sum(r["rows"] for r in ingest.ingest_all()) == sum(len(r) for r in chunks.values())
+    assert sum(r["rows"] for r in ingest.ingest_all(raw)) == sum(len(r) for r in chunks.values())
     c = TestClient(api.app)
     assert c.post("/api/auth/login", json={"username": "admin", "password": TEST_PASSWORD}).status_code == 200
     return c

@@ -108,7 +108,7 @@ th { color: var(--muted); font-weight: 700; background: #f0f4f2; position: stick
 tbody tr { cursor: pointer; }
 tbody tr:hover, tbody tr.sel { background: #fbf3e0; }
 @media (max-width: 1100px) { .kpis { grid-template-columns: repeat(2, 1fr); } }
-@media (max-width: 520px) { .kpis { grid-template-columns: 1fr; } }
+@media (max-width: 520px) { .kpis { grid-template-columns: repeat(2, 1fr); } }
 
 .filters { display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: flex-end; margin: 18px 0 4px; padding: 14px 16px; background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); }
 .toolbar { display: flex; flex-wrap: wrap; gap: 14px; align-items: flex-end; margin-top: 16px; }
@@ -426,10 +426,10 @@ tbody tr:hover, tbody tr.sel { background: #fbf3e0; }
 .exec-hero-stats small { display: block; color: #e0e7ff; font-size: 12px; }
 .exec-hero-stats b { display: block; font-size: 18px; font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 @container (max-width: 520px) {
-  .exec-hero-stats { grid-template-columns: 1fr; gap: 8px; padding-top: 40px; }
-  .exec-hero-stats div { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 9px 12px; }
-  .exec-hero-stats b { font-size: 15px; }
-  .exec-hero-spark { bottom: 150px; }
+  .exec-hero-stats { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; padding-top: 16px; }
+  .exec-hero-stats div { padding: 8px 10px; }
+  .exec-hero-stats b { font-size: 13px; }
+  .exec-hero-spark { bottom: 100px; }
 }
 
 /* Forecast: projected net */
@@ -528,7 +528,7 @@ tbody tr:hover, tbody tr.sel { background: #fbf3e0; }
   .exec-metric { padding: 14px; }
 }
 @media (max-width: 480px) {
-  .exec-page .exec-kpis.exec-kpis-overview { grid-template-columns: 1fr; }
+  .exec-page .exec-kpis.exec-kpis-overview { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media print {
   .exec-hero { box-shadow: none; break-inside: avoid; }
@@ -1012,4 +1012,31 @@ button.spot { padding: 0; text-align: right; }
   .xl\:grid-cols-5 { grid-template-columns: repeat(5, minmax(0, 1fr)) !important; }
   .xl\:grid-cols-6 { grid-template-columns: repeat(6, minmax(0, 1fr)) !important; }
 }
+
+/* Hide scrollbar for Chrome, Safari and Opera */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+/* Hide scrollbar for IE, Edge and Firefox */
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+@media (max-width: 640px) {
+  .exec-main {
+    padding: 12px 6px 32px !important;
+  }
+  .exec-header {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 10px !important;
+  }
+  .nav-island {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 8px !important;
+  }
+}
+
 

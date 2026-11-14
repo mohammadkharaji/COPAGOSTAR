@@ -101,12 +101,12 @@ export function Table({ columns, rows, onRow, highlight, name = 'گزارش', pa
         <span className="tbl-count">{q ? `${fa(shown.length)} از ${fa(rows.length)} ردیف` : `${fa(rows.length)} ردیف`}</span>
         <button type="button" className="tbl-export" onClick={() => downloadCsv(name, columns, shown)}>خروجی CSV (اکسل)</button>
       </div>
-      <div className="table-wrap">
+      <div className="table-wrap w-full overflow-x-auto -mx-2 px-2 no-scrollbar">
         <table>
           <thead>
             <tr>
               {columns.map((c, i) => (
-                <th key={c.label} aria-sort={sort?.i === i ? (sort.dir === 'asc' ? 'ascending' : 'descending') : 'none'}>
+                <th key={c.label} className="whitespace-nowrap" aria-sort={sort?.i === i ? (sort.dir === 'asc' ? 'ascending' : 'descending') : 'none'}>
                   <button type="button" className="th-sort" onClick={() => nextSort(i)}>
                     {c.label}<span aria-hidden="true">{sort?.i === i ? (sort.dir === 'asc' ? ' ▲' : ' ▼') : ''}</span>
                   </button>
@@ -117,7 +117,7 @@ export function Table({ columns, rows, onRow, highlight, name = 'گزارش', pa
           <tbody>
             {visible.map((r, i) => (
               <tr key={i} className={highlight?.(r) ? 'sel' : ''} onClick={onRow ? () => onRow(r) : undefined} style={onRow ? undefined : { cursor: 'default' }}>
-                {columns.map((c) => <td key={c.label}>{c.render(r)}</td>)}
+                {columns.map((c) => <td key={c.label} className="whitespace-nowrap">{c.render(r)}</td>)}
               </tr>
             ))}
           </tbody>
