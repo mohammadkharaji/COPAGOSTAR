@@ -96,7 +96,7 @@ function NavGroup({ label, items, collapsible, page, onNavigate, open, onToggle,
       {collapsible ? (
         <button
           type="button"
-          className="exec-nav-toggle text-[11px] font-bold text-white/40 mb-2 mt-6 px-3 tracking-wider flex items-center justify-between w-full hover:text-white/70 transition-colors select-none"
+          className="exec-nav-toggle text-[11px] font-bold text-[#86868B] mb-2 mt-4 px-3 tracking-wider flex items-center justify-between w-full hover:text-[#1D1D1F] transition-colors select-none"
           aria-expanded={open}
           aria-controls={listId}
           onClick={onToggle}
@@ -104,11 +104,11 @@ function NavGroup({ label, items, collapsible, page, onNavigate, open, onToggle,
           <span>{label}</span>
           <div className="flex items-center gap-1.5">
             {!open && hasActive && <span className="w-1.5 h-1.5 rounded-full bg-[#0071E3]" aria-label="صفحهٔ فعلی در این بخش است" />}
-            <ChevronDown size={14} className={`transition-transform duration-200 text-white/40 ${open ? '' : 'rotate-90'}`} aria-hidden="true" />
+            <ChevronDown size={14} className={`transition-transform duration-200 text-[#86868B] ${open ? '' : 'rotate-90'}`} aria-hidden="true" />
           </div>
         </button>
       ) : (
-        <div className="text-[11px] font-bold text-white/40 mb-2 mt-6 px-3 tracking-wider select-none">
+        <div className="text-[11px] font-bold text-[#86868B] mb-2 mt-4 px-3 tracking-wider select-none">
           {label}
         </div>
       )}
@@ -121,28 +121,21 @@ function NavGroup({ label, items, collapsible, page, onNavigate, open, onToggle,
                 type="button"
                 key={id}
                 className={`relative flex items-center gap-3 w-full px-3 py-2 rounded-xl text-xs font-medium transition-colors text-right select-none ${
-                  active ? 'text-[#38BDF8] font-bold' : 'text-white/65 hover:bg-white/5 hover:text-white'
+                  active ? 'bg-[#0071E3] !text-white font-bold shadow-md shadow-[#0071E3]/25' : 'text-[#1D1D1F] hover:bg-black/[0.04]'
                 }`}
                 onClick={() => onNavigate(id)}
                 title={itemLabel}
                 aria-current={active ? 'page' : undefined}
               >
-                {active && (
-                  <motion.div
-                    layoutId="sidebarActive"
-                    className="absolute inset-0 rounded-xl bg-[#0071E3]/15 border border-[#0071E3]/30"
-                    transition={{ type: 'spring', stiffness: 420, damping: 35 }}
-                  />
-                )}
                 <i
                   className={`relative z-10 w-7 h-7 rounded-lg flex items-center justify-center transition-colors shrink-0 ${
-                    active ? 'bg-[#0071E3]/20 text-[#38BDF8]' : 'text-white/50'
+                    active ? 'bg-white/20 text-white' : 'text-[#86868B]'
                   }`}
                   aria-hidden="true"
                 >
-                  <Icon size={16} />
+                  <Icon size={16} className={active ? 'text-white' : undefined} />
                 </i>
-                <span className="relative z-10 truncate">{itemLabel}</span>
+                <span className={`relative z-10 truncate ${active ? 'text-white font-bold' : 'text-[#1D1D1F]'}`}>{itemLabel}</span>
               </button>
             )
           })}
@@ -203,14 +196,17 @@ export function ExecShell({
     <div className={`exec-root ${collapsed ? 'exec-collapsed' : ''}`} dir="rtl">
 
       {/* ── 1. Minimalist iOS Frosted Top Bar (Mobile / Tablet < 1024px) ── */}
-      <header className="lg:hidden sticky top-0 z-40 h-14 px-4 bg-[#1C1C1E]/85 backdrop-blur-2xl border-b border-white/10 flex items-center justify-between w-full shrink-0 select-none">
+      <header
+        data-mobile-topbar
+        className="flex lg:!hidden sticky top-0 z-40 h-14 px-4 bg-white/90 backdrop-blur-2xl border-b border-black/[0.08] items-center justify-between w-full shrink-0 select-none text-[#1D1D1F]"
+      >
         {/* Right side (RTL): squircle logo + title + active page badge */}
         <div className="flex items-center gap-2.5 min-w-0">
-          <span className="w-8 h-8 rounded-xl bg-white flex items-center justify-center overflow-hidden shrink-0 shadow-md shadow-black/20">
+          <span className="w-8 h-8 rounded-xl bg-white flex items-center justify-center overflow-hidden shrink-0 shadow-sm border border-black/[0.06]">
             <img src="/logo.jpg" alt="لوگوی کوپا گستر" className="w-full h-full object-cover" />
           </span>
-          <b className="text-sm font-bold text-white tracking-tight shrink-0">نبض فروش</b>
-          <span className="text-[11px] font-semibold text-[#38BDF8] bg-[#0071E3]/20 border border-[#0071E3]/30 px-2.5 py-0.5 rounded-full truncate max-w-[130px]">
+          <b className="text-sm font-bold text-[#1D1D1F] tracking-tight shrink-0">نبض فروش</b>
+          <span className="text-[11px] font-semibold text-[#0071E3] bg-[#0071E3]/10 border border-[#0071E3]/20 px-2.5 py-0.5 rounded-full truncate max-w-[130px]">
             {currentPageLabel}
           </span>
         </div>
@@ -219,7 +215,7 @@ export function ExecShell({
         <button
           type="button"
           onClick={() => setMobileMenuOpen(true)}
-          className="bg-white/10 hover:bg-white/15 active:scale-95 text-white rounded-full p-2 transition-all shrink-0 flex items-center justify-center shadow-sm"
+          className="bg-black/[0.04] hover:bg-black/[0.08] active:scale-95 text-[#1D1D1F] border border-black/[0.06] rounded-full p-2 transition-all shrink-0 flex items-center justify-center shadow-xs"
           aria-label="باز کردن منو"
           title="منوها"
         >
@@ -228,18 +224,21 @@ export function ExecShell({
       </header>
 
       {/* Desktop Right Sidebar (hidden lg:flex) */}
-      <aside className="exec-sidebar hidden lg:flex flex-col bg-[#1C1C1E] border-l border-white/10 shadow-2xl backdrop-blur-xl">
-        <div className="exec-brand flex items-center gap-3 px-2 py-3 border-b border-white/[0.08] mb-2">
-          <span className="w-10 h-10 rounded-2xl bg-white flex items-center justify-center shadow-md shadow-black/20 overflow-hidden shrink-0">
+      <aside
+        data-desktop-sidebar
+        className="exec-sidebar hidden lg:flex flex-col bg-white/85 backdrop-blur-3xl border border-black/[0.06] shadow-[0_12px_40px_rgb(0,0,0,0.06)] text-[#1D1D1F] lg:my-3 lg:mr-3 lg:rounded-[28px] overflow-hidden sticky top-3 h-[calc(100vh-24px)] select-none"
+      >
+        <div className="exec-brand flex items-center gap-3 px-2 py-3 border-b border-black/[0.06] mb-2">
+          <span className="w-10 h-10 rounded-2xl bg-white flex items-center justify-center shadow-sm border border-black/[0.06] overflow-hidden shrink-0">
             <img src="/logo.jpg" alt="لوگوی کوپا گستر" className="w-full h-full object-cover" />
           </span>
           <div className="exec-brand-copy flex-1 min-w-0">
-            <b className="text-sm font-bold text-white tracking-tight block">نبض فروش</b>
-            <small className="text-[11px] text-white/40 truncate block">{cores[core] ?? ''}</small>
+            <b className="text-sm font-bold text-[#1D1D1F] tracking-tight block">نبض فروش</b>
+            <small className="text-[11px] text-[#86868B] truncate block">{cores[core] ?? ''}</small>
           </div>
           <button
             type="button"
-            className="exec-collapse w-7 h-7 rounded-lg flex items-center justify-center text-white/40 hover:text-white hover:bg-white/5 transition-colors"
+            className="exec-collapse w-7 h-7 rounded-lg flex items-center justify-center text-[#86868B] hover:text-[#1D1D1F] hover:bg-black/[0.04] transition-colors"
             aria-label={collapsed ? 'باز کردن منو' : 'جمع کردن منو'}
             onClick={() => setCollapsed((v) => !v)}
           >
@@ -260,19 +259,19 @@ export function ExecShell({
         </nav>
         <div className="exec-sidebar-bottom">
           {onLogout && (
-            <div className="exec-profile bg-white/5 border border-white/10 rounded-2xl p-3 mx-2 mb-4 hover:bg-white/10 cursor-pointer transition-all">
+            <div className="exec-profile bg-black/[0.03] border border-black/[0.06] rounded-2xl p-3 mx-2 mb-4 hover:bg-black/[0.05] cursor-pointer transition-all">
               <span className="w-9 h-9 rounded-xl bg-gradient-to-tr from-[#FF9500] to-[#FFB340] text-white flex items-center justify-center shadow-md shadow-orange-500/25 shrink-0" aria-hidden="true">
                 <UserRound size={17} />
               </span>
               <div className="exec-profile-copy min-w-0 flex-1 px-1">
-                <button type="button" className="exec-user-btn text-right font-bold text-xs text-white/90 hover:text-white truncate block w-full" onClick={() => setPwOpen(true)} title="تغییر رمز">
+                <button type="button" className="exec-user-btn text-right font-bold text-xs text-[#1D1D1F] hover:text-[#0071E3] truncate block w-full" onClick={() => setPwOpen(true)} title="تغییر رمز">
                   <b dir="ltr">{user || 'کاربر'}</b>
                 </button>
-                <small className="text-[10px] text-white/40 block">حساب کاربری</small>
+                <small className="text-[10px] text-[#86868B] block">حساب کاربری</small>
               </div>
               <button
                 type="button"
-                className="w-8 h-8 rounded-lg flex items-center justify-center text-white/40 hover:text-red-400 hover:bg-red-500/10 transition-colors shrink-0"
+                className="exec-logout w-8 h-8 rounded-lg flex items-center justify-center text-[#86868B] hover:text-red-500 hover:bg-red-50 transition-colors shrink-0"
                 onClick={onLogout}
                 aria-label="خروج از حساب"
                 title="خروج از حساب"
@@ -359,7 +358,8 @@ export function ExecShell({
 
       {/* ── 2. Floating iOS Glass Bottom Dock (Mobile / Tablet < 1024px) ── */}
       <nav
-        className="lg:hidden fixed bottom-3 inset-x-3 z-40 h-16 bg-[#1C1C1E]/90 backdrop-blur-3xl border border-white/15 shadow-[0_20px_50px_rgba(0,0,0,0.45)] rounded-[26px] px-2 flex items-center justify-around select-none"
+        data-mobile-dock
+        className="flex lg:!hidden fixed bottom-3 inset-x-3 z-40 h-16 bg-white/90 backdrop-blur-2xl border border-black/[0.08] shadow-[0_12px_40px_rgb(0,0,0,0.12)] rounded-[26px] px-2 items-center justify-around select-none text-[#1D1D1F]"
         aria-label="ناوبری اصلی موبایل"
       >
         {DOCK_TABS.map((tab) => {
@@ -375,12 +375,12 @@ export function ExecShell({
               }}
               className={`flex items-center gap-1.5 transition-all duration-200 ${
                 active
-                  ? 'bg-[#0071E3] text-white rounded-2xl px-3 py-1.5 shadow-lg shadow-[#0071E3]/30'
-                  : 'flex-col justify-center text-white/50 hover:text-white/80 py-1 px-2'
+                  ? 'bg-[#0071E3] !text-white rounded-2xl px-3 py-1.5 shadow-lg shadow-[#0071E3]/30'
+                  : 'flex-col justify-center text-[#86868B] hover:text-[#1D1D1F] py-1 px-2'
               }`}
             >
-              <Icon size={active ? 16 : 18} />
-              <span className={active ? 'text-[10px] font-bold whitespace-nowrap' : 'text-[10px] font-medium whitespace-nowrap mt-0.5'}>
+              <Icon size={active ? 16 : 18} className={active ? 'text-white' : undefined} />
+              <span className={active ? 'text-[10px] font-bold whitespace-nowrap text-white' : 'text-[10px] font-medium whitespace-nowrap mt-0.5'}>
                 {tab.label}
               </span>
             </button>
@@ -393,14 +393,14 @@ export function ExecShell({
           onClick={() => setMobileMenuOpen((v) => !v)}
           className={`flex items-center gap-1.5 transition-all duration-200 ${
             isMoreActive
-              ? 'bg-[#0071E3] text-white rounded-2xl px-3 py-1.5 shadow-lg shadow-[#0071E3]/30'
-              : 'flex-col justify-center text-white/50 hover:text-white/80 py-1 px-2'
+              ? 'bg-[#0071E3] !text-white rounded-2xl px-3 py-1.5 shadow-lg shadow-[#0071E3]/30'
+              : 'flex-col justify-center text-[#86868B] hover:text-[#1D1D1F] py-1 px-2'
           }`}
           aria-expanded={mobileMenuOpen}
           aria-label="سایر منوها"
         >
-          <LayoutGrid size={isMoreActive ? 16 : 18} />
-          <span className={isMoreActive ? 'text-[10px] font-bold whitespace-nowrap' : 'text-[10px] font-medium whitespace-nowrap mt-0.5'}>
+          <LayoutGrid size={isMoreActive ? 16 : 18} className={isMoreActive ? 'text-white' : undefined} />
+          <span className={isMoreActive ? 'text-[10px] font-bold whitespace-nowrap text-white' : 'text-[10px] font-medium whitespace-nowrap mt-0.5'}>
             منوها
           </span>
         </button>
@@ -413,40 +413,42 @@ export function ExecShell({
             {/* Backdrop */}
             <motion.div
               key="mobileMenuBackdrop"
+              data-mobile-backdrop
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.2 }}
               onClick={() => setMobileMenuOpen(false)}
-              className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 lg:hidden"
+              className="fixed inset-0 bg-black/40 backdrop-blur-xs z-50 lg:!hidden"
               aria-hidden="true"
             />
 
             {/* Bottom Sheet */}
             <motion.div
               key="mobileMenuSheet"
+              data-mobile-sheet
               initial={{ y: '100%' }}
               animate={{ y: 0 }}
               exit={{ y: '100%' }}
               transition={{ type: 'spring', damping: 28, stiffness: 300 }}
-              className="fixed bottom-0 inset-x-0 z-50 rounded-t-[32px] bg-[#1C1C1E]/95 backdrop-blur-3xl border-t border-white/15 max-h-[82vh] overflow-y-auto p-5 pb-8 lg:hidden flex flex-col gap-4 text-right shadow-2xl"
+              className="fixed bottom-0 inset-x-0 z-50 rounded-t-[32px] bg-white/95 backdrop-blur-3xl border-t border-black/[0.08] max-h-[82vh] overflow-y-auto p-5 pb-8 lg:!hidden flex flex-col gap-4 text-right shadow-[0_-10px_40px_rgb(0,0,0,0.15)] text-[#1D1D1F]"
               role="dialog"
               aria-modal="true"
               aria-label="منوی بخش‌ها"
             >
               {/* Drag Handle Pill */}
-              <div className="w-10 h-1.5 bg-white/20 rounded-full mx-auto mb-1 shrink-0" />
+              <div className="w-10 h-1.5 bg-black/20 rounded-full mx-auto mb-1 shrink-0" />
 
               {/* Sheet Header */}
-              <div className="flex items-center justify-between pb-2 border-b border-white/10 shrink-0">
+              <div className="flex items-center justify-between pb-2 border-b border-black/[0.06] shrink-0">
                 <div className="flex items-center gap-2">
                   <span className="w-2 h-2 rounded-full bg-[#0071E3]" />
-                  <h3 className="text-sm font-bold text-white">منوی کامل داشبورد</h3>
+                  <h3 className="text-sm font-bold text-[#1D1D1F]">منوی کامل داشبورد</h3>
                 </div>
                 <button
                   type="button"
                   onClick={() => setMobileMenuOpen(false)}
-                  className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/15 text-white/70 hover:text-white flex items-center justify-center transition-colors"
+                  className="w-8 h-8 rounded-full bg-black/[0.05] hover:bg-black/[0.1] text-[#86868B] hover:text-[#1D1D1F] flex items-center justify-center transition-colors"
                   aria-label="بستن"
                 >
                   <X size={16} />
@@ -457,10 +459,10 @@ export function ExecShell({
               <div className="space-y-4 flex-1">
                 {sections.map(([group, items]) => (
                   <div key={group} className="space-y-1.5">
-                    <span className="text-[11px] font-bold text-white/40 px-2 tracking-wider block">
+                    <span className="text-[11px] font-bold text-[#86868B] px-2 tracking-wider block">
                       {group}
                     </span>
-                    <div className="bg-white/[0.06] rounded-2xl p-1.5 grid grid-cols-2 gap-1.5 border border-white/[0.04]">
+                    <div className="bg-white border border-black/[0.06] rounded-2xl p-1.5 grid grid-cols-2 gap-1.5 shadow-xs">
                       {items.map(([id, itemLabel, Icon]) => {
                         const active = id === page
                         return (
@@ -473,18 +475,18 @@ export function ExecShell({
                             }}
                             className={`flex items-center gap-2.5 p-2.5 rounded-xl text-xs transition-all text-right select-none ${
                               active
-                                ? 'bg-[#0071E3] text-white font-bold shadow-md shadow-[#0071E3]/25'
-                                : 'text-white/80 hover:bg-white/5 hover:text-white'
+                                ? 'bg-[#0071E3] !text-white font-bold shadow-md shadow-[#0071E3]/25'
+                                : 'text-[#1D1D1F] font-semibold hover:bg-black/[0.04]'
                             }`}
                           >
                             <div
                               className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${
-                                active ? 'bg-white/20 text-white' : 'bg-white/10 text-white/70'
+                                active ? 'bg-white/20 text-white' : 'bg-black/[0.04] text-[#86868B]'
                               }`}
                             >
-                              <Icon size={15} />
+                              <Icon size={15} className={active ? 'text-white' : undefined} />
                             </div>
-                            <span className="truncate flex-1 font-medium">{itemLabel}</span>
+                            <span className={`truncate flex-1 font-medium ${active ? 'text-white font-bold' : 'text-[#1D1D1F]'}`}>{itemLabel}</span>
                           </button>
                         )
                       })}
@@ -495,7 +497,7 @@ export function ExecShell({
 
               {/* User Profile & Logout at Bottom */}
               {onLogout && (
-                <div className="mt-2 pt-3 border-t border-white/10 flex items-center justify-between bg-white/[0.04] p-3 rounded-2xl shrink-0">
+                <div className="mt-2 pt-3 border-t border-black/[0.06] flex items-center justify-between bg-black/[0.02] p-3 rounded-2xl shrink-0">
                   <div className="flex items-center gap-2.5 min-w-0">
                     <span className="w-9 h-9 rounded-xl bg-gradient-to-tr from-[#FF9500] to-[#FFB340] text-white flex items-center justify-center shadow-md shadow-orange-500/25 shrink-0">
                       <UserRound size={16} />
@@ -503,7 +505,7 @@ export function ExecShell({
                     <div className="min-w-0">
                       <button
                         type="button"
-                        className="text-right font-bold text-xs text-white/90 truncate block hover:text-white"
+                        className="text-right font-bold text-xs text-[#1D1D1F] truncate block hover:text-[#0071E3]"
                         onClick={() => {
                           setPwOpen(true)
                           setMobileMenuOpen(false)
@@ -512,7 +514,7 @@ export function ExecShell({
                       >
                         <span dir="ltr">{user || 'کاربر'}</span>
                       </button>
-                      <small className="text-[10px] text-white/40 block">حساب کاربری (تغییر رمز)</small>
+                      <small className="text-[10px] text-[#86868B] block">حساب کاربری (تغییر رمز)</small>
                     </div>
                   </div>
                   <button
@@ -521,7 +523,7 @@ export function ExecShell({
                       setMobileMenuOpen(false)
                       onLogout()
                     }}
-                    className="flex items-center gap-1.5 text-xs font-semibold text-rose-400 bg-rose-500/10 hover:bg-rose-500/20 px-3 py-1.5 rounded-xl transition-colors shrink-0"
+                    className="flex items-center gap-1.5 text-xs font-semibold text-rose-600 bg-rose-50 hover:bg-rose-100 px-3 py-1.5 rounded-xl transition-colors shrink-0"
                     aria-label="خروج از حساب"
                   >
                     <LogOut size={14} />
