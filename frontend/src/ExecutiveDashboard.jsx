@@ -123,9 +123,10 @@ function NavGroup({ label, items, collapsible, page, onNavigate, open, onToggle,
                 <button
                   type="button"
                   key={id}
+                  style={active ? { backgroundColor: '#0071E3', color: '#FFFFFF' } : {}}
                   className={`w-10 h-10 mx-auto rounded-[14px] flex items-center justify-center transition-all select-none ${
                     active
-                      ? 'active !bg-[#0071E3] !text-white shadow-[0_4px_14px_rgba(0,113,227,0.3)] hover:!bg-[#0071E3] hover:!text-white'
+                      ? 'active !bg-[#0071E3] !text-white shadow-[0_4px_14px_rgba(0,113,227,0.35)]'
                       : 'text-[#86868B] hover:text-[#1D1D1F] hover:bg-black/[0.04]'
                   }`}
                   onClick={() => onNavigate(id)}
@@ -133,7 +134,7 @@ function NavGroup({ label, items, collapsible, page, onNavigate, open, onToggle,
                   aria-label={itemLabel}
                   aria-current={active ? 'page' : undefined}
                 >
-                  <Icon size={18} className={active ? '!text-white' : undefined} />
+                  <Icon size={18} style={active ? { color: '#FFFFFF' } : {}} className={active ? '!text-white' : undefined} />
                 </button>
               )
             }
@@ -141,9 +142,10 @@ function NavGroup({ label, items, collapsible, page, onNavigate, open, onToggle,
               <button
                 type="button"
                 key={id}
+                style={active ? { backgroundColor: '#0071E3', color: '#FFFFFF' } : {}}
                 className={`relative flex items-center gap-3 w-full px-3 py-2 rounded-xl text-xs font-medium transition-colors text-right select-none ${
                   active
-                    ? 'active !bg-[#0071E3] !text-white font-bold shadow-md shadow-[#0071E3]/30 hover:!bg-[#0071E3] hover:!text-white'
+                    ? 'active !bg-[#0071E3] !text-white font-bold shadow-[0_4px_14px_rgba(0,113,227,0.35)]'
                     : 'text-[#1D1D1F] hover:bg-black/[0.04]'
                 }`}
                 onClick={() => onNavigate(id)}
@@ -154,11 +156,17 @@ function NavGroup({ label, items, collapsible, page, onNavigate, open, onToggle,
                   className={`relative z-10 w-7 h-7 rounded-lg flex items-center justify-center transition-colors shrink-0 ${
                     active ? 'bg-white/20 !text-white' : 'text-[#86868B]'
                   }`}
+                  style={active ? { color: '#FFFFFF' } : {}}
                   aria-hidden="true"
                 >
-                  <Icon size={16} className={active ? '!text-white' : undefined} />
+                  <Icon size={16} style={active ? { color: '#FFFFFF' } : {}} className={active ? '!text-white' : undefined} />
                 </i>
-                <span className={`relative z-10 truncate ${active ? '!text-white font-bold' : 'text-[#1D1D1F]'}`}>{itemLabel}</span>
+                <span
+                  className={`relative z-10 truncate ${active ? '!text-white font-bold' : 'text-[#1D1D1F]'}`}
+                  style={active ? { color: '#FFFFFF' } : {}}
+                >
+                  {itemLabel}
+                </span>
               </button>
             )
           })}
@@ -434,14 +442,18 @@ export function ExecShell({
                 setMobileMenuOpen(false)
                 onNavigate(tab.id)
               }}
+              style={active ? { backgroundColor: '#0071E3', color: '#FFFFFF' } : {}}
               className={`flex items-center gap-1.5 transition-all duration-200 ${
                 active
-                  ? 'bg-[#0071E3] !text-white rounded-2xl px-3 py-1.5 shadow-lg shadow-[#0071E3]/30'
+                  ? 'active !bg-[#0071E3] !text-white rounded-2xl px-3 py-1.5 shadow-[0_4px_14px_rgba(0,113,227,0.35)]'
                   : 'flex-col justify-center text-[#86868B] hover:text-[#1D1D1F] py-1 px-2'
               }`}
             >
-              <Icon size={active ? 16 : 18} className={active ? '!text-white' : undefined} />
-              <span className={active ? 'text-[10px] font-bold whitespace-nowrap !text-white' : 'text-[10px] font-medium whitespace-nowrap mt-0.5'}>
+              <Icon size={active ? 16 : 18} style={active ? { color: '#FFFFFF' } : {}} className={active ? '!text-white' : undefined} />
+              <span
+                style={active ? { color: '#FFFFFF' } : {}}
+                className={active ? 'text-[10px] font-bold whitespace-nowrap !text-white' : 'text-[10px] font-medium whitespace-nowrap mt-0.5'}
+              >
                 {tab.label}
               </span>
             </button>
@@ -452,16 +464,20 @@ export function ExecShell({
         <button
           type="button"
           onClick={() => setMobileMenuOpen((v) => !v)}
+          style={isMoreActive ? { backgroundColor: '#0071E3', color: '#FFFFFF' } : {}}
           className={`flex items-center gap-1.5 transition-all duration-200 ${
             isMoreActive
-              ? 'bg-[#0071E3] !text-white rounded-2xl px-3 py-1.5 shadow-lg shadow-[#0071E3]/30'
+              ? 'active !bg-[#0071E3] !text-white rounded-2xl px-3 py-1.5 shadow-[0_4px_14px_rgba(0,113,227,0.35)]'
               : 'flex-col justify-center text-[#86868B] hover:text-[#1D1D1F] py-1 px-2'
           }`}
           aria-expanded={mobileMenuOpen}
           aria-label="سایر منوها"
         >
-          <LayoutGrid size={isMoreActive ? 16 : 18} className={isMoreActive ? '!text-white' : undefined} />
-          <span className={isMoreActive ? 'text-[10px] font-bold whitespace-nowrap !text-white' : 'text-[10px] font-medium whitespace-nowrap mt-0.5'}>
+          <LayoutGrid size={isMoreActive ? 16 : 18} style={isMoreActive ? { color: '#FFFFFF' } : {}} className={isMoreActive ? '!text-white' : undefined} />
+          <span
+            style={isMoreActive ? { color: '#FFFFFF' } : {}}
+            className={isMoreActive ? 'text-[10px] font-bold whitespace-nowrap !text-white' : 'text-[10px] font-medium whitespace-nowrap mt-0.5'}
+          >
             منوها
           </span>
         </button>
@@ -534,9 +550,10 @@ export function ExecShell({
                               onNavigate(id)
                               setMobileMenuOpen(false)
                             }}
+                            style={active ? { backgroundColor: '#0071E3', color: '#FFFFFF' } : {}}
                             className={`flex items-center gap-2.5 p-2.5 rounded-xl text-xs transition-all text-right select-none ${
                               active
-                                ? 'bg-[#0071E3] !text-white font-bold shadow-md shadow-[#0071E3]/25'
+                                ? 'active !bg-[#0071E3] !text-white font-bold shadow-[0_4px_14px_rgba(0,113,227,0.35)]'
                                 : 'text-[#1D1D1F] font-semibold hover:bg-black/[0.04]'
                             }`}
                           >
@@ -544,10 +561,16 @@ export function ExecShell({
                               className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${
                                 active ? 'bg-white/20 !text-white' : 'bg-black/[0.04] text-[#86868B]'
                               }`}
+                              style={active ? { color: '#FFFFFF' } : {}}
                             >
-                              <Icon size={15} className={active ? '!text-white' : undefined} />
+                              <Icon size={15} style={active ? { color: '#FFFFFF' } : {}} className={active ? '!text-white' : undefined} />
                             </div>
-                            <span className={`truncate flex-1 font-medium ${active ? '!text-white font-bold' : 'text-[#1D1D1F]'}`}>{itemLabel}</span>
+                            <span
+                              className={`truncate flex-1 font-medium ${active ? '!text-white font-bold' : 'text-[#1D1D1F]'}`}
+                              style={active ? { color: '#FFFFFF' } : {}}
+                            >
+                              {itemLabel}
+                            </span>
                           </button>
                         )
                       })}
