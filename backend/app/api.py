@@ -23,6 +23,10 @@ from .schema import LIMITATIONS
 
 app = FastAPI(title="SR Sales Dashboard API", docs_url=None, redoc_url=None, openapi_url=None)
 
+@app.on_event("startup")
+def startup_audit_cleanup():
+    rbac.cleanup_audit_logs(days=14)
+
 PUBLIC_API = {"/api/auth/login"}
 limiter = auth.LoginLimiter()
 

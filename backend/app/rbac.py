@@ -21,7 +21,7 @@ import threading
 from contextlib import closing
 from contextvars import ContextVar
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 
 from fastapi import HTTPException
@@ -30,7 +30,8 @@ from . import auth, config
 from .config import CORES
 
 PAGES = ("overview", "trend", "monthly", "growth", "target", "branch", "product", "profile", "pareto", "invoice",
-         "customer", "visitor", "returns", "inactive", "health", "quantity", "potential", "club_b2b", "club_visitor")
+         "customer", "visitor", "returns", "inactive", "health", "quantity", "potential", "club_b2b", "club_visitor",
+         "tickets", "chat")
 USERNAME_RE = re.compile(r"^[A-Za-z0-9_.@-]{3,64}$")
 MIN_PASSWORD = 8
 SCOPE_MODES = ("all", "branch", "supervisor")
@@ -134,6 +135,8 @@ def ensure_store() -> Path:
         with closing(sqlite3.connect(path, timeout=10)) as con:
             con.executescript(SCHEMA)   # existing tables are left as they are; _migrate upgrades their columns
             _migrate(con)
+            cutoff = (datetime.now() - timedelta(days=14)).isoformat(timespec="seconds")
+            con.execute("DELETE FROM audit_log WHERE ts < ?", (cutoff,))
             con.commit()
         _ready.add(str(path))
     return path
@@ -151,10 +154,36 @@ def connect(create: bool = False) -> sqlite3.Connection | None:
     return con
 
 
+def cleanup_audit_logs(days: int = 14, con: sqlite3.Connection | None = None) -> int:
+    """Removes audit log entries older than `days` (default 14-day retention policy)."""
+    cutoff = (datetime.now() - timedelta(days=days)).isoformat(timespec="seconds")
+    if con is not None:
+        try:
+            cur = con.execute("DELETE FROM audit_log WHERE ts < ?", (cutoff,))
+            return cur.rowcount
+        except (sqlite3.Error, OSError):
+            return 0
+
+    path = accounts_path()
+    if not path.exists():
+        return 0
+    try:
+        with write_lock, closing(sqlite3.connect(path, timeout=10)) as c:
+            cur = c.execute("DELETE FROM audit_log WHERE ts < ?", (cutoff,))
+            c.commit()
+            return cur.rowcount
+    except (sqlite3.Error, OSError):
+        return 0
+
+
 def audit_row(con: sqlite3.Connection, actor: str, action: str, target_type: str = "", target: str = "",
               detail: dict | None = None, ip: str = "") -> None:
+    now = now_iso()
     con.execute("INSERT INTO audit_log(ts, actor, action, target_type, target, detail, ip) VALUES (?,?,?,?,?,?,?)",
-                (now_iso(), actor, action, target_type, str(target), json.dumps(detail or {}, ensure_ascii=False), ip))
+                (now, actor, action, target_type, str(target), json.dumps(detail or {}, ensure_ascii=False), ip))
+    # 14-day retention cleanup on audit row insertion
+    cutoff = (datetime.now() - timedelta(days=14)).isoformat(timespec="seconds")
+    con.execute("DELETE FROM audit_log WHERE ts < ?", (cutoff,))
 
 
 def audit(actor: str, action: str, target_type: str = "", target: str = "", detail: dict | None = None,

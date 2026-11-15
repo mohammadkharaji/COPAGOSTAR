@@ -9,6 +9,7 @@ from __future__ import annotations
 import json
 import sqlite3
 from contextlib import closing
+from datetime import datetime, timedelta
 
 from fastapi import APIRouter, HTTPException, Query, Request
 from pydantic import BaseModel, Field
@@ -422,7 +423,9 @@ def change_own_password(body: OwnPasswordBody, request: Request):
 @router.get("/audit")
 def audit_log(limit: int = Query(100, ge=1, le=500), offset: int = Query(0, ge=0), actor: str | None = None,
               action: str | None = None):
-    where, args = "WHERE 1=1", []
+    rbac.cleanup_audit_logs(days=14)
+    cutoff = (datetime.now() - timedelta(days=14)).isoformat(timespec="seconds")
+    where, args = "WHERE ts >= ?", [cutoff]
     for col, val in (("actor", actor), ("action", action)):
         if val:
             where += f" AND {col}=?"

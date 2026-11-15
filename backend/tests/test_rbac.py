@@ -212,3 +212,24 @@ def test_every_report_route_requires_a_permitted_page(client):
         assert c2.get(path, params={"core": "kg"}).status_code == 403, path
     assert c2.get("/api/returns/summary", params={"core": "kg"}).status_code == 200
     assert c2.get("/api/admin/roles").status_code == 403
+
+
+def test_audit_log_14_day_retention_policy(client):
+    """Audit logs older than 14 days are automatically cleaned up."""
+    from datetime import datetime, timedelta
+    from app import rbac
+    path = rbac.ensure_store()
+    with closing(sqlite3.connect(path)) as con:
+        old_ts = (datetime.now() - timedelta(days=20)).isoformat(timespec="seconds")
+        recent_ts = (datetime.now() - timedelta(days=5)).isoformat(timespec="seconds")
+        con.execute("INSERT INTO audit_log(ts, actor, action) VALUES (?, 'old_actor', 'old_action')", (old_ts,))
+        con.execute("INSERT INTO audit_log(ts, actor, action) VALUES (?, 'recent_actor', 'recent_action')", (recent_ts,))
+        con.commit()
+
+    deleted = rbac.cleanup_audit_logs(days=14)
+    assert deleted >= 1
+    with closing(sqlite3.connect(path)) as con:
+        old_count = con.execute("SELECT COUNT(*) FROM audit_log WHERE actor='old_actor'").fetchone()[0]
+        recent_count = con.execute("SELECT COUNT(*) FROM audit_log WHERE actor='recent_actor'").fetchone()[0]
+    assert old_count == 0
+    assert recent_count == 1

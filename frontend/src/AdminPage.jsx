@@ -1,11 +1,88 @@
 import { useMemo, useState } from 'react'
-import { ShieldCheck, UserPlus, Users, KeyRound, History, Search, Check, AlertCircle, Edit2, UserX, UserCheck, Trash2, Sparkles, Filter } from 'lucide-react'
+import {
+  ShieldCheck, UserPlus, Users, KeyRound, History, Search, Check, AlertCircle, Edit2, UserX, UserCheck,
+  Trash2, Sparkles, Filter, TrendingUp, BarChart3, MessageSquare, Award, Layers
+} from 'lucide-react'
 import { motion } from 'motion/react'
 import { send, useApi } from './api'
 import { fa } from './format'
 import { NAV } from './ExecutiveDashboard'
 
 const PAGE_LABEL = Object.fromEntries(NAV.map(([id, label]) => [id, label]))
+
+const PERMISSION_GROUPS = [
+  {
+    id: 'sales',
+    title: 'فروش',
+    icon: TrendingUp,
+    items: [
+      { id: 'overview', label: 'نمای کلی' },
+      { id: 'trend', label: 'روند روزانه' },
+      { id: 'monthly', label: 'روند ماهانه' },
+      { id: 'growth', label: 'آنالیز رشد و افت' },
+      { id: 'target', label: 'تارگت' },
+    ],
+  },
+  {
+    id: 'analysis',
+    title: 'تحلیل',
+    icon: BarChart3,
+    items: [
+      { id: 'branch', label: 'شعب و مناطق' },
+      { id: 'product', label: 'کالا و برند' },
+      { id: 'profile', label: 'تحلیل شعبه و برند' },
+      { id: 'pareto', label: 'تحلیل پارتو' },
+      { id: 'inactive', label: 'مشتریان غیرفعال' },
+      { id: 'potential', label: 'مشتریان بالقوه' },
+      { id: 'returns', label: 'برگشتی حواله' },
+      { id: 'quantity', label: 'تحلیل تعداد کالا' },
+    ],
+  },
+  {
+    id: 'customer',
+    title: 'مشتری و فاکتور',
+    icon: Users,
+    items: [
+      { id: 'invoice', label: 'تحلیل فاکتور' },
+      { id: 'customer', label: 'پروفایل مشتری' },
+      { id: 'visitor', label: 'پروفایل ویزیتور' },
+    ],
+  },
+  {
+    id: 'support',
+    title: 'پشتیبانی',
+    icon: MessageSquare,
+    items: [
+      { id: 'tickets', label: 'تیکت‌ها' },
+    ],
+  },
+  {
+    id: 'ai',
+    title: 'تحلیل هوشمند',
+    icon: Sparkles,
+    items: [
+      { id: 'chat', label: 'دستیار هوشمند' },
+    ],
+  },
+  {
+    id: 'clubs',
+    title: 'باشگاه‌ها',
+    icon: Award,
+    items: [
+      { id: 'club_b2b', label: 'باشگاه مشتریان B2B' },
+      { id: 'club_visitor', label: 'باشگاه ویزیتورها' },
+    ],
+  },
+  {
+    id: 'system',
+    title: 'سیستم / مدیریت',
+    icon: ShieldCheck,
+    items: [
+      { id: 'health', label: 'سلامت داده' },
+      { id: 'admin', label: 'مدیریت کاربران و نقش‌ها', isAdminFlag: true },
+    ],
+  },
+]
 const SCOPE_LABEL = { all: 'همهٔ داده‌ها', branch: 'شعبه‌های تعیین‌شده', supervisor: 'سرپرست‌های تعیین‌شده' }
 const SCOPE_HINT = {
   all: 'کاربر همهٔ ردیف‌های داده را در هسته‌های مجاز می‌بیند.',
@@ -430,6 +507,244 @@ function UsersTab({ options, roles, ver, bump }) {
 /* ---------- نقش‌ها ---------- */
 const NEW_ROLE = { id: null, name: '', description: '', pages: [], cores: [], scope_mode: 'all', is_admin: false, user_count: 0, original_mode: 'all' }
 
+function RolePermissionsTree({ form, set, options }) {
+  const allConfiguredPages = useMemo(() => {
+    const list = []
+    PERMISSION_GROUPS.forEach((g) => {
+      g.items.forEach((it) => {
+        if (!it.isAdminFlag) list.push(it.id)
+      })
+    })
+    return list
+  }, [])
+
+  const otherPages = useMemo(() => {
+    const existing = new Set(allConfiguredPages)
+    return (options?.pages ?? []).filter((p) => !existing.has(p)).map((p) => ({
+      id: p,
+      label: PAGE_LABEL[p] ?? p,
+    }))
+  }, [allConfiguredPages, options?.pages])
+
+  const selectAllAll = () => {
+    const all = [...new Set([...allConfiguredPages, ...otherPages.map((p) => p.id)])]
+    set({ pages: all, is_admin: true })
+  }
+
+  const deselectAllAll = () => {
+    set({ pages: [], is_admin: false })
+  }
+
+  const totalPermissions = allConfiguredPages.length + 1 + otherPages.length
+  const selectedCount = form.pages.length + (form.is_admin ? 1 : 0)
+
+  return (
+    <div className="space-y-3">
+      {/* Top Bar for Permission Tree */}
+      <div className="flex items-center justify-between flex-wrap gap-2 pb-1">
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-bold text-[#1D1D1F]">سطوح دسترسی به منوها و زیرمنوها</span>
+          <span className="text-[11px] font-semibold text-[#0071E3] bg-[#0071E3]/10 px-2.5 py-0.5 rounded-full">
+            {fa(selectedCount)} از {fa(totalPermissions)} فعال
+          </span>
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            className="text-xs text-[#0071E3] font-semibold hover:underline bg-[#0071E3]/10 hover:bg-[#0071E3]/15 px-3 py-1 rounded-xl transition-all"
+            onClick={selectAllAll}
+          >
+            انتخاب همهٔ منوها
+          </button>
+          <button
+            type="button"
+            className="text-xs text-[#86868B] font-semibold hover:underline bg-black/[0.04] hover:bg-black/[0.08] px-3 py-1 rounded-xl transition-all"
+            onClick={deselectAllAll}
+          >
+            پاک کردن همه
+          </button>
+        </div>
+      </div>
+
+      {/* Grid of Apple Bento Cards for Groups */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+        {PERMISSION_GROUPS.map((group) => {
+          const GroupIcon = group.icon
+          const groupItemCount = group.items.length
+          const groupSelectedCount = group.items.filter((it) =>
+            it.isAdminFlag ? Boolean(form.is_admin) : form.pages.includes(it.id)
+          ).length
+
+          const selectGroup = () => {
+            const pageIdsToAdd = group.items.filter((it) => !it.isAdminFlag).map((it) => it.id)
+            const nextPages = [...new Set([...form.pages, ...pageIdsToAdd])]
+            const hasAdmin = group.items.some((it) => it.isAdminFlag)
+            set({
+              pages: nextPages,
+              ...(hasAdmin ? { is_admin: true } : {}),
+            })
+          }
+
+          const deselectGroup = () => {
+            const pageIdsToRemove = new Set(group.items.filter((it) => !it.isAdminFlag).map((it) => it.id))
+            const nextPages = form.pages.filter((p) => !pageIdsToRemove.has(p))
+            const hasAdmin = group.items.some((it) => it.isAdminFlag)
+            set({
+              pages: nextPages,
+              ...(hasAdmin ? { is_admin: false } : {}),
+            })
+          }
+
+          return (
+            <div
+              key={group.id}
+              className="bg-white border border-slate-200/80 rounded-2xl p-4 shadow-xs space-y-3 flex flex-col justify-between"
+            >
+              {/* Group Header */}
+              <div className="flex items-center justify-between pb-2 border-b border-slate-200/80">
+                <div className="flex items-center gap-2.5">
+                  <span className="w-7 h-7 rounded-lg bg-black/[0.04] flex items-center justify-center text-[#1D1D1F] shrink-0">
+                    <GroupIcon size={15} />
+                  </span>
+                  <div>
+                    <h4 className="text-xs font-bold text-[#1D1D1F]">{group.title}</h4>
+                    <span className="text-[10px] text-[#86868B] block mt-0.5">
+                      {fa(groupSelectedCount)} از {fa(groupItemCount)} انتخاب‌شده
+                    </span>
+                  </div>
+                </div>
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <button
+                    type="button"
+                    className="text-[11px] text-[#0071E3] font-semibold hover:underline px-1.5 py-0.5"
+                    onClick={selectGroup}
+                  >
+                    انتخاب همه
+                  </button>
+                  <span className="text-slate-300 text-xs">|</span>
+                  <button
+                    type="button"
+                    className="text-[11px] text-[#86868B] font-semibold hover:underline px-1.5 py-0.5"
+                    onClick={deselectGroup}
+                  >
+                    پاک کردن
+                  </button>
+                </div>
+              </div>
+
+              {/* Group Items / Sub-menus */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {group.items.map((item) => {
+                  const isChecked = item.isAdminFlag ? Boolean(form.is_admin) : form.pages.includes(item.id)
+                  const toggle = () => {
+                    if (item.isAdminFlag) {
+                      set({ is_admin: !form.is_admin })
+                    } else {
+                      set({ pages: toggleIn(form.pages, item.id) })
+                    }
+                  }
+                  return (
+                    <button
+                      key={item.id}
+                      type="button"
+                      onClick={toggle}
+                      className={`px-3 py-2 rounded-xl text-xs font-medium border transition-all text-right flex items-center justify-between gap-2 select-none ${
+                        isChecked
+                          ? 'bg-[#0071E3]/10 border-[#0071E3]/30 text-[#0071E3] font-bold shadow-xs'
+                          : 'bg-[#F5F5F7] border-black/[0.04] text-[#1D1D1F] hover:bg-[#E8E8ED]'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span
+                          className={`w-4 h-4 rounded-md flex items-center justify-center text-[10px] shrink-0 transition-colors ${
+                            isChecked ? 'bg-[#0071E3] text-white shadow-xs' : 'border border-black/[0.2] bg-white'
+                          }`}
+                        >
+                          {isChecked && '✓'}
+                        </span>
+                        <span className="truncate">{item.label}</span>
+                      </div>
+                      {item.isAdminFlag && (
+                        <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-amber-500/15 text-amber-800 font-semibold shrink-0">
+                          سطح ارشد
+                        </span>
+                      )}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          )
+        })}
+
+        {/* Other Pages Card (if any unexpected or extra page exists) */}
+        {otherPages.length > 0 && (
+          <div className="bg-white border border-slate-200/80 rounded-2xl p-4 shadow-xs space-y-3 flex flex-col justify-between">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-200/80">
+              <div className="flex items-center gap-2.5">
+                <span className="w-7 h-7 rounded-lg bg-black/[0.04] flex items-center justify-center text-[#1D1D1F] shrink-0">
+                  <Layers size={15} />
+                </span>
+                <div>
+                  <h4 className="text-xs font-bold text-[#1D1D1F]">سایر صفحات</h4>
+                  <span className="text-[10px] text-[#86868B] block mt-0.5">
+                    {fa(otherPages.filter((p) => form.pages.includes(p.id)).length)} از {fa(otherPages.length)} انتخاب‌شده
+                  </span>
+                </div>
+              </div>
+              <div className="flex items-center gap-1.5 shrink-0">
+                <button
+                  type="button"
+                  className="text-[11px] text-[#0071E3] font-semibold hover:underline px-1.5 py-0.5"
+                  onClick={() => set({ pages: [...new Set([...form.pages, ...otherPages.map((p) => p.id)])] })}
+                >
+                  انتخاب همه
+                </button>
+                <span className="text-slate-300 text-xs">|</span>
+                <button
+                  type="button"
+                  className="text-[11px] text-[#86868B] font-semibold hover:underline px-1.5 py-0.5"
+                  onClick={() => set({ pages: form.pages.filter((p) => !otherPages.some((op) => op.id === p)) })}
+                >
+                  پاک کردن
+                </button>
+              </div>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {otherPages.map((item) => {
+                const isChecked = form.pages.includes(item.id)
+                return (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => set({ pages: toggleIn(form.pages, item.id) })}
+                    className={`px-3 py-2 rounded-xl text-xs font-medium border transition-all text-right flex items-center justify-between gap-2 select-none ${
+                      isChecked
+                        ? 'bg-[#0071E3]/10 border-[#0071E3]/30 text-[#0071E3] font-bold shadow-xs'
+                        : 'bg-[#F5F5F7] border-black/[0.04] text-[#1D1D1F] hover:bg-[#E8E8ED]'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span
+                        className={`w-4 h-4 rounded-md flex items-center justify-center text-[10px] shrink-0 transition-colors ${
+                          isChecked ? 'bg-[#0071E3] text-white shadow-xs' : 'border border-black/[0.2] bg-white'
+                        }`}
+                      >
+                        {isChecked && '✓'}
+                      </span>
+                      <span className="truncate">{item.label}</span>
+                    </div>
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
 function RolesTab({ options, roles, bump }) {
   const [form, setForm] = useState(null)
   const act = useAction()
@@ -528,16 +843,7 @@ function RolesTab({ options, roles, bump }) {
           </div>
           {locked && <p className="text-xs text-amber-700">دامنهٔ داده تا وقتی نقش به کاربری داده شده تغییر نمی‌کند ({fa(form.user_count)} کاربر).</p>}
 
-          <div className="p-4 rounded-xl bg-white border border-black/[0.05] space-y-2">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-bold text-[#1D1D1F]">صفحه‌های مجاز</span>
-              <div className="flex gap-2">
-                <button type="button" className="text-xs text-[#0071E3] font-semibold hover:underline" onClick={() => set({ pages: pageItems.map(([id]) => id) })}>انتخاب همه</button>
-                <button type="button" className="text-xs text-[#86868B] font-semibold hover:underline" onClick={() => set({ pages: [] })}>پاک کردن</button>
-              </div>
-            </div>
-            <Checks items={pageItems} value={form.pages} onChange={(v) => set({ pages: v })} label="صفحه‌های مجاز" />
-          </div>
+          <RolePermissionsTree form={form} set={set} options={options} />
 
           <div className="p-4 rounded-xl bg-white border border-black/[0.05] space-y-2">
             <span className="text-xs font-bold text-[#1D1D1F] block mb-2">هسته‌های مجاز</span>
@@ -652,9 +958,13 @@ function AuditTab() {
   return (
     <AppleCard
       title="گزارش رویدادها (Audit Logs)"
-      subtitle="ثبت تمامی ورودها، تغییرات کاربران و نقش‌ها با جزئیات IP و زمان"
-      badge={d ? `${fa(count)} رویداد` : 'در حال بارگذاری'}
+      subtitle="ثبت تمامی ورودها، تغییرات کاربران و نقش‌ها با جزئیات IP و زمان (پالایش خودکار و نگهداری ۱۴ روز اخیر)"
+      badge={d ? `${fa(count)} رویداد (۱۴ روز اخیر)` : 'در حال بارگذاری'}
     >
+      <div className="flex items-center gap-2 mb-4 px-3.5 py-2.5 rounded-xl bg-[#0071E3]/5 border border-[#0071E3]/15 text-[#0071E3] text-xs">
+        <History size={15} className="shrink-0" />
+        <span>سیاست نگهداری ۱۴ روزه فعال است: رویدادهای قدیمی‌تر از ۲ هفته به‌طور خودکار پالایش و حذف می‌شوند.</span>
+      </div>
       <form className="flex items-center gap-3 mb-5 flex-wrap" onSubmit={apply}>
         <div className="flex items-center gap-2">
           <span className="text-xs font-medium text-[#86868B]">کاربر:</span>
