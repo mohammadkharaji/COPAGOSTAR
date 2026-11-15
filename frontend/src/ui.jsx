@@ -15,14 +15,28 @@ export function Kpi({ label, value, unit, tone, hint }) {
   )
 }
 
-export function ChartTip({ active, payload, label, labelFn, unit }) {
+export function ChartTip({ active, payload, label, labelFn, unit, valueFn }) {
   if (!active || !payload?.length) return null
   return (
     <div className="tip">
       <b>{labelFn ? labelFn(label) : label}</b>
-      {payload.map((p) => (
-        <div key={p.dataKey}><i style={{ background: p.color || p.fill }} />{p.name}: {fa(p.value)} {unit}</div>
-      ))}
+      {payload.map((p) => {
+        let displayVal
+        if (valueFn) {
+          displayVal = valueFn(p.value, p)
+        } else if (typeof p.value === 'number') {
+          if (p.value !== 0 && (Math.abs(p.value) < 10 || p.value % 1 !== 0)) {
+            displayVal = Number(p.value).toLocaleString('fa-IR', { maximumFractionDigits: 2 })
+          } else {
+            displayVal = fa(p.value)
+          }
+        } else {
+          displayVal = fa(p.value)
+        }
+        return (
+          <div key={p.dataKey}><i style={{ background: p.color || p.fill }} />{p.name}: {displayVal} {unit}</div>
+        )
+      })}
     </div>
   )
 }

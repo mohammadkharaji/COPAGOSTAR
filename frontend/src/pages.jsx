@@ -19,7 +19,7 @@ function Bars({ data, x, bars, tickFn, unit = 'میلیارد ریال', tall, o
         <BarChart data={data} margin={{ top: 8, right: 8, left: 8, bottom: 0 }}>
           <CartesianGrid vertical={false} stroke="var(--line)" />
           <XAxis dataKey={x} reversed tickFormatter={tickFn} tickLine={false} axisLine={false} interval={0} angle={data.length > 10 ? -35 : 0} textAnchor={data.length > 10 ? 'end' : 'middle'} height={data.length > 10 ? 70 : 30} />
-          <YAxis orientation="right" tickFormatter={(v) => fa(v)} tickLine={false} axisLine={false} width={64} />
+          <YAxis orientation="right" tickFormatter={(v) => (v % 1 === 0 && Math.abs(v) >= 10 ? fa(v) : Number(v).toLocaleString('fa-IR', { maximumFractionDigits: 2 }))} tickLine={false} axisLine={false} width={64} />
           <Tooltip content={<ChartTip labelFn={tickFn} unit={unit} />} cursor={{ fill: 'rgba(16,37,63,.05)' }} />
           {bars.length > 1 && <Legend />}
           {bars.map((b) => (
@@ -1694,8 +1694,15 @@ export function CustomerPage({ core, code, setCode, openReturns }) {
                       </defs>
                       <CartesianGrid vertical={false} stroke="#E5E5EA" strokeDasharray="3 3" />
                       <XAxis dataKey="year_month" reversed tickFormatter={monthName} tickLine={false} axisLine={false} tick={{ fill: '#86868B', fontSize: 12 }} />
-                      <YAxis orientation="right" tickFormatter={(v) => fa(v)} tickLine={false} axisLine={false} width={55} tick={{ fill: '#86868B', fontSize: 12 }} />
-                      <Tooltip content={<ChartTip labelFn={monthName} unit="میلیارد ریال" />} />
+                      <YAxis
+                        orientation="right"
+                        tickFormatter={(v) => (v % 1 === 0 && Math.abs(v) >= 10 ? fa(v) : Number(v).toLocaleString('fa-IR', { maximumFractionDigits: 2 }))}
+                        tickLine={false}
+                        axisLine={false}
+                        width={55}
+                        tick={{ fill: '#86868B', fontSize: 12 }}
+                      />
+                      <Tooltip content={<ChartTip labelFn={monthName} unit="میلیارد ریال" valueFn={(v) => (v == null ? '—' : Number(v).toLocaleString('fa-IR', { minimumFractionDigits: (Number(v) % 1 === 0 && Number(v) >= 10 ? 0 : 1), maximumFractionDigits: 2 }))} />} />
                       <Bar dataKey="gross" name="فروش" fill="url(#appleCustMonthly)" radius={[8, 8, 0, 0]} maxBarSize={36} />
                     </BarChart>
                   </ResponsiveContainer>
@@ -2354,8 +2361,15 @@ function VisitorProfile({ p, code, back, openCustomer, openReturns }) {
                       </defs>
                       <CartesianGrid vertical={false} stroke="#E5E5EA" strokeDasharray="3 3" />
                       <XAxis dataKey="year_month" reversed tickFormatter={monthName} tickLine={false} axisLine={false} tick={{ fill: '#86868B', fontSize: 12 }} />
-                      <YAxis orientation="right" tickFormatter={(v) => fa(v)} tickLine={false} axisLine={false} width={55} tick={{ fill: '#86868B', fontSize: 12 }} />
-                      <Tooltip content={<ChartTip labelFn={monthName} unit="میلیارد ریال" />} />
+                      <YAxis
+                        orientation="right"
+                        tickFormatter={(v) => (v % 1 === 0 && Math.abs(v) >= 10 ? fa(v) : Number(v).toLocaleString('fa-IR', { maximumFractionDigits: 2 }))}
+                        tickLine={false}
+                        axisLine={false}
+                        width={55}
+                        tick={{ fill: '#86868B', fontSize: 12 }}
+                      />
+                      <Tooltip content={<ChartTip labelFn={monthName} unit="میلیارد ریال" valueFn={(v) => (v == null ? '—' : Number(v).toLocaleString('fa-IR', { minimumFractionDigits: (Number(v) % 1 === 0 && Number(v) >= 10 ? 0 : 1), maximumFractionDigits: 2 }))} />} />
                       <Bar dataKey="gross" name="فروش عادی" fill="url(#appleVisitorMonthly)" radius={[8, 8, 0, 0]} maxBarSize={36} />
                     </BarChart>
                   </ResponsiveContainer>

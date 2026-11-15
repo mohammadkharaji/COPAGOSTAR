@@ -125,7 +125,7 @@ function NavGroup({ label, items, collapsible, page, onNavigate, open, onToggle,
                   key={id}
                   className={`w-10 h-10 mx-auto rounded-[14px] flex items-center justify-center transition-all select-none ${
                     active
-                      ? 'bg-[#0071E3] !text-white shadow-[0_4px_14px_rgba(0,113,227,0.3)]'
+                      ? 'active !bg-[#0071E3] !text-white shadow-[0_4px_14px_rgba(0,113,227,0.3)] hover:!bg-[#0071E3] hover:!text-white'
                       : 'text-[#86868B] hover:text-[#1D1D1F] hover:bg-black/[0.04]'
                   }`}
                   onClick={() => onNavigate(id)}
@@ -142,7 +142,9 @@ function NavGroup({ label, items, collapsible, page, onNavigate, open, onToggle,
                 type="button"
                 key={id}
                 className={`relative flex items-center gap-3 w-full px-3 py-2 rounded-xl text-xs font-medium transition-colors text-right select-none ${
-                  active ? 'bg-[#0071E3] !text-white font-bold shadow-[0_4px_14px_rgba(0,113,227,0.3)]' : 'text-[#1D1D1F] hover:bg-black/[0.04]'
+                  active
+                    ? 'active !bg-[#0071E3] !text-white font-bold shadow-md shadow-[#0071E3]/30 hover:!bg-[#0071E3] hover:!text-white'
+                    : 'text-[#1D1D1F] hover:bg-black/[0.04]'
                 }`}
                 onClick={() => onNavigate(id)}
                 title={itemLabel}
