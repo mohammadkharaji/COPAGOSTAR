@@ -11,7 +11,7 @@ from collections import defaultdict, namedtuple
 
 from fastapi import APIRouter, HTTPException, Query, Request
 
-from . import rbac
+from . import rbac, target_sales
 from .config import CORES, DB_PATH, HOLIDAYS
 from .db import connect
 from .jalali import days_in_jalali_month, format_jdate, jalali_to_gregorian, jalali_weekday
@@ -89,21 +89,14 @@ def target_report(request: Request, core: str = "kg", month: str | None = Query(
         trows = [T(*r) for r in con.execute(
             f"""SELECT branch, line, target_category, product_group, visitor_code, visitor_name, supervisor, manager, target_rial
                FROM fact_target WHERE core=? AND month=?{b_scope}""", [name, ym, *b_sargs]).fetchall()]
-        by_name = {n: (c, k) for n, c, k in con.execute(
-            """SELECT visitor, ANY_VALUE(visitor_code), COUNT(DISTINCT visitor_code) FROM fact_sales
-               WHERE core=? AND visitor IS NOT NULL AND visitor_code IS NOT NULL GROUP BY 1""", [name]).fetchall()}
+        by_name = target_sales.visitor_codes_by_name(con, name)
         s_scope, s_sargs = rbac.scope_clause("s")
-        sales = con.execute(
-            f"""SELECT s.branch, s.group_name, s.visitor_code, d.target_category, COALESCE(s.jdate_key, 0) % 100, SUM(s.rial_vat)
-               FROM fact_sales s LEFT JOIN dim_product d ON d.unique_product_code = s.unique_product_code
-               WHERE s.core=? AND s.year_month=?{s_scope} GROUP BY 1, 2, 3, 4, 5""", [name, ym, *s_sargs]).fetchall()
+        sales = target_sales.month_sales(con, name, ym, s_scope, s_sargs)
         last = con.execute(f"SELECT MAX(jdate_key) FROM fact_sales WHERE core=?{b_scope}", [name, *b_sargs]).fetchone()[0]
     finally:
         con.close()
 
-    # Visitor code: the one in the file, else the database code of the same name when that name has exactly one code.
-    trows = [t._replace(code=t.code or (by_name[t.name][0] if t.name in by_name and by_name[t.name][1] == 1 else None))
-             for t in trows]
+    trows = [t._replace(code=target_sales.resolve_code(t.code, t.name, by_name)) for t in trows]
     cats = {t.category for t in trows}
     manager_of = {(t.branch, t.line): t.manager for t in trows}
     group_of = {t.category: t.group for t in trows}
