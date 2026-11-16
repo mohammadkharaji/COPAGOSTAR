@@ -1475,6 +1475,223 @@ def customer_metrics(request: Request, core: str = DEFAULT_CORE, target_month: s
         con.close()
 
 
+@app.get("/api/analytics/product-metrics")
+def product_metrics(
+    request: Request,
+    core: str = DEFAULT_CORE,
+    by: str = "brand",
+    item_key: str | None = None,
+    start: str | None = None,
+    end: str | None = None,
+):
+    """Calculates summary KPIs, customer frequency patterns, monthly purchase/discount trends,
+    and average repurchase cycles for Product and Brand analysis."""
+    if by not in BREAKDOWN_BY:
+        col = "brand"
+    else:
+        col = BREAKDOWN_BY[by]
+
+    name = _core(core)
+    rng, rargs = _range(start, end)
+    dim, dargs = _dims(request)
+
+    item_sql = ""
+    item_args = []
+    if item_key:
+        item_sql = f" AND {col} = ?"
+        item_args = [item_key]
+
+    con = _con()
+    try:
+        where_scoped = f"WHERE core=? AND NOT is_promo AND NOT is_return AND rial_vat > 0{item_sql}{dim}{rng}"
+        scoped_args = [name, *item_args, *dargs, *rargs]
+
+        # 1. Top 5 Summary KPIs
+        kpi_row = con.execute(
+            f"""SELECT 
+                COALESCE(NULLIF(SUM(qty) FILTER (WHERE NOT is_promo AND NOT is_return), 0), SUM(qty), 0),
+                COALESCE(NULLIF(SUM(rial_vat) FILTER (WHERE NOT is_promo AND NOT is_return), 0), SUM(rial_vat), 0),
+                COALESCE(NULLIF(COUNT(DISTINCT customer_code) FILTER (WHERE NOT is_promo AND NOT is_return), 0), COUNT(DISTINCT customer_code), 0),
+                COALESCE(NULLIF(COUNT(DISTINCT visitor) FILTER (WHERE NOT is_promo AND NOT is_return AND visitor IS NOT NULL), 0), COUNT(DISTINCT visitor), 0),
+                COALESCE(MAX(invoice_date) FILTER (WHERE NOT is_promo AND NOT is_return), MAX(invoice_date))
+            FROM fact_sales
+            WHERE core=?{item_sql}{dim}{rng}""",
+            [name, *item_args, *dargs, *rargs],
+        ).fetchone()
+
+        kpis = {
+            "total_cartons": float(kpi_row[0] or 0),
+            "total_rial": float(kpi_row[1] or 0),
+            "unique_customers": int(kpi_row[2] or 0),
+            "unique_sellers": int(kpi_row[3] or 0),
+            "last_purchase_date": str(kpi_row[4]) if kpi_row[4] else "—",
+        }
+
+        # 2. Customer Purchase Frequency Pattern (الگوی تناوب خرید مشتریان)
+        freq_rows = con.execute(
+            f"""WITH cust_agg AS (
+                SELECT 
+                    customer_code,
+                    COUNT(DISTINCT invoice_code) as inv_count,
+                    MIN((jdate_key % 10000 // 100 - 1) * 31 - (CASE WHEN jdate_key % 10000 // 100 > 7 THEN jdate_key % 10000 // 100 - 7 ELSE 0 END) + (jdate_key % 100)) as min_jday,
+                    MAX((jdate_key % 10000 // 100 - 1) * 31 - (CASE WHEN jdate_key % 10000 // 100 > 7 THEN jdate_key % 10000 // 100 - 7 ELSE 0 END) + (jdate_key % 100)) as max_jday
+                FROM fact_sales
+                {where_scoped} AND customer_code IS NOT NULL
+                GROUP BY customer_code
+            ),
+            cust_buckets AS (
+                SELECT 
+                    customer_code,
+                    CASE 
+                        WHEN inv_count <= 1 OR max_jday = min_jday THEN 'تک خرید'
+                        WHEN (max_jday - min_jday) * 1.0 / (inv_count - 1) < 7 THEN 'کمتر از ۷ روز'
+                        WHEN (max_jday - min_jday) * 1.0 / (inv_count - 1) <= 14 THEN '۷ تا ۱۴ روز'
+                        ELSE '۱۵ تا ۳۰ روز'
+                    END as bucket
+                FROM cust_agg
+            )
+            SELECT bucket, COUNT(*) as cust_count
+            FROM cust_buckets
+            GROUP BY bucket""",
+            scoped_args,
+        ).fetchall()
+
+        freq_dict = {r[0]: r[1] for r in freq_rows}
+        total_freq_custs = sum(freq_dict.values()) or 1
+        frequency_pattern = [
+            {
+                "interval": "کمتر از ۷ روز",
+                "key": "under_7",
+                "count": freq_dict.get("کمتر از ۷ روز", 0),
+                "percent": round((freq_dict.get("کمتر از ۷ روز", 0) / total_freq_custs) * 100, 1),
+                "color": "#10B981",
+            },
+            {
+                "interval": "۷ تا ۱۴ روز",
+                "key": "7_to_14",
+                "count": freq_dict.get("۷ تا ۱۴ روز", 0),
+                "percent": round((freq_dict.get("۷ تا ۱۴ روز", 0) / total_freq_custs) * 100, 1),
+                "color": "#06B6D4",
+            },
+            {
+                "interval": "۱۵ تا ۳۰ روز",
+                "key": "15_to_30",
+                "count": freq_dict.get("۱۵ تا ۳۰ روز", 0),
+                "percent": round((freq_dict.get("۱۵ تا ۳۰ روز", 0) / total_freq_custs) * 100, 1),
+                "color": "#F59E0B",
+            },
+            {
+                "interval": "تک خرید",
+                "key": "single",
+                "count": freq_dict.get("تک خرید", 0),
+                "percent": round((freq_dict.get("تک خرید", 0) / total_freq_custs) * 100, 1),
+                "color": "#8B5CF6",
+            },
+        ]
+
+        # 3 & 4. Monthly Purchase Trend and Monthly Discount Pattern
+        monthly_rows = con.execute(
+            f"""SELECT 
+                year_month,
+                COUNT(DISTINCT customer_code) FILTER (WHERE NOT is_promo AND NOT is_return AND rial_vat > 0),
+                COALESCE(SUM(qty) FILTER (WHERE NOT is_promo AND NOT is_return), 0),
+                COALESCE(SUM(total_discount + discount), 0),
+                COALESCE(SUM(settlement_discount + total_discount + discount), 0),
+                COALESCE(SUM(rial_vat), 0)
+            FROM fact_sales
+            WHERE core=? AND year_month IS NOT NULL{item_sql}{dim}
+            GROUP BY year_month
+            ORDER BY year_month ASC""",
+            [name, *item_args, *dargs],
+        ).fetchall()
+
+        monthly_trend = []
+        monthly_discount = []
+        for mr in monthly_rows:
+            ym = mr[0]
+            m_label = _format_month_label(ym)
+            u_custs = mr[1] or 0
+            cartons = mr[2] or 0
+            discounts = mr[3] or 0
+            promos = mr[4] or 0
+            gross = mr[5] or 0
+
+            monthly_trend.append({
+                "month": ym,
+                "month_label": m_label,
+                "unique_customers": u_custs,
+                "carton_qty": round(cartons, 1),
+            })
+
+            disc_pct = round((discounts / gross * 100), 2) if gross else 0.0
+            promo_pct = round((promos / gross * 100), 2) if gross else 0.0
+            monthly_discount.append({
+                "month": ym,
+                "month_label": m_label,
+                "discount_pct": disc_pct,
+                "promo_pct": promo_pct,
+            })
+
+        # 5. Item average repurchase cycle
+        item_cycle_rows = con.execute(
+            f"""WITH cust_items AS (
+                SELECT 
+                    {col} as itm,
+                    customer_code,
+                    COUNT(DISTINCT invoice_code) as inv_count,
+                    MIN((jdate_key % 10000 // 100 - 1) * 31 - (CASE WHEN jdate_key % 10000 // 100 > 7 THEN jdate_key % 10000 // 100 - 7 ELSE 0 END) + (jdate_key % 100)) as min_jday,
+                    MAX((jdate_key % 10000 // 100 - 1) * 31 - (CASE WHEN jdate_key % 10000 // 100 > 7 THEN jdate_key % 10000 // 100 - 7 ELSE 0 END) + (jdate_key % 100)) as max_jday
+                FROM fact_sales
+                WHERE core=? AND NOT is_promo AND NOT is_return AND rial_vat > 0 AND {col} IS NOT NULL{dim}{rng}
+                GROUP BY {col}, customer_code
+            )
+            SELECT 
+                itm,
+                ROUND(AVG((max_jday - min_jday) * 1.0 / (inv_count - 1)), 1) as avg_cycle
+            FROM cust_items
+            WHERE inv_count > 1 AND max_jday > min_jday
+            GROUP BY itm""",
+            [name, *dargs, *rargs],
+        ).fetchall()
+
+        item_cycles = {str(r[0]): float(r[1]) for r in item_cycle_rows if r[0] is not None}
+
+        # Overall summary cycle
+        summary_cycle_row = con.execute(
+            f"""WITH cust_summary AS (
+                SELECT 
+                    customer_code,
+                    COUNT(DISTINCT invoice_code) as inv_count,
+                    MIN((jdate_key % 10000 // 100 - 1) * 31 - (CASE WHEN jdate_key % 10000 // 100 > 7 THEN jdate_key % 10000 // 100 - 7 ELSE 0 END) + (jdate_key % 100)) as min_jday,
+                    MAX((jdate_key % 10000 // 100 - 1) * 31 - (CASE WHEN jdate_key % 10000 // 100 > 7 THEN jdate_key % 10000 // 100 - 7 ELSE 0 END) + (jdate_key % 100)) as max_jday
+                FROM fact_sales
+                {where_scoped} AND customer_code IS NOT NULL
+                GROUP BY customer_code
+            )
+            SELECT ROUND(AVG((max_jday - min_jday) * 1.0 / (inv_count - 1)), 1)
+            FROM cust_summary
+            WHERE inv_count > 1 AND max_jday > min_jday""",
+            scoped_args,
+        ).fetchone()
+
+        summary_cycle = float(summary_cycle_row[0]) if summary_cycle_row and summary_cycle_row[0] is not None else None
+
+        return {
+            "available": True,
+            "core": core,
+            "by": by,
+            "item_key": item_key,
+            "kpis": kpis,
+            "frequency_pattern": frequency_pattern,
+            "monthly_trend": monthly_trend,
+            "monthly_discount": monthly_discount,
+            "item_cycles": item_cycles,
+            "summary_cycle": summary_cycle,
+        }
+    finally:
+        con.close()
+
+
 @app.get("/api/invoice-bands")
 def invoice_bands(request: Request, core: str = DEFAULT_CORE, start: str | None = None, end: str | None = None,
                   step: float = Query(10_000_000, gt=0)):

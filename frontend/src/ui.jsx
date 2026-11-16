@@ -82,7 +82,7 @@ function downloadCsv(name, columns, rows) {
 }
 
 // columns: { label, render, value?, unit? } — value is the raw sortable/exportable number (or text); unit is added to the CSV header.
-export function Table({ columns, rows, onRow, highlight, name = 'گزارش', pageSize }) {
+export function Table({ columns, rows, onRow, highlight, name = 'گزارش', pageSize, footer }) {
   const [q, setQ] = useState('')
   const [sort, setSort] = useState(null)
   const [page, setPage] = useState(0)
@@ -154,6 +154,17 @@ export function Table({ columns, rows, onRow, highlight, name = 'گزارش', pa
               </tr>
             ))}
           </tbody>
+          {footer && rows.length > 0 && (
+            <tfoot>
+              <tr className="font-extrabold bg-black/[0.04] dark:bg-white/[0.05] border-t-2 border-black/[0.08] dark:border-white/10 text-[#1D1D1F] dark:text-[#F5F5F7]">
+                {columns.map((c, i) => (
+                  <td key={c.label} className="whitespace-nowrap py-3 px-3">
+                    {typeof footer[i] === 'function' ? footer[i](rows) : (footer[i] ?? (i === 0 ? 'مجموع' : '—'))}
+                  </td>
+                ))}
+              </tr>
+            </tfoot>
+          )}
         </table>
         {!shown.length && <div className="empty text-center py-8 text-xs text-[#86868B]">ردیفی با این جستجو پیدا نشد.</div>}
       </div>

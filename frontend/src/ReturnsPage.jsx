@@ -1,9 +1,9 @@
 import { useMemo, useRef, useState } from 'react'
 import { Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
-import { CircleAlert, CircleMinus, ExternalLink, Info, Undo2, CircleDollarSign, Calendar, Users, FileText } from 'lucide-react'
+import { CircleAlert, CircleMinus, ExternalLink, Info, Undo2, CircleDollarSign, Calendar, Users, FileText, BarChart3, PieChart as PieIcon } from 'lucide-react'
 import { motion } from 'motion/react'
 import { useApi } from './api'
-import { fa, monthName } from './format'
+import { fa, monthName, monthLabel, billions1 } from './format'
 import { ChartTip, Table, pct, rial } from './ui'
 
 /* برگشتی حواله پخش: داده از فایل حواله می‌آید و با ردیف‌های مرجوعی داخل فروش (SR) جمع نمی‌شود. */
@@ -115,54 +115,370 @@ const orderCols = (extra = []) => [
 ]
 const customerCol = { label: 'مشتری', render: (r) => (r.customer_code ? `${r.customer_code} · ${r.customer_name ?? ''}` : '—'), value: (r) => `${r.customer_code ?? ''} ${r.customer_name ?? ''}` }
 
-const PIE_COLORS = ['#ef4444', '#0071E3', '#f59e0b', '#0f766e', '#8b5cf6', '#0ea5e9', '#ec4899', '#84cc16', '#94a3b8']
+const DONUT_COLORS = [
+  '#0071E3', // Apple Blue
+  '#F43F5E', // Rose
+  '#F59E0B', // Amber
+  '#10B981', // Emerald
+  '#8B5CF6', // Purple
+  '#06B6D4', // Cyan
+  '#EC4899', // Pink
+  '#6366F1', // Indigo
+  '#14B8A6', // Teal
+  '#D97706', // Warm Amber
+  '#64748B', // Slate
+  '#84CC16', // Lime
+  '#E11D48', // Deep Rose
+  '#3B82F6', // Sky Blue
+  '#A855F7', // Violet
+  '#059669', // Dark Emerald
+  '#475569', // Charcoal Slate
+]
 
-function ReturnPie({ rows, nameKey, labelFn = (v) => String(v ?? '—'), selected = '', onPick }) {
-  const data = rows.map((r) => ({ name: labelFn(r[nameKey]), value: r.return_rial ?? 0, raw: r[nameKey] })).filter((r) => r.value > 0)
-  const total = data.reduce((sum, r) => sum + r.value, 0)
-  const share = (v) => (total ? `${pct(v / total)}` : '—')
-  const colorOf = (i) => PIE_COLORS[i % PIE_COLORS.length]
+function AppleDonutBreakdown({
+  rows = [],
+  nameKey,
+  labelFn = (v) => String(v ?? '—'),
+  selected = '',
+  onPick,
+  title = 'تفکیک و سهم برگشتی',
+}) {
+  const [hovered, setHovered] = useState(null)
+
+  const data = useMemo(() => {
+    return rows
+      .map((r) => ({
+        name: labelFn(r[nameKey]),
+        rawName: r[nameKey],
+        value: r.return_rial ?? 0,
+        orders: r.orders ?? 0,
+        returnedOrders: r.returned_orders ?? 0,
+        returnPercent: r.return_percent ?? 0,
+      }))
+      .filter((r) => r.value > 0)
+      .sort((a, b) => b.value - a.value)
+  }, [rows, nameKey, labelFn])
+
+  const total = useMemo(() => data.reduce((sum, r) => sum + r.value, 0), [data])
+  const maxVal = useMemo(() => (data.length ? data[0].value : 1), [data])
+
+  const activeItem = hovered || (selected ? data.find((d) => d.rawName === selected) : null)
+  const activeValue = activeItem ? activeItem.value : total
+  const activePercent = total > 0 ? (activeValue / total) * 100 : 0
+
+  if (!data.length) {
+    return <div className="text-center py-8 text-xs text-[#86868B]">داده‌ای برای نمایش نمودار وجود ندارد.</div>
+  }
 
   return (
     <div className="space-y-4">
-      <div className="h-64 w-full" dir="ltr" role="img" aria-label="نمودار سهم از مبلغ برگشتی">
-        <ResponsiveContainer width="100%" height="100%">
-          <PieChart>
-            <Pie
-              data={data}
-              dataKey="value"
-              nameKey="name"
-              innerRadius="55%"
-              outerRadius="82%"
-              paddingAngle={2}
-              stroke="none"
-              onClick={(d) => { const v = d?.payload?.raw ?? d?.raw; if (v != null && v !== '') onPick?.(v) }}
-              style={{ cursor: onPick ? 'pointer' : 'default' }}
-            >
-              {data.map((d, i) => <Cell key={i} fill={colorOf(i)} opacity={selected && d.raw !== selected ? 0.35 : 1} />)}
-            </Pie>
-            <Tooltip content={<ChartTip labelFn={(v) => `${v} · ${share(data.find((d) => d.name === v)?.value ?? 0)}`} unit="ریال" />} />
-          </PieChart>
-        </ResponsiveContainer>
-      </div>
-      {onPick && (
-        <div className="flex flex-wrap gap-2 pt-2">
-          {data.map((d, i) => (
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-center bg-[#F9F9FB] dark:bg-white/[0.02] border border-black/[0.04] dark:border-white/[0.06] rounded-3xl p-5 md:p-6 shadow-xs">
+        
+        {/* Right / Center: Signature Apple Donut with Central Metrics */}
+        <div className="lg:col-span-5 flex flex-col items-center justify-center relative min-h-[300px]">
+          <div className="w-full h-[280px] relative flex items-center justify-center" dir="ltr">
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie
+                  data={data}
+                  dataKey="value"
+                  nameKey="name"
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={76}
+                  outerRadius={114}
+                  paddingAngle={data.length > 1 ? 3 : 0}
+                  cornerRadius={5}
+                  stroke="none"
+                  onMouseEnter={(_, idx) => setHovered(data[idx])}
+                  onMouseLeave={() => setHovered(null)}
+                  onClick={(d) => {
+                    const v = d?.payload?.rawName ?? d?.rawName
+                    if (onPick && v != null) {
+                      onPick(selected === v ? '' : v)
+                    }
+                  }}
+                  style={{ cursor: onPick ? 'pointer' : 'default' }}
+                >
+                  {data.map((d, i) => {
+                    const isSelected = selected && d.rawName === selected
+                    const isHovered = hovered && hovered.rawName === d.rawName
+                    const isMuted = (selected && !isSelected) || (hovered && !isHovered)
+                    return (
+                      <Cell
+                        key={d.rawName ?? i}
+                        fill={DONUT_COLORS[i % DONUT_COLORS.length]}
+                        opacity={isMuted ? 0.35 : 1}
+                        style={{
+                          transition: 'all 0.25s ease',
+                          filter: (isSelected || isHovered) ? 'drop-shadow(0 4px 10px rgba(0,0,0,0.15))' : 'none',
+                        }}
+                      />
+                    )
+                  })}
+                </Pie>
+                <Tooltip
+                  content={
+                    <ChartTip
+                      labelFn={(v) => {
+                        const item = data.find((d) => d.name === v)
+                        const pctStr = total > 0 ? pct((item?.value ?? 0) / total, 1) : '—'
+                        return `${v} (${pctStr})`
+                      }}
+                      valueFn={(val) => `${rial(val)} ریال (${billions1(val)} میلیارد ریال)`}
+                    />
+                  }
+                />
+              </PieChart>
+            </ResponsiveContainer>
+
+            {/* Central Metric Typography (Inside Donut Hole) */}
+            <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none text-center px-4">
+              <span className="text-[11px] font-semibold text-[#86868B] dark:text-[#98989D] max-w-[130px] truncate mb-0.5">
+                {activeItem ? activeItem.name : 'مبلغ کل برگشتی'}
+              </span>
+              <span className="text-xl md:text-2xl font-black text-[#1D1D1F] dark:text-white tabular-nums tracking-tight">
+                {billions1(activeValue)}
+              </span>
+              <span className="text-[11px] font-bold text-[#86868B] dark:text-[#98989D] mt-0.5">
+                {activeItem ? (
+                  <span className="text-rose-600 font-extrabold">{pct(activePercent / 100, 1)} از کل</span>
+                ) : (
+                  'میلیارد ریال'
+                )}
+              </span>
+            </div>
+          </div>
+
+          {selected && onPick && (
             <button
-              key={d.raw ?? i}
               type="button"
-              className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all ${
-                selected === d.raw ? 'bg-[#0071E3]/15 border-[#0071E3]/30 text-[#0071E3]' : 'bg-[#F5F5F7] border-black/[0.04] text-[#1D1D1F] hover:bg-[#E8E8ED]'
-              }`}
-              onClick={() => onPick(selected === d.raw ? '' : d.raw)}
+              onClick={() => onPick('')}
+              className="mt-1 text-xs font-semibold text-[#0071E3] hover:underline"
             >
-              <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: colorOf(i) }} />
-              <span>{d.name}</span>
-              <span className="tabular-nums font-bold">({share(d.value)})</span>
+              پاک کردن فیلتر ({data.find((d) => d.rawName === selected)?.name})
             </button>
-          ))}
+          )}
+        </div>
+
+        {/* Left: Ranked Interactive Breakdown List */}
+        <div className="lg:col-span-7 flex flex-col h-full justify-center">
+          <div className="flex items-center justify-between mb-3 px-1">
+            <span className="text-xs font-bold text-[#1D1D1F] dark:text-[#F5F5F7]">
+              {title}
+            </span>
+            <span className="text-[11px] text-[#86868B] tabular-nums font-semibold">
+              {fa(data.length)} مورد
+            </span>
+          </div>
+
+          <div className="max-h-[290px] overflow-y-auto space-y-1.5 pr-1 no-scrollbar">
+            {data.map((d, i) => {
+              const color = DONUT_COLORS[i % DONUT_COLORS.length]
+              const isSelected = selected === d.rawName
+              const isHovered = hovered?.rawName === d.rawName
+              const share = total > 0 ? (d.value / total) * 100 : 0
+              const barWidth = maxVal > 0 ? (d.value / maxVal) * 100 : 0
+
+              return (
+                <div
+                  key={d.rawName ?? i}
+                  onMouseEnter={() => setHovered(d)}
+                  onMouseLeave={() => setHovered(null)}
+                  onClick={() => onPick && onPick(isSelected ? '' : d.rawName)}
+                  className={`group relative overflow-hidden rounded-2xl px-3 py-2 text-xs transition-all border ${
+                    onPick ? 'cursor-pointer' : 'cursor-default'
+                  } ${
+                    isSelected
+                      ? 'bg-blue-500/10 border-blue-500/30 text-blue-700 dark:text-blue-400 font-semibold shadow-xs'
+                      : isHovered
+                      ? 'bg-black/[0.04] dark:bg-white/[0.06] border-black/[0.06] text-[#1D1D1F] dark:text-white'
+                      : 'bg-white/80 dark:bg-black/20 border-black/[0.03] dark:border-white/[0.04] text-[#1D1D1F] dark:text-[#E5E5EA]'
+                  }`}
+                >
+                  {/* Subtle Background Progress Bar */}
+                  <div
+                    className="absolute inset-y-0 right-0 pointer-events-none transition-all duration-300 opacity-15"
+                    style={{
+                      width: `${barWidth}%`,
+                      backgroundColor: color,
+                    }}
+                  />
+
+                  <div className="relative flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      {/* Rank badge */}
+                      <span className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold bg-black/[0.05] dark:bg-white/10 text-[#86868B] shrink-0 tabular-nums">
+                        {fa(i + 1)}
+                      </span>
+                      {/* Color dot */}
+                      <span
+                        className="w-2.5 h-2.5 rounded-full shrink-0 shadow-2xs"
+                        style={{ backgroundColor: color }}
+                      />
+                      {/* Name */}
+                      <span className="font-medium truncate max-w-[160px] sm:max-w-[220px]" title={d.name}>
+                        {d.name}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-2.5 shrink-0 tabular-nums">
+                      {/* Value in Rial */}
+                      <span className="font-bold text-[#1D1D1F] dark:text-white">
+                        {rial(d.value)}
+                        <span className="text-[10px] font-normal text-[#86868B] mr-1">ریال</span>
+                      </span>
+                      {/* Share badge */}
+                      <span
+                        className="px-2 py-0.5 rounded-full text-[10px] font-extrabold min-w-[42px] text-center"
+                        style={{
+                          backgroundColor: `${color}18`,
+                          color: color,
+                        }}
+                      >
+                        {pct(share / 100, 1)}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+
+      </div>
+    </div>
+  )
+}
+
+function MonthlyReturnTrend({ rows = [] }) {
+  const chartData = useMemo(() => {
+    return rows.map((r) => ({
+      ym: r.year_month,
+      month: monthName(r.year_month),
+      fullMonth: monthLabel(r.year_month),
+      returnRial: r.return_rial ?? 0,
+      orderRial: r.order_rial ?? 0,
+      orders: r.orders ?? 0,
+      returnedOrders: r.returned_orders ?? 0,
+      returnPercent: (r.return_percent ?? 0) * 100,
+    }))
+  }, [rows])
+
+  const stats = useMemo(() => {
+    if (!chartData.length) return null
+    const total = chartData.reduce((s, r) => s + r.returnRial, 0)
+    const avg = total / chartData.length
+    const peak = [...chartData].sort((a, b) => b.returnRial - a.returnRial)[0]
+    const latest = chartData[chartData.length - 1]
+    return { total, avg, peak, latest }
+  }, [chartData])
+
+  if (!chartData.length) return null
+
+  return (
+    <div className="space-y-4">
+      {/* 3 Quick Highlight Pills */}
+      {stats && (
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div className="p-3.5 rounded-2xl bg-rose-500/[0.07] border border-rose-500/20 flex items-center justify-between">
+            <div>
+              <div className="text-[11px] font-semibold text-rose-700">ماه اوج برگشتی</div>
+              <div className="text-sm font-black text-rose-900 mt-0.5 tabular-nums">
+                {stats.peak.fullMonth}
+              </div>
+            </div>
+            <span className="text-xs font-bold text-rose-700 tabular-nums px-2.5 py-1 rounded-xl bg-rose-500/15">
+              {billions1(stats.peak.returnRial)} م.ر
+            </span>
+          </div>
+
+          <div className="p-3.5 rounded-2xl bg-amber-500/[0.07] border border-amber-500/20 flex items-center justify-between">
+            <div>
+              <div className="text-[11px] font-semibold text-amber-700">میانگین ماهانه برگشتی</div>
+              <div className="text-sm font-black text-amber-900 mt-0.5 tabular-nums">
+                {billions1(stats.avg)} میلیارد ریال
+              </div>
+            </div>
+            <span className="text-xs font-bold text-amber-700 tabular-nums px-2.5 py-1 rounded-xl bg-amber-500/15">
+              {fa(chartData.length)} ماه
+            </span>
+          </div>
+
+          <div className="p-3.5 rounded-2xl bg-blue-500/[0.07] border border-blue-500/20 flex items-center justify-between">
+            <div>
+              <div className="text-[11px] font-semibold text-blue-700">آخرین ماه ثبت‌شده</div>
+              <div className="text-sm font-black text-blue-900 mt-0.5 tabular-nums">
+                {stats.latest.fullMonth}
+              </div>
+            </div>
+            <span className="text-xs font-bold text-blue-700 tabular-nums px-2.5 py-1 rounded-xl bg-blue-500/15">
+              {billions1(stats.latest.returnRial)} م.ر
+            </span>
+          </div>
         </div>
       )}
+
+      {/* Main Monthly Trend Bar Chart */}
+      <div className="bg-[#F9F9FB] dark:bg-white/[0.02] border border-black/[0.04] dark:border-white/[0.06] rounded-3xl p-5 shadow-xs">
+        <div className="flex items-center justify-between mb-4">
+          <span className="text-xs font-bold text-[#1D1D1F] dark:text-[#F5F5F7]">
+            روند مبلغ برگشتی به تفکیک ماه (ریال)
+          </span>
+          <span className="text-[11px] text-[#86868B] tabular-nums font-semibold">
+            از {chartData[0]?.fullMonth} تا {chartData[chartData.length - 1]?.fullMonth}
+          </span>
+        </div>
+
+        <div className="h-72 w-full" dir="ltr" role="img" aria-label="روند ماهانه برگشتی">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={chartData} margin={{ top: 10, right: 10, left: 10, bottom: 25 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#00000010" vertical={false} />
+              <XAxis
+                dataKey="month"
+                tick={{ fontSize: 11, fill: '#86868B' }}
+                interval={0}
+                angle={-30}
+                textAnchor="end"
+              />
+              <YAxis
+                tick={{ fontSize: 10, fill: '#86868B' }}
+                tickFormatter={(v) => `${(v / 1e9).toFixed(0)} م.ر`}
+                axisLine={false}
+                tickLine={false}
+                width={55}
+              />
+              <Tooltip
+                content={
+                  <ChartTip
+                    labelFn={(label) => {
+                      const item = chartData.find((d) => d.month === label)
+                      return item ? item.fullMonth : label
+                    }}
+                    valueFn={(val) => `${rial(val)} ریال (${billions1(val)} میلیارد ریال)`}
+                  />
+                }
+              />
+              <Bar
+                dataKey="returnRial"
+                name="مبلغ برگشتی"
+                radius={[6, 6, 0, 0]}
+              >
+                {chartData.map((d) => {
+                  const isPeak = stats && d.ym === stats.peak.ym
+                  return (
+                    <Cell
+                      key={d.ym}
+                      fill={isPeak ? '#E11D48' : '#F43F5E'}
+                      opacity={isPeak ? 1 : 0.85}
+                    />
+                  )
+                })}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
     </div>
   )
 }
@@ -177,32 +493,98 @@ const aggCols = (first) => [
 ]
 
 function ViewPanel({ view, s, reason, setReason }) {
+  const [monthMode, setMonthMode] = useState('trend')
+  const [selectedBranch, setSelectedBranch] = useState('')
+
   if (view === 'month') {
     return (
       <div className="space-y-4">
-        <ReturnPie rows={s.months} nameKey="year_month" labelFn={monthName} />
+        {/* Toggle between Trend Bar Chart and Donut Share */}
+        <div className="flex items-center justify-end">
+          <div className="inline-flex items-center gap-1 p-1 bg-[#E8E8ED]/80 dark:bg-white/10 rounded-2xl">
+            <button
+              type="button"
+              onClick={() => setMonthMode('trend')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all ${
+                monthMode === 'trend'
+                  ? 'bg-white dark:bg-black text-[#1D1D1F] dark:text-white shadow-xs'
+                  : 'text-[#86868B] hover:text-[#1D1D1F]'
+              }`}
+            >
+              <BarChart3 size={13} />
+              <span>روند زمانی (میله‌ای)</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setMonthMode('donut')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all ${
+                monthMode === 'donut'
+                  ? 'bg-white dark:bg-black text-[#1D1D1F] dark:text-white shadow-xs'
+                  : 'text-[#86868B] hover:text-[#1D1D1F]'
+              }`}
+            >
+              <PieIcon size={13} />
+              <span>سهم ماهانه (دونات)</span>
+            </button>
+          </div>
+        </div>
+
+        {monthMode === 'trend' ? (
+          <MonthlyReturnTrend rows={s.months} />
+        ) : (
+          <AppleDonutBreakdown rows={s.months} nameKey="year_month" labelFn={monthName} title="سهم مبلغ برگشتی به تفکیک ماه" />
+        )}
+
         <Table name="برگشتی-ماهانه" rows={s.months} columns={aggCols({ label: 'ماه', render: (r) => monthName(r.year_month), value: (r) => r.year_month })} />
       </div>
     )
   }
+
   if (view === 'branch') {
     return (
       <div className="space-y-4">
-        <ReturnPie rows={s.branches} nameKey="branch" />
-        <Table name="برگشتی-شعبه" rows={s.branches} columns={aggCols({ label: 'شعبه', render: (r) => r.branch ?? '—', value: (r) => String(r.branch ?? '') })} />
+        <AppleDonutBreakdown
+          rows={s.branches}
+          nameKey="branch"
+          labelFn={(v) => v || 'سایر شعب'}
+          selected={selectedBranch}
+          onPick={setSelectedBranch}
+          title="سهم و رتبه‌بندی برگشتی شعب"
+        />
+        <Table
+          name="برگشتی-شعبه"
+          rows={s.branches}
+          highlight={(r) => r.branch === selectedBranch}
+          onRow={(r) => setSelectedBranch(selectedBranch === r.branch ? '' : r.branch)}
+          columns={aggCols({ label: 'شعبه', render: (r) => r.branch ?? '—', value: (r) => String(r.branch ?? '') })}
+        />
       </div>
     )
   }
+
   const total = s.total.return_rial
   return (
     <div className="space-y-4">
-      <ReturnPie rows={s.reasons} nameKey="reason" selected={reason} onPick={(v) => setReason(v)} />
-      <Table name="برگشتی-علت" rows={s.reasons} highlight={(r) => r.reason === reason} onRow={(r) => setReason(reason === r.reason ? '' : r.reason)} columns={[
-        { label: 'علت برگشت', render: (r) => r.reason, value: (r) => String(r.reason) },
-        { label: 'تعداد حواله', render: (r) => fa(r.orders), value: (r) => r.orders },
-        { label: 'مبلغ برگشتی (ریال)', render: (r) => <span className="font-bold text-rose-700">{rial(r.return_rial)}</span>, value: (r) => r.return_rial },
-        { label: 'سهم از کل برگشتی', render: (r) => (total ? pct(r.return_rial / total, 1) : '—'), value: (r) => (total ? (r.return_rial / total) * 100 : 0), unit: '٪' },
-      ]} />
+      <AppleDonutBreakdown
+        rows={s.reasons}
+        nameKey="reason"
+        labelFn={(v) => v || 'نامشخص'}
+        selected={reason}
+        onPick={setReason}
+        title="سهم و رتبه‌بندی علت‌های برگشت"
+      />
+      <Table
+        name="برگشتی-علت"
+        rows={s.reasons}
+        highlight={(r) => r.reason === reason}
+        onRow={(r) => setReason(reason === r.reason ? '' : r.reason)}
+        columns={[
+          { label: 'علت برگشت', render: (r) => r.reason || 'نامشخص', value: (r) => String(r.reason || 'نامشخص') },
+          { label: 'تعداد حواله', render: (r) => fa(r.orders), value: (r) => r.orders },
+          { label: 'مبلغ برگشتی (ریال)', render: (r) => <span className="font-bold text-rose-700">{rial(r.return_rial)}</span>, value: (r) => r.return_rial },
+          { label: 'سهم از کل برگشتی', render: (r) => (total ? pct(r.return_rial / total, 1) : '—'), value: (r) => (total ? (r.return_rial / total) * 100 : 0), unit: '٪' },
+        ]}
+      />
     </div>
   )
 }

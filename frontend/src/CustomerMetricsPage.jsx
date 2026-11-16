@@ -149,26 +149,6 @@ export default function CustomerMetricsPage({ p, core, setCore, openCustomer }) 
       .slice(0, 10)
   }, [data, geoMode, selectedMetric])
 
-  // Custom tick for Geo YAxis in LTR container to guarantee 100% clear Persian labels
-  const renderGeoYTick = (props) => {
-    const { x, y, payload } = props
-    return (
-      <g transform={`translate(${x},${y})`}>
-        <text
-          x={-10}
-          y={4}
-          textAnchor="end"
-          fill={isDark ? '#F5F5F7' : '#1D1D1F'}
-          fontSize={11}
-          fontWeight={700}
-          style={{ direction: 'rtl', unicodeBidi: 'plaintext' }}
-        >
-          {payload.value}
-        </text>
-      </g>
-    )
-  }
-
   return (
     <div className="w-full max-w-[1600px] mx-auto space-y-4 sm:space-y-5 pb-12" dir="rtl">
       {/* ─────────────────────────────────────────────────────────────
@@ -380,68 +360,68 @@ export default function CustomerMetricsPage({ p, core, setCore, openCustomer }) 
         </div>
 
         {/* Compact, dense, responsive 7-card grid */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-7 gap-2.5">
+        <div className="customer-metrics-kpi-grid">
           {/* 1. Active Customers */}
-          <div className={`rounded-2xl p-2.5 sm:p-3 flex flex-col justify-between transition-all hover:scale-[1.01] ${glassCard}`}>
+          <div className={`rounded-xl p-2.5 flex flex-col justify-between transition-all hover:scale-[1.01] ${glassCard}`}>
             <div className="flex items-center justify-between text-[#059669]">
               <span className="text-[11px] font-bold text-[#86868B] dark:text-[#98989D] truncate">مشتریان خرید کرده</span>
-              <div className="w-6 h-6 rounded-lg bg-[#059669]/10 flex items-center justify-center shrink-0">
-                <Users className="w-3.5 h-3.5" />
+              <div className="w-5 h-5 rounded-md bg-[#059669]/10 flex items-center justify-center shrink-0">
+                <Users className="w-3 h-3" />
               </div>
             </div>
             <div className="my-1">
-              <span className="text-lg sm:text-xl font-black text-[#1D1D1F] dark:text-[#F5F5F7] tabular-nums tracking-tight">
+              <span className="text-lg font-black text-[#1D1D1F] dark:text-[#F5F5F7] tabular-nums tracking-tight">
                 {fa(metrics.active_customers || 0)}
               </span>
               <p className="text-[10px] text-[#86868B] dark:text-[#98989D] font-medium truncate">
                 خرید در {data?.target_month_label?.split(' ')[0] || 'ماه'}
               </p>
             </div>
-            <div className="pt-1.5 border-t border-black/[0.04] dark:border-white/[0.05] flex items-center justify-between text-[10px]">
-              <span className="text-[#86868B]">پایگاه فعال ماه</span>
+            <div className="pt-1 border-t border-black/[0.04] dark:border-white/[0.05] flex items-center justify-between text-[9px]">
+              <span className="text-[#86868B]">پایگاه ماه</span>
               <span className="font-bold text-[#059669]">Active</span>
             </div>
           </div>
 
           {/* 2. Previous Active Customers */}
-          <div className={`rounded-2xl p-2.5 sm:p-3 flex flex-col justify-between transition-all hover:scale-[1.01] ${glassCard}`}>
+          <div className={`rounded-xl p-2.5 flex flex-col justify-between transition-all hover:scale-[1.01] ${glassCard}`}>
             <div className="flex items-center justify-between text-[#6366F1]">
               <span className="text-[11px] font-bold text-[#86868B] dark:text-[#98989D] truncate">مشتریان دوره قبل</span>
-              <div className="w-6 h-6 rounded-lg bg-[#6366F1]/10 flex items-center justify-center shrink-0">
-                <Clock className="w-3.5 h-3.5" />
+              <div className="w-5 h-5 rounded-md bg-[#6366F1]/10 flex items-center justify-center shrink-0">
+                <Clock className="w-3 h-3" />
               </div>
             </div>
             <div className="my-1">
-              <span className="text-lg sm:text-xl font-black text-[#1D1D1F] dark:text-[#F5F5F7] tabular-nums tracking-tight">
+              <span className="text-lg font-black text-[#1D1D1F] dark:text-[#F5F5F7] tabular-nums tracking-tight">
                 {fa(metrics.prev_active_customers || 0)}
               </span>
               <p className="text-[10px] text-[#86868B] dark:text-[#98989D] font-medium truncate">
-                فعال در بازه عقب‌نگر
+                فعال در دوره قبل
               </p>
             </div>
-            <div className="pt-1.5 border-t border-black/[0.04] dark:border-white/[0.05] flex items-center justify-between text-[10px]">
-              <span className="text-[#86868B]">مبنای سنجش ریزش</span>
+            <div className="pt-1 border-t border-black/[0.04] dark:border-white/[0.05] flex items-center justify-between text-[9px]">
+              <span className="text-[#86868B]">مبنای سنجش</span>
               <span className="font-bold text-[#6366F1]">Prior Base</span>
             </div>
           </div>
 
           {/* 3. New Customers */}
-          <div className={`rounded-2xl p-2.5 sm:p-3 flex flex-col justify-between transition-all hover:scale-[1.01] ${glassCard}`}>
+          <div className={`rounded-xl p-2.5 flex flex-col justify-between transition-all hover:scale-[1.01] ${glassCard}`}>
             <div className="flex items-center justify-between text-[#0071E3]">
               <span className="text-[11px] font-bold text-[#86868B] dark:text-[#98989D] truncate">مشتریان جدید</span>
-              <div className="w-6 h-6 rounded-lg bg-[#0071E3]/10 flex items-center justify-center shrink-0">
-                <UserPlus className="w-3.5 h-3.5" />
+              <div className="w-5 h-5 rounded-md bg-[#0071E3]/10 flex items-center justify-center shrink-0">
+                <UserPlus className="w-3 h-3" />
               </div>
             </div>
             <div className="my-1">
-              <span className="text-lg sm:text-xl font-black text-[#0071E3] tabular-nums tracking-tight">
+              <span className="text-lg font-black text-[#0071E3] tabular-nums tracking-tight">
                 {fa(metrics.new_customers || 0)}
               </span>
               <p className="text-[10px] text-[#86868B] dark:text-[#98989D] font-medium truncate">
-                بدون سابقه در دوره قبل
+                اولین خرید در بازه
               </p>
             </div>
-            <div className="pt-1.5 border-t border-black/[0.04] dark:border-white/[0.05] flex items-center justify-between text-[10px]">
+            <div className="pt-1 border-t border-black/[0.04] dark:border-white/[0.05] flex items-center justify-between text-[9px]">
               <span className="text-[#86868B]">سهم:</span>
               <span className="font-bold text-[#0071E3] tabular-nums">
                 {metrics.active_customers
@@ -452,88 +432,88 @@ export default function CustomerMetricsPage({ p, core, setCore, openCustomer }) 
           </div>
 
           {/* 4. Returning Customers */}
-          <div className={`rounded-2xl p-2.5 sm:p-3 flex flex-col justify-between transition-all hover:scale-[1.01] ${glassCard}`}>
+          <div className={`rounded-xl p-2.5 flex flex-col justify-between transition-all hover:scale-[1.01] ${glassCard}`}>
             <div className="flex items-center justify-between text-[#0D9488]">
               <span className="text-[11px] font-bold text-[#86868B] dark:text-[#98989D] truncate">مشتریان تکراری</span>
-              <div className="w-6 h-6 rounded-lg bg-[#0D9488]/10 flex items-center justify-center shrink-0">
-                <Repeat className="w-3.5 h-3.5" />
+              <div className="w-5 h-5 rounded-md bg-[#0D9488]/10 flex items-center justify-center shrink-0">
+                <Repeat className="w-3 h-3" />
               </div>
             </div>
             <div className="my-1">
-              <span className="text-lg sm:text-xl font-black text-[#0D9488] tabular-nums tracking-tight">
+              <span className="text-lg font-black text-[#0D9488] tabular-nums tracking-tight">
                 {fa(metrics.returning_customers || 0)}
               </span>
               <p className="text-[10px] text-[#86868B] dark:text-[#98989D] font-medium truncate">
                 خرید در هر دو بازه
               </p>
             </div>
-            <div className="pt-1.5 border-t border-black/[0.04] dark:border-white/[0.05] flex items-center justify-between text-[10px]">
+            <div className="pt-1 border-t border-black/[0.04] dark:border-white/[0.05] flex items-center justify-between text-[9px]">
               <span className="text-[#86868B]">وفاداری جاری</span>
               <span className="font-bold text-[#0D9488]">Returning</span>
             </div>
           </div>
 
           {/* 5. Returning Rate */}
-          <div className={`rounded-2xl p-2.5 sm:p-3 flex flex-col justify-between transition-all hover:scale-[1.01] ${glassCard}`}>
+          <div className={`rounded-xl p-2.5 flex flex-col justify-between transition-all hover:scale-[1.01] ${glassCard}`}>
             <div className="flex items-center justify-between text-[#10B981]">
               <span className="text-[11px] font-bold text-[#86868B] dark:text-[#98989D] truncate">نرخ بازگشت</span>
-              <div className="w-6 h-6 rounded-lg bg-[#10B981]/10 flex items-center justify-center shrink-0">
-                <TrendingUp className="w-3.5 h-3.5" />
+              <div className="w-5 h-5 rounded-md bg-[#10B981]/10 flex items-center justify-center shrink-0">
+                <TrendingUp className="w-3 h-3" />
               </div>
             </div>
             <div className="my-1">
-              <span className="text-lg sm:text-xl font-black text-[#10B981] tabular-nums tracking-tight">
+              <span className="text-lg font-black text-[#10B981] tabular-nums tracking-tight">
                 {fa2(metrics.returning_rate || 0)}٪
               </span>
               <p className="text-[10px] text-[#86868B] dark:text-[#98989D] font-medium truncate">
                 تکراری ÷ دوره قبل
               </p>
             </div>
-            <div className="pt-1.5 border-t border-black/[0.04] dark:border-white/[0.05] flex items-center justify-between text-[10px]">
+            <div className="pt-1 border-t border-black/[0.04] dark:border-white/[0.05] flex items-center justify-between text-[9px]">
               <span className="text-[#86868B]">Retention</span>
               <span className="font-bold text-[#10B981]">شاخص مثبت</span>
             </div>
           </div>
 
           {/* 6. Churned Customers */}
-          <div className={`rounded-2xl p-2.5 sm:p-3 flex flex-col justify-between transition-all hover:scale-[1.01] ${glassCard}`}>
+          <div className={`rounded-xl p-2.5 flex flex-col justify-between transition-all hover:scale-[1.01] ${glassCard}`}>
             <div className="flex items-center justify-between text-[#E11D48]">
               <span className="text-[11px] font-bold text-[#86868B] dark:text-[#98989D] truncate">مشتریان ریزشی</span>
-              <div className="w-6 h-6 rounded-lg bg-[#E11D48]/10 flex items-center justify-center shrink-0">
-                <UserMinus className="w-3.5 h-3.5" />
+              <div className="w-5 h-5 rounded-md bg-[#E11D48]/10 flex items-center justify-center shrink-0">
+                <UserMinus className="w-3 h-3" />
               </div>
             </div>
             <div className="my-1">
-              <span className="text-lg sm:text-xl font-black text-[#E11D48] tabular-nums tracking-tight">
+              <span className="text-lg font-black text-[#E11D48] tabular-nums tracking-tight">
                 {fa(metrics.churned_customers || 0)}
               </span>
               <p className="text-[10px] text-[#86868B] dark:text-[#98989D] font-medium truncate">
-                بدون خرید در ماه هدف
+                بدون خرید جدید
               </p>
             </div>
-            <div className="pt-1.5 border-t border-black/[0.04] dark:border-white/[0.05] flex items-center justify-between text-[10px]">
+            <div className="pt-1 border-t border-black/[0.04] dark:border-white/[0.05] flex items-center justify-between text-[9px]">
               <span className="text-[#86868B]">از دست رفته</span>
               <span className="font-bold text-[#E11D48]">Lost Cohort</span>
             </div>
           </div>
 
           {/* 7. Churn Rate */}
-          <div className={`rounded-2xl p-2.5 sm:p-3 flex flex-col justify-between transition-all hover:scale-[1.01] ${glassCard}`}>
+          <div className={`rounded-xl p-2.5 flex flex-col justify-between transition-all hover:scale-[1.01] ${glassCard}`}>
             <div className="flex items-center justify-between text-[#F43F5E]">
               <span className="text-[11px] font-bold text-[#86868B] dark:text-[#98989D] truncate">نرخ ریزش</span>
-              <div className="w-6 h-6 rounded-lg bg-[#F43F5E]/10 flex items-center justify-center shrink-0">
-                <TrendingDown className="w-3.5 h-3.5" />
+              <div className="w-5 h-5 rounded-md bg-[#F43F5E]/10 flex items-center justify-center shrink-0">
+                <TrendingDown className="w-3 h-3" />
               </div>
             </div>
             <div className="my-1">
-              <span className="text-lg sm:text-xl font-black text-[#F43F5E] tabular-nums tracking-tight">
+              <span className="text-lg font-black text-[#F43F5E] tabular-nums tracking-tight">
                 {fa2(metrics.churn_rate || 0)}٪
               </span>
               <p className="text-[10px] text-[#86868B] dark:text-[#98989D] font-medium truncate">
                 ریزشی ÷ دوره قبل
               </p>
             </div>
-            <div className="pt-1.5 border-t border-black/[0.04] dark:border-white/[0.05] flex items-center justify-between text-[10px]">
+            <div className="pt-1 border-t border-black/[0.04] dark:border-white/[0.05] flex items-center justify-between text-[9px]">
               <span className="text-[#86868B]">هشدار ریزش</span>
               <span className="font-bold text-[#F43F5E]">Churn Rate</span>
             </div>
@@ -544,11 +524,11 @@ export default function CustomerMetricsPage({ p, core, setCore, openCustomer }) 
       {/* ─────────────────────────────────────────────────────────────
           4. Row 2 — Customer Value & Invoice Metrics (6 KPI Cards in 2 groups - Compact)
       ───────────────────────────────────────────────────────────── */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3.5">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
         {/* Group A: Customer Value */}
-        <div className={`rounded-2xl p-3.5 sm:p-4 ${glassCard}`}>
-          <div className="flex items-center justify-between mb-3 pb-2 border-b border-black/[0.04] dark:border-white/[0.05]">
-            <div className="flex items-center gap-2">
+        <div className={`rounded-2xl p-3 sm:p-3.5 ${glassCard}`}>
+          <div className="flex items-center justify-between mb-2.5 pb-1.5 border-b border-black/[0.04] dark:border-white/[0.05]">
+            <div className="flex items-center gap-1.5">
               <div className="w-5 h-5 rounded-md bg-[#0071E3]/10 text-[#0071E3] flex items-center justify-center">
                 <Users className="w-3 h-3" />
               </div>
@@ -559,43 +539,43 @@ export default function CustomerMetricsPage({ p, core, setCore, openCustomer }) 
             <span className="text-[10px] text-[#86868B] dark:text-[#98989D]">میانگین ماهانه به ازای هر خریدار</span>
           </div>
 
-          <div className="grid grid-cols-3 gap-2.5">
+          <div className="grid grid-cols-3 gap-2">
             {/* 8. CLV (Qty) */}
-            <div className="p-2.5 rounded-xl bg-black/[0.02] dark:bg-white/[0.03] border border-black/[0.03] dark:border-white/[0.04]">
+            <div className="p-2 rounded-xl bg-black/[0.02] dark:bg-white/[0.03] border border-black/[0.03] dark:border-white/[0.04]">
               <span className="text-[10px] font-bold text-[#86868B] dark:text-[#98989D] block truncate">
                 میانگین خرید (تعداد)
               </span>
-              <span className="text-base sm:text-lg font-black text-[#1D1D1F] dark:text-[#F5F5F7] tabular-nums mt-0.5 block">
+              <span className="text-base font-black text-[#1D1D1F] dark:text-[#F5F5F7] tabular-nums mt-0.5 block">
                 {fa2(metrics.clv_qty || 0)}{' '}
-                <span className="text-[10px] font-normal text-[#86868B]">کارتن</span>
+                <span className="text-[9px] font-normal text-[#86868B]">کارتن</span>
               </span>
               <span className="text-[9px] text-[#86868B] dark:text-[#98989D] mt-0.5 block truncate">
-                حجم کل ÷ مشتریان فعال
+                حجم کل ÷ خریداران
               </span>
             </div>
 
             {/* 9. CLV (Rial) */}
-            <div className="p-2.5 rounded-xl bg-black/[0.02] dark:bg-white/[0.03] border border-black/[0.03] dark:border-white/[0.04]">
+            <div className="p-2 rounded-xl bg-black/[0.02] dark:bg-white/[0.03] border border-black/[0.03] dark:border-white/[0.04]">
               <span className="text-[10px] font-bold text-[#86868B] dark:text-[#98989D] block truncate">
                 میانگین خرید (ریال)
               </span>
-              <span className="text-base sm:text-lg font-black text-[#0071E3] tabular-nums mt-0.5 block">
+              <span className="text-base font-black text-[#0071E3] tabular-nums mt-0.5 block">
                 {fa(Math.round((metrics.clv_rial || 0) / 1e6))}{' '}
-                <span className="text-[10px] font-normal text-[#86868B]">م.ریال</span>
+                <span className="text-[9px] font-normal text-[#86868B]">م.ریال</span>
               </span>
               <span className="text-[9px] text-[#86868B] dark:text-[#98989D] mt-0.5 block truncate" title={`${fa(metrics.clv_rial || 0)} ریال`}>
-                ریال ناخالص ÷ مشتریان فعال
+                ریال ناخالص ÷ خریداران
               </span>
             </div>
 
             {/* 10. Avg Category per Customer */}
-            <div className="p-2.5 rounded-xl bg-black/[0.02] dark:bg-white/[0.03] border border-black/[0.03] dark:border-white/[0.04]">
+            <div className="p-2 rounded-xl bg-black/[0.02] dark:bg-white/[0.03] border border-black/[0.03] dark:border-white/[0.04]">
               <span className="text-[10px] font-bold text-[#86868B] dark:text-[#98989D] block truncate">
                 میانگین گروه کالا
               </span>
-              <span className="text-base sm:text-lg font-black text-[#10B981] tabular-nums mt-0.5 block">
+              <span className="text-base font-black text-[#10B981] tabular-nums mt-0.5 block">
                 {fa2(metrics.avg_cat_per_customer || 0)}{' '}
-                <span className="text-[10px] font-normal text-[#86868B]">برند</span>
+                <span className="text-[9px] font-normal text-[#86868B]">برند</span>
               </span>
               <span className="text-[9px] text-[#86868B] dark:text-[#98989D] mt-0.5 block truncate">
                 تنوع سبد هر مشتری
@@ -605,9 +585,9 @@ export default function CustomerMetricsPage({ p, core, setCore, openCustomer }) 
         </div>
 
         {/* Group B: Invoice Metrics */}
-        <div className={`rounded-2xl p-3.5 sm:p-4 ${glassCard}`}>
-          <div className="flex items-center justify-between mb-3 pb-2 border-b border-black/[0.04] dark:border-white/[0.05]">
-            <div className="flex items-center gap-2">
+        <div className={`rounded-2xl p-3 sm:p-3.5 ${glassCard}`}>
+          <div className="flex items-center justify-between mb-2.5 pb-1.5 border-b border-black/[0.04] dark:border-white/[0.05]">
+            <div className="flex items-center gap-1.5">
               <div className="w-5 h-5 rounded-md bg-[#8B5CF6]/10 text-[#8B5CF6] flex items-center justify-center">
                 <ShoppingBag className="w-3 h-3" />
               </div>
@@ -618,46 +598,46 @@ export default function CustomerMetricsPage({ p, core, setCore, openCustomer }) 
             <span className="text-[10px] text-[#86868B] dark:text-[#98989D]">میانگین به ازای هر سفارش</span>
           </div>
 
-          <div className="grid grid-cols-3 gap-2.5">
+          <div className="grid grid-cols-3 gap-2">
             {/* 11. Avg Order Size */}
-            <div className="p-2.5 rounded-xl bg-black/[0.02] dark:bg-white/[0.03] border border-black/[0.03] dark:border-white/[0.04]">
+            <div className="p-2 rounded-xl bg-black/[0.02] dark:bg-white/[0.03] border border-black/[0.03] dark:border-white/[0.04]">
               <span className="text-[10px] font-bold text-[#86868B] dark:text-[#98989D] block truncate">
                 میانگین حجم فاکتور
               </span>
-              <span className="text-base sm:text-lg font-black text-[#1D1D1F] dark:text-[#F5F5F7] tabular-nums mt-0.5 block">
+              <span className="text-base font-black text-[#1D1D1F] dark:text-[#F5F5F7] tabular-nums mt-0.5 block">
                 {fa2(metrics.avg_order_size || 0)}{' '}
-                <span className="text-[10px] font-normal text-[#86868B]">کارتن</span>
+                <span className="text-[9px] font-normal text-[#86868B]">کارتن</span>
               </span>
               <span className="text-[9px] text-[#86868B] dark:text-[#98989D] mt-0.5 block truncate">
-                حجم کل ÷ تعداد فاکتور
+                حجم کل ÷ فاکتورها
               </span>
             </div>
 
             {/* 12. Avg Invoice Line Item (SKU) */}
-            <div className="p-2.5 rounded-xl bg-black/[0.02] dark:bg-white/[0.03] border border-black/[0.03] dark:border-white/[0.04]">
+            <div className="p-2 rounded-xl bg-black/[0.02] dark:bg-white/[0.03] border border-black/[0.03] dark:border-white/[0.04]">
               <span className="text-[10px] font-bold text-[#86868B] dark:text-[#98989D] block truncate">
                 کالای هر فاکتور
               </span>
-              <span className="text-base sm:text-lg font-black text-[#8B5CF6] tabular-nums mt-0.5 block">
+              <span className="text-base font-black text-[#8B5CF6] tabular-nums mt-0.5 block">
                 {fa2(metrics.avg_sku_per_invoice || 0)}{' '}
-                <span className="text-[10px] font-normal text-[#86868B]">قلم</span>
+                <span className="text-[9px] font-normal text-[#86868B]">قلم</span>
               </span>
               <span className="text-[9px] text-[#86868B] dark:text-[#98989D] mt-0.5 block truncate">
-                تعداد SKU متمایز فاکتور
+                تعداد SKU فاکتور
               </span>
             </div>
 
             {/* 13. Avg Product Category per Invoice */}
-            <div className="p-2.5 rounded-xl bg-black/[0.02] dark:bg-white/[0.03] border border-black/[0.03] dark:border-white/[0.04]">
+            <div className="p-2 rounded-xl bg-black/[0.02] dark:bg-white/[0.03] border border-black/[0.03] dark:border-white/[0.04]">
               <span className="text-[10px] font-bold text-[#86868B] dark:text-[#98989D] block truncate">
                 گروه کالا در فاکتور
               </span>
-              <span className="text-base sm:text-lg font-black text-[#0EA5E9] tabular-nums mt-0.5 block">
+              <span className="text-base font-black text-[#0EA5E9] tabular-nums mt-0.5 block">
                 {fa2(metrics.avg_cat_per_invoice || 0)}{' '}
-                <span className="text-[10px] font-normal text-[#86868B]">گروه</span>
+                <span className="text-[9px] font-normal text-[#86868B]">گروه</span>
               </span>
               <span className="text-[9px] text-[#86868B] dark:text-[#98989D] mt-0.5 block truncate">
-                تنوع برندهای هر سفارش
+                تنوع برند سفارش
               </span>
             </div>
           </div>
@@ -705,9 +685,9 @@ export default function CustomerMetricsPage({ p, core, setCore, openCustomer }) 
       {/* ─────────────────────────────────────────────────────────────
           6. Dual Breakdown Charts (Right: Brands / Left: Branches & Regions)
       ───────────────────────────────────────────────────────────── */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-5">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Right Chart: بر اساس تامین‌کننده و گروه کالا (Vertical Bar Chart) */}
-        <div className={`rounded-2xl p-4 sm:p-5 flex flex-col justify-between ${glassCard}`}>
+        <div className={`rounded-2xl p-4 flex flex-col justify-between ${glassCard}`}>
           <div>
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-2">
@@ -745,7 +725,7 @@ export default function CustomerMetricsPage({ p, core, setCore, openCustomer }) 
               </div>
             </div>
 
-            {/* Vertical Bar Chart - LTR Wrapper prevents SVG mirroring bugs */}
+            {/* Vertical Bar Chart */}
             <div className="h-[380px] mt-2 w-full" dir="ltr">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={brandChartData} margin={{ top: 25, right: 10, left: 10, bottom: 25 }}>
@@ -811,10 +791,10 @@ export default function CustomerMetricsPage({ p, core, setCore, openCustomer }) 
           </div>
         </div>
 
-        {/* Left Chart: بر اساس منطقه و شعبه (Horizontal Bar Chart with Perfect Label Visibility) */}
-        <div className={`rounded-2xl p-4 sm:p-5 flex flex-col justify-between ${glassCard}`}>
+        {/* Left Chart: بر اساس منطقه و شعبه (Apple HIG Ranked Horizontal Bars - 100% Clear & Beautiful) */}
+        <div className={`rounded-2xl p-4 flex flex-col justify-between ${glassCard}`}>
           <div>
-            <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
                 <div className="w-6 h-6 rounded-lg bg-[#8B5CF6]/10 text-[#8B5CF6] flex items-center justify-center">
                   <Building2 className="w-3.5 h-3.5" />
@@ -852,66 +832,62 @@ export default function CustomerMetricsPage({ p, core, setCore, openCustomer }) 
               </div>
             </div>
 
-            {/* Horizontal Bar Chart with dir="ltr" wrapper to fix SVG tick displacement & overlap */}
-            <div className="h-[380px] mt-2 w-full" dir="ltr">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart
-                  data={geoChartData}
-                  layout="vertical"
-                  margin={{ top: 8, right: 40, left: 10, bottom: 8 }}
-                >
-                  <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke={isDark ? '#333' : '#E2E8F0'} opacity={0.6} />
-                  <XAxis
-                    type="number"
-                    domain={selectedMetric.includes('rate') ? [0, 105] : [0, 'dataMax + 10%']}
-                    tick={{ fill: isDark ? '#98989D' : '#64748B', fontSize: 10 }}
-                    axisLine={{ stroke: isDark ? '#444' : '#E2E8F0' }}
-                    tickLine={false}
-                    tickFormatter={(v) => `${fa(v)}${activeMetricObj.unit === '٪' ? '٪' : ''}`}
-                  />
-                  <YAxis
-                    dataKey="name"
-                    type="category"
-                    width={140}
-                    interval={0}
-                    tickLine={false}
-                    axisLine={false}
-                    tick={renderGeoYTick}
-                  />
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: isDark ? '#1C1C1E' : '#FFFFFF',
-                      borderColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)',
-                      borderRadius: '16px',
-                      boxShadow: '0 10px 25px rgba(0,0,0,0.15)',
-                      fontFamily: 'inherit',
-                      direction: 'rtl',
-                    }}
-                    formatter={(val) => [`${fa2(val)} ${activeMetricObj.unit}`, activeMetricObj.label]}
-                    labelFormatter={(label) => `${geoMode === 'branch' ? 'شعبه' : 'منطقه'}: ${label}`}
-                  />
-                  <Bar dataKey={selectedMetric} radius={[0, 6, 6, 0]} maxBarSize={20}>
-                    {geoChartData.map((entry, index) => (
-                      <Cell key={`cell-geo-${index}`} fill={getGeoBarColor(entry)} />
-                    ))}
-                    <LabelList
-                      dataKey={selectedMetric}
-                      position="right"
-                      formatter={(val) => `${fa2(val)}${activeMetricObj.unit === '٪' ? '٪' : ''}`}
-                      style={{
-                        fill: isDark ? '#F5F5F7' : '#1D1D1F',
-                        fontSize: 10,
-                        fontWeight: 800,
-                      }}
-                    />
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
+            {/* Apple HIG Ranked Horizontal Bar List: Zero SVG overlap, 100% crisp Persian text */}
+            <div className="h-[380px] overflow-y-auto space-y-2.5 pr-1 pl-1 py-1">
+              {geoChartData.map((item, index) => {
+                const val = item[selectedMetric] || 0
+                const maxVal = selectedMetric.includes('rate')
+                  ? 100
+                  : Math.max(...geoChartData.map((x) => x[selectedMetric] || 1), 1)
+                const percentWidth = Math.min(100, Math.max(2, (val / maxVal) * 100))
+                const barColor = getGeoBarColor(item)
+
+                return (
+                  <div
+                    key={item.name}
+                    className="p-1.5 rounded-xl hover:bg-black/[0.02] dark:hover:bg-white/[0.02] transition-colors"
+                  >
+                    {/* Top Row: Name on Right, Value on Left */}
+                    <div className="flex items-center justify-between text-xs mb-1.5">
+                      <div className="flex items-center gap-2">
+                        <span className="w-5 h-5 rounded-md bg-black/[0.04] dark:bg-white/[0.06] text-[10px] font-black text-[#86868B] dark:text-[#98989D] flex items-center justify-center shrink-0 tabular-nums">
+                          {fa(index + 1)}
+                        </span>
+                        <span className="font-extrabold text-[#1D1D1F] dark:text-[#F5F5F7] text-xs">
+                          {item.name}
+                        </span>
+                        <span className="text-[10px] text-[#86868B] dark:text-[#98989D] hidden sm:inline tabular-nums">
+                          ({fa(item.active_custs || 0)} خریدار)
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <span
+                          className="font-black text-xs tabular-nums"
+                          style={{ color: barColor }}
+                        >
+                          {fa2(val)} {activeMetricObj.unit}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Horizontal Bar Track & Fill */}
+                    <div className="w-full h-2.5 bg-black/[0.04] dark:bg-white/[0.06] rounded-full overflow-hidden p-0.5">
+                      <div
+                        className="h-full rounded-full transition-all duration-500 shadow-sm"
+                        style={{
+                          width: `${percentWidth}%`,
+                          backgroundColor: barColor,
+                        }}
+                      />
+                    </div>
+                  </div>
+                )
+              })}
             </div>
           </div>
 
-          {/* Geo Ranking Highlights */}
-          <div className="pt-2.5 border-t border-black/[0.04] dark:border-white/[0.05] flex items-center justify-between text-[11px] text-[#86868B]">
+          {/* Geo Ranking Highlights Footer */}
+          <div className="pt-2.5 mt-2 border-t border-black/[0.04] dark:border-white/[0.05] flex items-center justify-between text-[11px] text-[#86868B]">
             <span>
               رتبه نخست: <strong className="text-[#1D1D1F] dark:text-[#F5F5F7]">{geoChartData[0]?.name || '—'}</strong> (
               {fa2(geoChartData[0]?.[selectedMetric])} {activeMetricObj.unit})

@@ -6,6 +6,7 @@ const nf1 = new Intl.NumberFormat('fa-IR', { maximumFractionDigits: 1 })
 const nf2 = new Intl.NumberFormat('fa-IR', { maximumFractionDigits: 2 })
 
 export const fa = (n) => nf.format(Math.round(n ?? 0))
+export const fa1 = (n) => (n == null ? '—' : nf1.format(n))
 export const fa2 = (n) => (n == null ? '—' : nf2.format(n))
 
 // 1 میلیارد ریال = 1e9 ریال

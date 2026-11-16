@@ -354,7 +354,8 @@ EXACT = {
 }
 PREFIX = (("/api/visitor", ("visitor",)), ("/api/customer", ("customer",)), ("/api/profile", ("profile",)),
           ("/api/returns", ("returns",)), ("/api/target", ("target",)), ("/api/inactive-customers", ("inactive",)),
-          ("/api/potential-customers", ("potential",)), ("/api/analytics/customer-metrics", ("customer_metrics", "overview")), ("/api/club/b2b", ("club_b2b",)),
+          ("/api/potential-customers", ("potential",)), ("/api/analytics/customer-metrics", ("customer_metrics", "overview")),
+          ("/api/analytics/product-metrics", ("product", "overview")), ("/api/club/b2b", ("club_b2b",)),
           ("/api/club/visitor", ("club_visitor",)), ("/api/club/me", ("club_b2b", "club_visitor")), ("/api/club/visitor/team", ("club_visitor",)))
 
 

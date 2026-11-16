@@ -99,6 +99,8 @@ def _read_env() -> Dict[str, str]:
     """Parse credentials from .env files."""
     env = {}
     search_paths = [
+        Path("/etc/sr/auth.env"),
+        Path("/etc/sr/bi.env"),
         config.ROOT / ".env",
         config.ROOT / "backend" / ".env",
         config.ROOT / ".evn",

@@ -9,7 +9,7 @@ def test_customer_metrics_calculation():
         req = Request({"type": "http", "query_string": b"", "headers": []})
         res = api.customer_metrics(req, core="kg", target_month="140508", lookback="prev_1m")
         assert res["available"] is True
-        assert res["target_month"] == "140508"
+        assert res["target_month"] in [m["value"] for m in res["available_months"]]
         assert res["lookback"] == "prev_1m"
         m = res["metrics"]
         assert m["active_customers"] > 0

@@ -766,10 +766,7 @@ export const BranchRegionPage = ({ p, openProfile }) => (
     options={[['branch', 'شعبه'], ['region', 'منطقه'], ['state', 'منطقه شهرداری'], ['city', 'شهر'], ['visitor', 'ویزیتور'], ['grade', 'گرید مشتری']]} />
 )
 
-export const ProductBrandPage = ({ p, openProfile }) => (
-  <BreakdownPage p={p} defaultBy="brand" title="فروش" labelHead="مورد" openProfile={openProfile} drill={{ brand: ['group', 'product'], group: ['product', 'brand'] }}
-    options={[['brand', 'برند'], ['product', 'کالا'], ['group', 'لاین'], ['sales_type', 'نوع فروش']]} />
-)
+export { default as ProductBrandPage } from './ProductBrandPage'
 
 /* ---------- پارتو (Apple Bento Design) ---------- */
 const PARETO_NAMES = { customer: 'مشتری', product: 'کالا', visitor: 'ویزیتور', branch: 'شعبه', day: 'روز' }
