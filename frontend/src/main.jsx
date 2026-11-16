@@ -8,6 +8,7 @@ import './styles.css'
 import './kokonut.css'
 import App from './App.jsx'
 import LoginPage from './LoginPage.jsx'
+import { AppearanceProvider } from './AppearanceContext'
 import { UNAUTHORIZED, logout } from './api'
 
 function Gate() {
@@ -32,4 +33,8 @@ function Gate() {
   return <App key={session} onLogout={signOut} />
 }
 
-createRoot(document.getElementById('root')).render(<Gate />)
+createRoot(document.getElementById('root')).render(
+  <AppearanceProvider>
+    <Gate />
+  </AppearanceProvider>
+)

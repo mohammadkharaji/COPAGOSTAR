@@ -109,20 +109,39 @@ export function Table({ columns, rows, onRow, highlight, name = 'گزارش', pa
   const nextSort = (i) => setSort((s) => (!s || s.i !== i ? { i, dir: 'desc' } : s.dir === 'desc' ? { i, dir: 'asc' } : null))
   if (!rows.length) return <div className="empty">داده‌ای برای این فیلترها وجود ندارد.</div>
   return (
-    <>
-      <div className="tbl-tools">
-        {rows.length > 6 && <input type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="جستجو در جدول…" aria-label="جستجو در جدول" />}
-        <span className="tbl-count">{q ? `${fa(shown.length)} از ${fa(rows.length)} ردیف` : `${fa(rows.length)} ردیف`}</span>
-        <button type="button" className="tbl-export" onClick={() => downloadCsv(name, columns, shown)}>خروجی CSV (اکسل)</button>
+    <div className="smart-table-surface p-4 sm:p-5 my-4 transition-all">
+      <div className="tbl-tools flex items-center justify-between gap-3 mb-3 flex-wrap">
+        {rows.length > 6 && (
+          <input
+            type="search"
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            placeholder="جستجو در جدول…"
+            aria-label="جستجو در جدول"
+            className="rounded-xl px-3 py-1.5 text-xs bg-black/[0.04] dark:bg-white/10 border-0 text-[#1D1D1F] dark:text-[#F5F5F7] focus:outline-none focus:ring-2 focus:ring-[#0071E3]/25"
+          />
+        )}
+        <span className="tbl-count text-xs text-[#86868B] dark:text-[#98989D] tabular-nums font-semibold mr-auto">
+          {q ? `${fa(shown.length)} از ${fa(rows.length)} ردیف` : `${fa(rows.length)} ردیف`}
+        </span>
+        <button
+          type="button"
+          className="tbl-export rounded-xl px-3.5 py-1.5 text-xs font-bold bg-[#0071E3]/10 hover:bg-[#0071E3]/20 text-[#0071E3] transition-colors shadow-2xs"
+          onClick={() => downloadCsv(name, columns, shown)}
+        >
+          خروجی CSV (اکسل)
+        </button>
       </div>
-      <div className="table-wrap w-full overflow-x-auto -mx-2 px-2 no-scrollbar">
-        <table>
+
+      <div className="table-wrap w-full overflow-x-auto no-scrollbar rounded-2xl">
+        <table className="w-full text-right border-collapse tabular-nums">
           <thead>
             <tr>
               {columns.map((c, i) => (
-                <th key={c.label} className="whitespace-nowrap" aria-sort={sort?.i === i ? (sort.dir === 'asc' ? 'ascending' : 'descending') : 'none'}>
-                  <button type="button" className="th-sort" onClick={() => nextSort(i)}>
-                    {c.label}<span aria-hidden="true">{sort?.i === i ? (sort.dir === 'asc' ? ' ▲' : ' ▼') : ''}</span>
+                <th key={c.label} className="whitespace-nowrap select-none" aria-sort={sort?.i === i ? (sort.dir === 'asc' ? 'ascending' : 'descending') : 'none'}>
+                  <button type="button" className="th-sort font-bold flex items-center gap-1 hover:text-[#0071E3] transition-colors" onClick={() => nextSort(i)}>
+                    <span>{c.label}</span>
+                    <span aria-hidden="true" className="text-[#0071E3]">{sort?.i === i ? (sort.dir === 'asc' ? ' ▲' : ' ▼') : ''}</span>
                   </button>
                 </th>
               ))}
@@ -130,23 +149,28 @@ export function Table({ columns, rows, onRow, highlight, name = 'گزارش', pa
           </thead>
           <tbody>
             {visible.map((r, i) => (
-              <tr key={i} className={highlight?.(r) ? 'sel' : ''} onClick={onRow ? () => onRow(r) : undefined} style={onRow ? undefined : { cursor: 'default' }}>
+              <tr key={i} className={`transition-colors ${highlight?.(r) ? 'sel' : ''}`} onClick={onRow ? () => onRow(r) : undefined} style={onRow ? undefined : { cursor: 'default' }}>
                 {columns.map((c) => <td key={c.label} className="whitespace-nowrap">{c.render(r)}</td>)}
               </tr>
             ))}
           </tbody>
         </table>
-        {!shown.length && <div className="empty">ردیفی با این جستجو پیدا نشد.</div>}
+        {!shown.length && <div className="empty text-center py-8 text-xs text-[#86868B]">ردیفی با این جستجو پیدا نشد.</div>}
       </div>
+
       {pageSize && shown.length > pageSize && (
-        <div className="toolbar" style={{ justifyContent: 'space-between', alignItems: 'center' }}>
-          <button className="btn ghost" type="button" disabled={cur === 0} onClick={() => setPage(cur - 1)}>صفحهٔ قبل</button>
-          <span className="tbl-count" role="status" aria-live="polite">
+        <div className="toolbar flex items-center justify-between gap-3 mt-4 pt-3 border-t border-black/[0.04] dark:border-white/5">
+          <button className="btn ghost text-xs px-3 py-1.5 rounded-xl border border-black/[0.08] dark:border-white/10" type="button" disabled={cur === 0} onClick={() => setPage(cur - 1)}>
+            صفحهٔ قبل
+          </button>
+          <span className="tbl-count text-xs text-[#86868B] dark:text-[#98989D] tabular-nums" role="status" aria-live="polite">
             صفحهٔ {fa(cur + 1)} از {fa(pages)} · ردیف {fa(cur * pageSize + 1)} تا {fa(Math.min((cur + 1) * pageSize, shown.length))} از {fa(shown.length)}
           </span>
-          <button className="btn ghost" type="button" disabled={cur + 1 >= pages} onClick={() => setPage(cur + 1)}>صفحهٔ بعد</button>
+          <button className="btn ghost text-xs px-3 py-1.5 rounded-xl border border-black/[0.08] dark:border-white/10" type="button" disabled={cur + 1 >= pages} onClick={() => setPage(cur + 1)}>
+            صفحهٔ بعد
+          </button>
         </div>
       )}
-    </>
+    </div>
   )
 }

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import {
   Activity,
   ArrowDownLeft,
@@ -44,7 +44,11 @@ import { postJson, useApi } from './api'
 import { dayLabel, fa, fa2, faDigits, monthLabel, monthName } from './format'
 import { Table } from './ui'
 import { motion, AnimatePresence } from 'motion/react'
-import { StatusIsland, HeroMetricCard, ForecastRings, CalendarGlass, KpiSpotlight, ShareTabsCard, CompareBento } from './overview/kokonut-overview'
+import { HeroMetricCard, ForecastRings, CalendarGlass, KpiSpotlight, ShareTabsCard, CompareBento } from './overview/kokonut-overview'
+import { useAppearance } from './AppearanceContext'
+import AmbientCanvas from './AmbientCanvas'
+import AppearanceSwitcher from './AppearanceSwitcher'
+import DynamicIslandHeader from './DynamicIslandHeader'
 
 const pct = (v) => (v == null ? '—' : `${new Intl.NumberFormat('fa-IR', { maximumFractionDigits: 1 }).format(v * 100)}٪`)
 const PIE_COLORS = ['#2563eb', '#0f766e', '#8b5cf6', '#f59e0b', '#ec4899', '#0ea5e9', '#84cc16', '#ef4444', '#94a3b8']
@@ -56,124 +60,117 @@ export const NAV = [
   ['overview', 'نمای کلی', LayoutDashboard], ['trend', 'روند روزانه', Activity], ['monthly', 'روند ماهانه', BarChart3],
   ['growth', 'آنالیز رشد و افت', Percent], ['target', 'تارگت', Target],
   ['branch', 'شعب و مناطق', MapPin], ['product', 'کالا و برند', ShoppingBag], ['profile', 'تحلیل شعبه و برند', Building2],
-  ['pareto', 'تحلیل پارتو', TrendingUp], ['inactive', 'مشتریان غیرفعال', UserX], ['potential', 'مشتریان بالقوه', UserPlus], ['returns', 'برگشتی حواله', Undo2],
+  ['pareto', 'تحلیل پارتو', TrendingUp], ['customer_metrics', 'آنالیز شاخصهای خرید مشتریان', Users], ['inactive', 'مشتریان غیرفعال', UserX], ['potential', 'مشتریان بالقوه', UserPlus], ['returns', 'برگشتی حواله', Undo2],
   ['quantity', 'تحلیل تعداد کالا', PackageSearch],
   ['invoice', 'تحلیل فاکتور', FileText], ['customer', 'پروفایل مشتری', UserRound], ['visitor', 'پروفایل ویزیتور', UserCheck],
   ['health', 'سلامت داده', HeartPulse], ['tickets', 'تیکت‌ها', MessageSquare], ['chat', 'دستیار هوشمند', Sparkles],
   ['club_b2b', 'باشگاه مشتریان (B2B)', Store], ['club_visitor', 'باشگاه ویزیتورها', Medal],
 ]
 
-// Sidebar grouping only; NAV keeps its [id, label, Icon] shape for App.jsx routing.
-// The third field marks a group as an expandable sub-menu.
-const NAV_GROUPS = [
-  ['فروش', ['overview', 'trend', 'monthly', 'growth', 'target'], false],
-  ['تحلیل', ['branch', 'product', 'profile', 'pareto', 'inactive', 'potential', 'returns', 'quantity'], true],
-  ['مشتری و فاکتور', ['invoice', 'customer', 'visitor'], true],
-  ['سیستم', ['health'], true],
-  ['پشتیبانی', ['tickets'], false],
-  ['تحلیل هوشمند', ['chat'], false],
-  ['باشگاه‌ها', ['club_b2b', 'club_visitor'], true],
-]
-// The admin entry is not a report page: App adds it only for principals with is_admin.
-export const ADMIN_NAV = ['admin', 'مدیریت کاربران', ShieldCheck]
+export const ADMIN_NAV = ['admin', 'مدیریت کاربران و نقش‌ها', ShieldCheck]
 
-// Sections for the pages this principal may open (allowed = list of page ids, null = all); empty groups are dropped.
-function buildSections(allowed, isAdmin) {
-  const nav = allowed ? NAV.filter(([id]) => allowed.includes(id)) : NAV
-  const hidden = isAdmin ? [] : ['health']
-  const visible = nav.filter(([id]) => !hidden.includes(id))
-  const grouped = NAV_GROUPS.map(([label, ids, collapsible]) => [label, visible.filter(([id]) => ids.includes(id)), collapsible])
-  const rest = nav.filter(([id]) => !NAV_GROUPS.some(([, ids]) => ids.includes(id)))
-  const out = (rest.length ? [...grouped, ['سایر', rest, true]] : grouped).filter(([, items]) => items.length)
-  return isAdmin ? [...out, ['مدیریت', [ADMIN_NAV], false]] : out
+/* ---------------- 3-Pillar Modular Definitions ---------------- */
+export const MODULAR_PILLARS = [
+  {
+    id: 'sales',
+    label: 'آنالیز و فروش',
+    badge: 'تحلیلی',
+    accentColor: '#0071E3',
+    activeClass: 'active-sales',
+    icon: BarChart3,
+    subgroups: [
+      {
+        label: 'فروش و عملکرد',
+        items: [
+          { id: 'overview', label: 'نمای کلی', icon: LayoutDashboard },
+          { id: 'trend', label: 'روند روزانه', icon: Activity },
+          { id: 'monthly', label: 'روند ماهانه', icon: BarChart3 },
+          { id: 'growth', label: 'آنالیز رشد و افت', icon: Percent },
+          { id: 'target', label: 'تارگت', icon: Target },
+        ],
+      },
+      {
+        label: 'شعب، کالا و پارتو',
+        items: [
+          { id: 'branch', label: 'شعب و مناطق', icon: MapPin },
+          { id: 'product', label: 'کالا و برند', icon: ShoppingBag },
+          { id: 'profile', label: 'تحلیل شعبه و برند', icon: Building2 },
+          { id: 'pareto', label: 'تحلیل پارتو', icon: TrendingUp },
+          { id: 'returns', label: 'برگشتی حواله', icon: Undo2 },
+          { id: 'quantity', label: 'تحلیل تعداد کالا', icon: PackageSearch },
+        ],
+      },
+      {
+        label: 'مشتریان و فاکتورها',
+        items: [
+          { id: 'customer_metrics', label: 'آنالیز شاخصهای خرید مشتریان', icon: Users },
+          { id: 'inactive', label: 'مشتریان غیرفعال', icon: UserX },
+          { id: 'potential', label: 'مشتریان بالقوه', icon: UserPlus },
+          { id: 'invoice', label: 'تحلیل فاکتور', icon: FileText },
+          { id: 'customer', label: 'پروفایل مشتری', icon: UserRound },
+          { id: 'visitor', label: 'پروفایل ویزیتور', icon: UserCheck },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'club_b2b',
+    label: 'باشگاه مشتریان (B2B)',
+    badge: 'طلایی',
+    accentColor: '#D97706',
+    activeClass: 'active-club',
+    icon: Store,
+    items: [
+      { id: 'club_b2b', arg: 'dashboard', label: 'داشبورد باشگاه مشتریان', icon: Store },
+      { id: 'club_b2b', arg: 'tiers', label: 'سطوح وفاداری (برنزی، نقره‌ای، طلایی)', icon: Medal },
+      { id: 'club_b2b', arg: 'points', label: 'امتیازات و جوایز', icon: Sparkles },
+    ],
+  },
+  {
+    id: 'club_visitor',
+    label: 'باشگاه ویزیتورها',
+    badge: 'تیم فروش',
+    accentColor: '#059669',
+    activeClass: 'active-visitor',
+    icon: Medal,
+    items: [
+      { id: 'club_visitor', arg: 'dashboard', label: 'داشبورد ویزیتورها', icon: Medal },
+      { id: 'club_visitor', arg: 'targets', label: 'تحقق تارگت و پورسانت', icon: Target },
+      { id: 'club_visitor', arg: 'rankings', label: 'رتبه‌بندی و چالش‌ها', icon: TrendingUp },
+    ],
+  },
+]
+
+export const UTILITY_PILLAR = {
+  id: 'utility',
+  label: 'امکانات و سامانه',
+  accentColor: '#0071E3',
+  activeClass: 'active-sales',
+  icon: Sparkles,
+  items: [
+    { id: 'chat', label: 'دستیار هوشمند', icon: Sparkles, adminOnly: true },
+    { id: 'tickets', label: 'تیکت‌ها', icon: MessageSquare },
+    { id: 'admin', label: 'مدیریت کاربران و نقش‌ها', icon: ShieldCheck, adminOnly: true },
+    { id: 'health', label: 'سلامت داده', icon: HeartPulse, adminOnly: true },
+  ],
 }
 
-function NavGroup({ label, items, collapsible, page, onNavigate, open, onToggle, index, collapsed }) {
-  const hasActive = items.some(([id]) => id === page)
-  const listId = `exec-nav-items-${index}`
-  return (
-    <div className={`exec-nav-group ${collapsible ? 'collapsible' : ''} ${collapsible && !open && !collapsed ? 'closed' : ''}`} role="group" aria-label={label}>
-      {!collapsed && (
-        collapsible ? (
-          <button
-            type="button"
-            className="exec-nav-toggle text-[11px] font-bold text-[#86868B] mb-2 mt-4 px-3 tracking-wider flex items-center justify-between w-full hover:text-[#1D1D1F] transition-colors select-none"
-            aria-expanded={open}
-            aria-controls={listId}
-            onClick={onToggle}
-          >
-            <span>{label}</span>
-            <div className="flex items-center gap-1.5">
-              {!open && hasActive && <span className="w-1.5 h-1.5 rounded-full bg-[#0071E3]" aria-label="صفحهٔ فعلی در این بخش است" />}
-              <ChevronDown size={14} className={`transition-transform duration-200 text-[#86868B] ${open ? '' : 'rotate-90'}`} aria-hidden="true" />
-            </div>
-          </button>
-        ) : (
-          <div className="text-[11px] font-bold text-[#86868B] mb-2 mt-4 px-3 tracking-wider select-none">
-            {label}
-          </div>
-        )
-      )}
-      <div className="exec-nav-items" id={listId}>
-        <div className={collapsed ? 'space-y-2 flex flex-col items-center py-1' : 'space-y-1'}>
-          {items.map(([id, itemLabel, Icon]) => {
-            const active = id === page
-            if (collapsed) {
-              return (
-                <button
-                  type="button"
-                  key={id}
-                  style={active ? { backgroundColor: '#0071E3', color: '#FFFFFF' } : {}}
-                  className={`w-10 h-10 mx-auto rounded-[14px] flex items-center justify-center transition-all select-none ${
-                    active
-                      ? 'active !bg-[#0071E3] !text-white shadow-[0_4px_14px_rgba(0,113,227,0.35)]'
-                      : 'text-[#86868B] hover:text-[#1D1D1F] hover:bg-black/[0.04]'
-                  }`}
-                  onClick={() => onNavigate(id)}
-                  title={itemLabel}
-                  aria-label={itemLabel}
-                  aria-current={active ? 'page' : undefined}
-                >
-                  <Icon size={18} style={active ? { color: '#FFFFFF' } : {}} className={active ? '!text-white' : undefined} />
-                </button>
-              )
-            }
-            return (
-              <button
-                type="button"
-                key={id}
-                style={active ? { backgroundColor: '#0071E3', color: '#FFFFFF' } : {}}
-                className={`relative flex items-center gap-3 w-full px-3 py-2 rounded-xl text-xs font-medium transition-colors text-right select-none ${
-                  active
-                    ? 'active !bg-[#0071E3] !text-white font-bold shadow-[0_4px_14px_rgba(0,113,227,0.35)]'
-                    : 'text-[#1D1D1F] hover:bg-black/[0.04]'
-                }`}
-                onClick={() => onNavigate(id)}
-                title={itemLabel}
-                aria-current={active ? 'page' : undefined}
-              >
-                <i
-                  className={`relative z-10 w-7 h-7 rounded-lg flex items-center justify-center transition-colors shrink-0 ${
-                    active ? 'bg-white/20 !text-white' : 'text-[#86868B]'
-                  }`}
-                  style={active ? { color: '#FFFFFF' } : {}}
-                  aria-hidden="true"
-                >
-                  <Icon size={16} style={active ? { color: '#FFFFFF' } : {}} className={active ? '!text-white' : undefined} />
-                </i>
-                <span
-                  className={`relative z-10 truncate ${active ? '!text-white font-bold' : 'text-[#1D1D1F]'}`}
-                  style={active ? { color: '#FFFFFF' } : {}}
-                >
-                  {itemLabel}
-                </span>
-              </button>
-            )
-          })}
-        </div>
-      </div>
-    </div>
-  )
+export function isItemActive(item, currentPage, currentArg = '') {
+  if (item.id === 'club_b2b') {
+    if (currentPage !== 'club_b2b') return false
+    if (!item.arg || item.arg === 'dashboard') {
+      return !currentArg || currentArg === 'dashboard'
+    }
+    return currentArg === item.arg
+  }
+  if (item.id === 'club_visitor') {
+    if (currentPage !== 'club_visitor') return false
+    if (!item.arg || item.arg === 'dashboard') {
+      return !currentArg || currentArg === 'dashboard'
+    }
+    return currentArg === item.arg
+  }
+  return currentPage === item.id
 }
 const TIP = {
   contentStyle: { background: '#0f1d3a', border: 0, borderRadius: 12, boxShadow: '0 14px 30px -10px rgba(15,29,58,.6)', direction: 'rtl', fontFamily: 'Vazirmatn, sans-serif', fontSize: 12 },
@@ -197,17 +194,71 @@ function QuickSelect({ label, value, options, onChange, format = (x) => x }) {
 
 /* ---------- پوستهٔ مشترک همهٔ صفحه‌ها ---------- */
 export function ExecShell({
-  page, onNavigate, core, cores, setCore, title, subtitle, month, setMonth, filters = {}, dims = {}, onFilterChange, onReset,
+  page, arg = '', onNavigate, core, cores, setCore, title, subtitle, month, setMonth, filters = {}, dims = {}, onFilterChange, onReset,
   showFilters = true, hideMonth = false, error, partial, lastDataDate, syncState = 'never', syncNotice, onDismissNotice, onRefresh, onLogout, user, allowedPages = null, isAdmin = false, canSync = false, children,
 }) {
+  const { mode, isDark, isSolid, isLight } = useAppearance()
   const [pwOpen, setPwOpen] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
-  const sections = useMemo(() => buildSections(allowedPages, isAdmin), [allowedPages, isAdmin])
   const [collapsed, setCollapsed] = useState(false)
   const [advanced, setAdvanced] = useState(false)
-  const [openGroups, setOpenGroups] = useState({})
   const running = syncState === 'running'
   const hasFilters = Boolean(month) || Object.keys(dims).length > 0
+
+  // Filter pillars by user permissions
+  const filteredPillars = useMemo(() => {
+    return MODULAR_PILLARS.map((pillar) => {
+      if (pillar.id === 'sales') {
+        const subgroups = pillar.subgroups
+          .map((sg) => ({
+            ...sg,
+            items: sg.items.filter((item) => (allowedPages ? allowedPages.includes(item.id) : true)),
+          }))
+          .filter((sg) => sg.items.length > 0)
+        return { ...pillar, subgroups }
+      }
+      if (pillar.id === 'club_b2b') {
+        const allowed = !allowedPages || allowedPages.includes('club_b2b')
+        return allowed ? pillar : null
+      }
+      if (pillar.id === 'club_visitor') {
+        const allowed = !allowedPages || allowedPages.includes('club_visitor')
+        return allowed ? pillar : null
+      }
+      return pillar
+    }).filter(Boolean)
+  }, [allowedPages])
+
+  const filteredUtility = useMemo(() => {
+    const items = UTILITY_PILLAR.items.filter((item) => {
+      if (item.id === 'admin') return isAdmin
+      if (item.id === 'chat') return isAdmin && (!allowedPages || allowedPages.includes('chat'))
+      if (item.id === 'health') return isAdmin
+      return !allowedPages || allowedPages.includes(item.id)
+    })
+    return { ...UTILITY_PILLAR, items }
+  }, [allowedPages, isAdmin])
+
+  // Accordion state for the 3 pillars + utility section
+  const [openPillars, setOpenPillars] = useState(() => ({
+    sales: true,
+    club_b2b: page === 'club_b2b',
+    club_visitor: page === 'club_visitor',
+    utility: ['chat', 'tickets', 'admin', 'health'].includes(page),
+  }))
+
+  // Auto-expand pillar that contains the active page
+  useEffect(() => {
+    if (page === 'club_b2b') {
+      setOpenPillars((s) => ({ ...s, club_b2b: true }))
+    } else if (page === 'club_visitor') {
+      setOpenPillars((s) => ({ ...s, club_visitor: true }))
+    } else if (['chat', 'tickets', 'admin', 'health'].includes(page)) {
+      setOpenPillars((s) => ({ ...s, utility: true }))
+    } else if (page) {
+      setOpenPillars((s) => ({ ...s, sales: true }))
+    }
+  }, [page])
 
   const currentPageLabel = useMemo(() => {
     if (page === 'admin') return 'مدیریت کاربران'
@@ -223,20 +274,118 @@ export function ExecShell({
   ]
   const isMoreActive = mobileMenuOpen || !DOCK_TABS.some((t) => t.id === page)
 
+  // Render individual navigation menu item with strict inline style for active state
+  const renderMenuItem = (item, pillar, isCollapsed) => {
+    const active = isItemActive(item, page, arg)
+    const Icon = item.icon
+    const activeStyle = {
+      backgroundColor: pillar.accentColor,
+      color: '#FFFFFF',
+    }
+
+    const handleClick = () => {
+      if (item.arg) {
+        onNavigate(item.id, item.arg === 'dashboard' ? '' : item.arg)
+      } else {
+        onNavigate(item.id)
+      }
+    }
+
+    if (isCollapsed) {
+      return (
+        <button
+          type="button"
+          key={`${item.id}-${item.arg || ''}`}
+          style={active ? activeStyle : undefined}
+          className={`w-10 h-10 mx-auto rounded-[14px] flex items-center justify-center transition-all select-none ${
+            active
+              ? `active ${pillar.activeClass} !text-white shadow-md`
+              : isDark
+              ? 'text-[#98989D] hover:text-[#F5F5F7] hover:bg-white/10'
+              : 'text-[#86868B] hover:text-[#1D1D1F] hover:bg-black/[0.04]'
+          }`}
+          onClick={handleClick}
+          title={item.label}
+          aria-label={item.label}
+          aria-current={active ? 'page' : undefined}
+        >
+          <Icon size={18} style={active ? { color: '#FFFFFF' } : {}} className={active ? '!text-white' : undefined} />
+        </button>
+      )
+    }
+
+    return (
+      <button
+        type="button"
+        key={`${item.id}-${item.arg || ''}`}
+        style={active ? activeStyle : undefined}
+        className={`relative flex items-center gap-2.5 w-full px-3 py-2 rounded-xl text-xs font-medium transition-all text-right select-none ${
+          active
+            ? `active ${pillar.activeClass} !text-white font-bold shadow-md`
+            : isDark
+            ? 'text-[#E5E5EA] hover:bg-white/[0.07]'
+            : isSolid
+            ? 'text-[#1D1D1F] hover:bg-slate-100'
+            : 'text-[#1D1D1F] hover:bg-black/[0.04]'
+        }`}
+        onClick={handleClick}
+        title={item.label}
+        aria-current={active ? 'page' : undefined}
+      >
+        <i
+          className={`relative z-10 w-7 h-7 rounded-lg flex items-center justify-center transition-colors shrink-0 ${
+            active
+              ? 'bg-white/20 !text-white'
+              : isDark
+              ? 'bg-white/5 text-[#98989D]'
+              : 'bg-black/[0.03] text-[#86868B]'
+          }`}
+          style={active ? { color: '#FFFFFF' } : {}}
+          aria-hidden="true"
+        >
+          <Icon size={15} style={active ? { color: '#FFFFFF' } : {}} className={active ? '!text-white' : undefined} />
+        </i>
+        <span
+          className={`relative z-10 truncate ${active ? '!text-white font-bold' : ''}`}
+          style={active ? { color: '#FFFFFF' } : {}}
+        >
+          {item.label}
+        </span>
+      </button>
+    )
+  }
+
   return (
-    <div className={`exec-root ${collapsed ? 'exec-collapsed' : ''}`} dir="rtl">
+    <div
+      className={`exec-root ${collapsed ? 'exec-collapsed' : ''} transition-colors duration-500 min-h-screen`}
+      style={{
+        backgroundColor: isDark ? '#0B0C10' : '#F5F5F7',
+        color: isDark ? '#F5F5F7' : '#1D1D1F',
+      }}
+      dir="rtl"
+    >
+      {/* ── Contextual Ambient Glow Engine ── */}
+      <AmbientCanvas page={page} />
 
       {/* ── 1. Minimalist iOS Frosted Top Bar (Mobile / Tablet < 1024px) ── */}
       <header
         data-mobile-topbar
-        className="flex lg:!hidden sticky top-0 z-40 h-14 px-4 bg-white/90 backdrop-blur-2xl border-b border-slate-200/90 items-center justify-between w-full shrink-0 select-none text-[#1D1D1F] shadow-xs"
+        className={`flex lg:!hidden sticky top-0 z-40 h-14 px-4 items-center justify-between w-full shrink-0 select-none shadow-xs transition-colors duration-300 ${
+          isDark
+            ? 'bg-[#1C1C1E]/85 backdrop-blur-2xl border-b border-white/10 text-[#F5F5F7]'
+            : isSolid
+            ? 'bg-white border-b border-slate-200 text-[#1D1D1F]'
+            : 'bg-white/85 backdrop-blur-2xl border-b border-slate-200/90 text-[#1D1D1F]'
+        }`}
       >
         {/* Right side (RTL): squircle logo + title + active page badge */}
         <div className="flex items-center gap-2.5 min-w-0">
           <span className="w-8 h-8 rounded-xl bg-white flex items-center justify-center overflow-hidden shrink-0 shadow-sm border border-slate-200/80">
             <img src="/logo.jpg" alt="لوگوی کوپا گستر" className="w-full h-full object-cover" />
           </span>
-          <b className="text-sm font-bold text-[#1D1D1F] tracking-tight shrink-0">نبض فروش</b>
+          <b className={`text-sm font-bold tracking-tight shrink-0 ${isDark ? 'text-[#F5F5F7]' : 'text-[#1D1D1F]'}`}>
+            نبض فروش
+          </b>
           <span className="text-[11px] font-semibold text-[#0071E3] bg-[#0071E3]/10 border border-[#0071E3]/20 px-2.5 py-0.5 rounded-full truncate max-w-[130px]">
             {currentPageLabel}
           </span>
@@ -246,7 +395,11 @@ export function ExecShell({
         <button
           type="button"
           onClick={() => setMobileMenuOpen(true)}
-          className="bg-black/[0.04] hover:bg-black/[0.08] active:scale-95 text-[#1D1D1F] border border-black/[0.06] rounded-full p-2 transition-all shrink-0 flex items-center justify-center shadow-xs"
+          className={`border rounded-full p-2 transition-all shrink-0 flex items-center justify-center shadow-xs ${
+            isDark
+              ? 'bg-white/10 hover:bg-white/15 text-[#F5F5F7] border-white/10'
+              : 'bg-black/[0.04] hover:bg-black/[0.08] text-[#1D1D1F] border-black/[0.06]'
+          }`}
           aria-label="باز کردن منو"
           title="منوها"
         >
@@ -254,126 +407,311 @@ export function ExecShell({
         </button>
       </header>
 
-      {/* Desktop Right Sidebar (hidden lg:flex) */}
-      <aside
-        data-desktop-sidebar
-        className={`exec-sidebar hidden lg:flex flex-col bg-white/90 backdrop-blur-2xl border border-slate-200/80 shadow-[0_10px_35px_rgba(15,23,42,0.06)] text-[#1D1D1F] lg:my-3 lg:mr-3 lg:rounded-[28px] sticky top-3 h-[calc(100vh-24px)] select-none ${
-          collapsed
-            ? 'overflow-hidden overflow-y-hidden [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]'
-            : 'overflow-hidden overflow-y-auto'
+      {/* ── 2. Modular 3-Pillar Floating Sidebar (Desktop RTL: lg:my-3 lg:mr-3 lg:rounded-3xl) ── */}
+      <div
+        data-sidebar-placeholder
+        className={`hidden lg:block shrink-0 transition-all duration-300 ${
+          collapsed ? 'w-20 mr-3' : 'w-72 mr-3'
         }`}
       >
-        <div className="exec-brand flex items-center gap-3 px-2 py-3 border-b border-slate-200/80 mb-2">
+        <aside
+          data-desktop-sidebar
+          className={`exec-sidebar hidden lg:flex flex-col fixed top-3 right-3 h-[calc(100vh-24px)] rounded-3xl select-none transition-all duration-300 z-30 ${
+            isDark
+              ? 'bg-[#1C1C1E]/85 backdrop-blur-2xl border border-white/10 text-[#F5F5F7] shadow-[0_10px_35px_rgba(0,0,0,0.5)]'
+              : isSolid
+              ? 'bg-white border border-slate-200 text-[#1D1D1F] shadow-[0_4px_20px_rgba(0,0,0,0.06)]'
+              : 'bg-white/85 backdrop-blur-2xl border border-slate-200/80 text-[#1D1D1F] shadow-[0_10px_35px_rgba(15,23,42,0.06)]'
+          } ${
+            collapsed
+              ? 'w-20 min-w-20 max-w-20 overflow-hidden overflow-y-hidden [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]'
+              : 'w-72 min-w-72 max-w-72 overflow-hidden overflow-y-auto'
+          }`}
+        >
+        {/* Brand Header */}
+        <div className={`exec-brand flex items-center gap-3 px-2 py-3 border-b mb-2 shrink-0 ${
+          isDark ? 'border-white/10' : 'border-slate-200/80'
+        }`}>
           <span className="w-10 h-10 rounded-2xl bg-white flex items-center justify-center shadow-sm border border-slate-200/80 overflow-hidden shrink-0">
             <img src="/logo.jpg" alt="لوگوی کوپا گستر" className="w-full h-full object-cover" />
           </span>
           {!collapsed && (
             <div className="exec-brand-copy flex-1 min-w-0">
-              <b className="text-sm font-bold text-[#1D1D1F] tracking-tight block">نبض فروش</b>
-              <small className="text-[11px] text-[#86868B] truncate block">{cores[core] ?? ''}</small>
+              <b className={`text-sm font-bold tracking-tight block ${isDark ? 'text-[#F5F5F7]' : 'text-[#1D1D1F]'}`}>
+                نبض فروش
+              </b>
+              <small className="text-[11px] text-[#86868B] dark:text-[#98989D] truncate block">
+                {cores[core] ?? ''}
+              </small>
             </div>
           )}
           <button
             type="button"
-            className="exec-collapse w-7 h-7 rounded-lg flex items-center justify-center text-[#86868B] hover:text-[#1D1D1F] hover:bg-black/[0.04] transition-colors"
+            className={`exec-collapse w-7 h-7 rounded-lg flex items-center justify-center transition-colors ${
+              isDark ? 'text-[#98989D] hover:text-[#F5F5F7] hover:bg-white/10' : 'text-[#86868B] hover:text-[#1D1D1F] hover:bg-black/[0.04]'
+            }`}
             aria-label={collapsed ? 'باز کردن منو' : 'جمع کردن منو'}
             onClick={() => setCollapsed((v) => !v)}
           >
             {collapsed ? <ChevronLeft size={16} /> : <ChevronRight size={16} />}
           </button>
         </div>
+
+        {/* 3 Modular Macro-Sections (Pillars) */}
         <nav
-          className={`exec-nav ${
+          className={`exec-nav flex-1 py-1 ${
             collapsed
               ? 'overflow-hidden overflow-y-hidden [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]'
               : 'overflow-y-auto'
           }`}
-          aria-label="گزارش‌ها"
+          aria-label="بخش‌های اصلی سامانه"
         >
-          {sections.map(([group, items, collapsible], i) => {
-            // A group the user has not toggled opens when it holds the current page.
-            const open = openGroups[group] ?? items.some(([id]) => id === page)
-            return (
-              <NavGroup
-                key={group}
-                index={i}
-                label={group}
-                items={items}
-                collapsible={collapsible}
-                page={page}
-                onNavigate={onNavigate}
-                open={open}
-                onToggle={() => setOpenGroups((s) => ({ ...s, [group]: !open }))}
-                collapsed={collapsed}
-              />
-            )
-          })}
+          {collapsed ? (
+            /* Collapsed view: compact icon pills grouped by pillar */
+            <div className="space-y-3 py-1">
+              {filteredPillars.map((pillar, pi) => (
+                <div key={pillar.id} className={pi > 0 ? 'pt-2 border-t border-black/[0.06] dark:border-white/10' : ''}>
+                  <div className="space-y-1.5 flex flex-col items-center">
+                    {pillar.id === 'sales'
+                      ? pillar.subgroups.flatMap((sg) => sg.items).map((item) => renderMenuItem(item, pillar, true))
+                      : pillar.items.map((item) => renderMenuItem(item, pillar, true))}
+                  </div>
+                </div>
+              ))}
+              {filteredUtility.items.length > 0 && (
+                <div className="pt-2 border-t border-black/[0.06] dark:border-white/10">
+                  <div className="space-y-1.5 flex flex-col items-center">
+                    {filteredUtility.items.map((item) => renderMenuItem(item, filteredUtility, true))}
+                  </div>
+                </div>
+              )}
+            </div>
+          ) : (
+            /* Expanded view: 3 modular accordion macro-sections */
+            <div className="space-y-2">
+              {filteredPillars.map((pillar) => {
+                const isOpen = !!openPillars[pillar.id]
+                const PillarIcon = pillar.icon
+                const hasActiveItem = pillar.id === 'sales'
+                  ? pillar.subgroups.some((sg) => sg.items.some((item) => isItemActive(item, page, arg)))
+                  : pillar.items.some((item) => isItemActive(item, page, arg))
+
+                return (
+                  <div key={pillar.id} className="mb-2">
+                    {/* Pillar Accordion Header */}
+                    <button
+                      type="button"
+                      onClick={() => setOpenPillars((s) => ({ ...s, [pillar.id]: !isOpen }))}
+                      className={`w-full flex items-center justify-between px-2.5 py-2 rounded-2xl text-xs font-bold transition-all select-none ${
+                        isDark
+                          ? 'text-[#F5F5F7] hover:bg-white/[0.06]'
+                          : 'text-[#1D1D1F] hover:bg-black/[0.04]'
+                      }`}
+                      aria-expanded={isOpen}
+                    >
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span
+                          className="w-6 h-6 rounded-lg flex items-center justify-center shrink-0 shadow-xs"
+                          style={{ backgroundColor: `${pillar.accentColor}20`, color: pillar.accentColor }}
+                        >
+                          <PillarIcon size={14} />
+                        </span>
+                        <span className="font-extrabold tracking-tight truncate">{pillar.label}</span>
+                        {pillar.badge && (
+                          <span
+                            className="text-[10px] px-2 py-0.5 rounded-full font-semibold shrink-0"
+                            style={{ backgroundColor: `${pillar.accentColor}18`, color: pillar.accentColor }}
+                          >
+                            {pillar.badge}
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        {!isOpen && hasActiveItem && (
+                          <span
+                            className="w-2 h-2 rounded-full animate-pulse shadow-xs"
+                            style={{ backgroundColor: pillar.accentColor }}
+                            aria-label="آیتم فعال در این بخش است"
+                          />
+                        )}
+                        <ChevronDown
+                          size={14}
+                          className={`transition-transform duration-200 text-[#86868B] dark:text-[#98989D] ${
+                            isOpen ? 'rotate-180' : ''
+                          }`}
+                        />
+                      </div>
+                    </button>
+
+                    {/* Pillar Accordion Content */}
+                    {isOpen && (
+                      <div className="mt-1 space-y-1 pr-1">
+                        {pillar.id === 'sales' ? (
+                          pillar.subgroups.map((sg, sgi) => (
+                            <div key={sg.label} className={sgi > 0 ? 'mt-2 pt-1.5 border-t border-black/[0.04] dark:border-white/5' : ''}>
+                              <span className="text-[10px] font-bold text-[#86868B] dark:text-[#98989D] px-2 py-0.5 block tracking-wider">
+                                {sg.label}
+                              </span>
+                              <div className="space-y-0.5 mt-0.5">
+                                {sg.items.map((item) => renderMenuItem(item, pillar, false))}
+                              </div>
+                            </div>
+                          ))
+                        ) : (
+                          <div className="space-y-0.5">
+                            {pillar.items.map((item) => renderMenuItem(item, pillar, false))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+
+              {/* Utility / System Pillar (Neatly positioned above footer) */}
+              {filteredUtility.items.length > 0 && (
+                <div className="mt-3 pt-2 border-t border-black/[0.06] dark:border-white/10 mb-2">
+                  <button
+                    type="button"
+                    onClick={() => setOpenPillars((s) => ({ ...s, utility: !openPillars.utility }))}
+                    className={`w-full flex items-center justify-between px-2.5 py-2 rounded-2xl text-xs font-bold transition-all select-none ${
+                      isDark
+                        ? 'text-[#F5F5F7] hover:bg-white/[0.06]'
+                        : 'text-[#1D1D1F] hover:bg-black/[0.04]'
+                    }`}
+                    aria-expanded={openPillars.utility}
+                  >
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span
+                        className="w-6 h-6 rounded-lg flex items-center justify-center shrink-0 shadow-xs"
+                        style={{ backgroundColor: `${filteredUtility.accentColor}20`, color: filteredUtility.accentColor }}
+                      >
+                        <Sparkles size={14} />
+                      </span>
+                      <span className="font-extrabold tracking-tight truncate">{filteredUtility.label}</span>
+                    </div>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      {!openPillars.utility && filteredUtility.items.some((item) => isItemActive(item, page, arg)) && (
+                        <span
+                          className="w-2 h-2 rounded-full animate-pulse shadow-xs"
+                          style={{ backgroundColor: filteredUtility.accentColor }}
+                          aria-label="آیتم فعال در این بخش است"
+                        />
+                      )}
+                      <ChevronDown
+                        size={14}
+                        className={`transition-transform duration-200 text-[#86868B] dark:text-[#98989D] ${
+                          openPillars.utility ? 'rotate-180' : ''
+                        }`}
+                      />
+                    </div>
+                  </button>
+
+                  {openPillars.utility && (
+                    <div className="mt-1 space-y-0.5 pr-1">
+                      {filteredUtility.items.map((item) => renderMenuItem(item, filteredUtility, false))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
         </nav>
-        <div className={`exec-sidebar-bottom ${collapsed ? 'px-0 flex flex-col items-center' : ''}`}>
-          {onLogout && (
+
+        {/* ── Sidebar Footer: User Profile + Appearance Switcher Popover ── */}
+        <div className={`exec-sidebar-bottom mt-auto pt-3 border-t shrink-0 ${
+          isDark ? 'border-white/10' : 'border-slate-200/80'
+        } ${collapsed ? 'px-0 flex flex-col items-center gap-2' : ''}`}>
+          {collapsed ? (
+            <div className="flex flex-col items-center gap-2 mb-2 w-full">
+              <AppearanceSwitcher compact={true} />
+              <span
+                className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-[#FF9500] to-[#FFB340] text-white flex items-center justify-center shadow-md shadow-orange-500/25 shrink-0 cursor-pointer"
+                aria-hidden="true"
+                onClick={() => setPwOpen(true)}
+                title="تغییر رمز"
+              >
+                <UserRound size={18} />
+              </span>
+              {onLogout && (
+                <button
+                  type="button"
+                  className="w-8 h-8 rounded-lg flex items-center justify-center text-[#86868B] hover:text-red-500 hover:bg-red-500/10 transition-colors"
+                  onClick={onLogout}
+                  aria-label="خروج از حساب"
+                  title="خروج از حساب"
+                >
+                  <LogOut size={16} />
+                </button>
+              )}
+            </div>
+          ) : (
             <div
-              className={`exec-profile bg-black/[0.03] border border-black/[0.06] rounded-2xl hover:bg-black/[0.05] cursor-pointer transition-all ${
-                collapsed
-                  ? 'flex flex-col items-center justify-center p-2 mx-auto w-12 gap-2 mb-3'
-                  : 'flex items-center gap-2.5 p-3 mx-2 mb-4'
+              className={`exec-profile flex items-center gap-2.5 p-2.5 mx-1 mb-2 rounded-2xl transition-all ${
+                isDark
+                  ? 'bg-white/5 border border-white/10'
+                  : isSolid
+                  ? 'bg-slate-50 border border-slate-200'
+                  : 'bg-black/[0.03] border border-black/[0.06]'
               }`}
             >
               <span
-                className={`rounded-xl bg-gradient-to-tr from-[#FF9500] to-[#FFB340] text-white flex items-center justify-center shadow-md shadow-orange-500/25 shrink-0 ${
-                  collapsed ? 'w-10 h-10 mx-auto' : 'w-9 h-9'
-                }`}
+                className="w-9 h-9 rounded-xl bg-gradient-to-tr from-[#FF9500] to-[#FFB340] text-white flex items-center justify-center shadow-md shadow-orange-500/25 shrink-0 cursor-pointer"
                 aria-hidden="true"
-                onClick={() => collapsed && setPwOpen(true)}
+                onClick={() => setPwOpen(true)}
                 title="تغییر رمز"
               >
-                <UserRound size={collapsed ? 18 : 17} />
+                <UserRound size={17} />
               </span>
-              {!collapsed && (
-                <div className="exec-profile-copy min-w-0 flex-1 px-1">
-                  <button type="button" className="exec-user-btn text-right font-bold text-xs text-[#1D1D1F] hover:text-[#0071E3] truncate block w-full" onClick={() => setPwOpen(true)} title="تغییر رمز">
-                    <b dir="ltr">{user || 'کاربر'}</b>
-                  </button>
-                  <small className="text-[10px] text-[#86868B] block">حساب کاربری</small>
-                </div>
+              <div className="exec-profile-copy min-w-0 flex-1 px-1">
+                <button
+                  type="button"
+                  className={`exec-user-btn text-right font-bold text-xs truncate block w-full hover:text-[#0071E3] ${
+                    isDark ? 'text-[#F5F5F7]' : 'text-[#1D1D1F]'
+                  }`}
+                  onClick={() => setPwOpen(true)}
+                  title="تغییر رمز"
+                >
+                  <b dir="ltr">{user || 'کاربر'}</b>
+                </button>
+                <small className="text-[10px] text-[#86868B] dark:text-[#98989D] block">حساب کاربری</small>
+              </div>
+              <AppearanceSwitcher compact={false} />
+              {onLogout && (
+                <button
+                  type="button"
+                  className="exec-logout w-8 h-8 rounded-lg flex items-center justify-center text-[#86868B] hover:text-red-500 hover:bg-red-500/10 transition-colors shrink-0"
+                  onClick={onLogout}
+                  aria-label="خروج از حساب"
+                  title="خروج از حساب"
+                >
+                  <LogOut size={16} />
+                </button>
               )}
-              <button
-                type="button"
-                className={`exec-logout rounded-lg flex items-center justify-center text-[#86868B] hover:text-red-500 hover:bg-red-50 transition-colors shrink-0 ${
-                  collapsed ? 'w-8 h-8 mx-auto mt-0.5' : 'w-8 h-8'
-                }`}
-                onClick={onLogout}
-                aria-label="خروج از حساب"
-                title="خروج از حساب"
-              >
-                <LogOut size={16} />
-              </button>
             </div>
           )}
         </div>
       </aside>
+    </div>
 
-      <main className="exec-main flex-1 min-w-0">
+      <main className="exec-main min-w-0 flex-1 overflow-x-hidden transition-all duration-300">
+        {/* ── Top Smart Dynamic Island Bar ── */}
+        <DynamicIslandHeader
+          core={core}
+          cores={cores}
+          setCore={page === 'admin' ? () => {} : setCore}
+          lastDataDate={lastDataDate}
+          syncState={syncState}
+          onRefresh={onRefresh}
+          canSync={canSync}
+          page={page}
+        />
+
         <header className="exec-header">
           <div>
             <div className="exec-eyebrow">داشبورد اجرایی · سال مالی ۱۴۰۵</div>
             <h1>{title}</h1>
             <p>{subtitle}</p>
-          </div>
-          <div className="exec-header-actions">
-            <StatusIsland core={core} cores={cores} setCore={page === 'admin' ? () => {} : setCore} lastDataDate={lastDataDate} syncState={syncState} />
-            {canSync && (
-              <button type="button" className="exec-refresh-mini" onClick={onRefresh} disabled={running} aria-label="به‌روزرسانی داده" title="به‌روزرسانی داده">
-                <RefreshCw size={17} className={running ? 'spin' : ''} />
-              </button>
-            )}
-            <button type="button" className="exec-refresh-mini" onClick={() => window.print()} aria-label="چاپ یا ذخیره PDF" title="چاپ / PDF">
-              <Printer size={17} />
-            </button>
-            {onLogout && (
-              <button type="button" className="exec-refresh-mini exec-logout-mini" onClick={onLogout} aria-label="خروج از حساب" title="خروج">
-                <LogOut size={17} />
-              </button>
-            )}
           </div>
         </header>
 
@@ -508,113 +846,235 @@ export function ExecShell({
               animate={{ y: 0 }}
               exit={{ y: '100%' }}
               transition={{ type: 'spring', damping: 28, stiffness: 300 }}
-              className="fixed bottom-0 inset-x-0 z-50 rounded-t-[32px] bg-[#F5F5F7]/95 backdrop-blur-3xl border-t border-slate-200/90 max-h-[82vh] overflow-y-auto p-5 pb-8 lg:!hidden flex flex-col gap-4 text-right shadow-[0_-10px_40px_rgb(0,0,0,0.15)] text-[#1D1D1F]"
+              className={`fixed bottom-0 inset-x-0 z-50 rounded-t-[32px] max-h-[85vh] overflow-y-auto p-5 pb-8 lg:!hidden flex flex-col gap-4 text-right shadow-[0_-10px_40px_rgb(0,0,0,0.25)] transition-colors duration-300 ${
+                isDark
+                  ? 'bg-[#1C1C1E]/95 backdrop-blur-3xl border-t border-white/10 text-[#F5F5F7]'
+                  : isSolid
+                  ? 'bg-white border-t border-slate-200 text-[#1D1D1F]'
+                  : 'bg-[#F5F5F7]/95 backdrop-blur-3xl border-t border-slate-200/90 text-[#1D1D1F]'
+              }`}
               role="dialog"
               aria-modal="true"
               aria-label="منوی بخش‌ها"
             >
               {/* Drag Handle Pill */}
-              <div className="w-10 h-1.5 bg-black/20 rounded-full mx-auto mb-1 shrink-0" />
+              <div className="w-10 h-1.5 bg-black/20 dark:bg-white/20 rounded-full mx-auto mb-1 shrink-0" />
 
               {/* Sheet Header */}
-              <div className="flex items-center justify-between pb-2 border-b border-slate-200/80 shrink-0">
+              <div className={`flex items-center justify-between pb-2 border-b shrink-0 ${
+                isDark ? 'border-white/10' : 'border-slate-200/80'
+              }`}>
                 <div className="flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-[#0071E3]" />
-                  <h3 className="text-sm font-bold text-[#1D1D1F]">منوی کامل داشبورد</h3>
+                  <span className="w-2.5 h-2.5 rounded-full bg-[#0071E3]" />
+                  <h3 className={`text-sm font-bold ${isDark ? 'text-[#F5F5F7]' : 'text-[#1D1D1F]'}`}>
+                    منوی بخش‌های سامانه
+                  </h3>
                 </div>
                 <button
                   type="button"
                   onClick={() => setMobileMenuOpen(false)}
-                  className="w-8 h-8 rounded-full bg-black/[0.05] hover:bg-black/[0.1] text-[#86868B] hover:text-[#1D1D1F] flex items-center justify-center transition-colors"
+                  className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${
+                    isDark
+                      ? 'bg-white/10 hover:bg-white/15 text-[#98989D] hover:text-[#F5F5F7]'
+                      : 'bg-black/[0.05] hover:bg-black/[0.1] text-[#86868B] hover:text-[#1D1D1F]'
+                  }`}
                   aria-label="بستن"
                 >
                   <X size={16} />
                 </button>
               </div>
 
-              {/* Grouped Category Cards */}
+              {/* Modular 3-Pillars for Mobile Sheet */}
               <div className="space-y-4 flex-1">
-                {sections.map(([group, items]) => (
-                  <div key={group} className="space-y-1.5">
-                    <span className="text-[11px] font-bold text-[#86868B] px-2 tracking-wider block">
-                      {group}
+                {filteredPillars.map((pillar) => {
+                  const PillarIcon = pillar.icon
+                  const items = pillar.id === 'sales'
+                    ? pillar.subgroups.flatMap((sg) => sg.items)
+                    : pillar.items
+
+                  return (
+                    <div key={pillar.id} className="space-y-1.5">
+                      <div className="flex items-center justify-between px-2">
+                        <div className="flex items-center gap-2">
+                          <span
+                            className="w-5 h-5 rounded-md flex items-center justify-center"
+                            style={{ backgroundColor: `${pillar.accentColor}20`, color: pillar.accentColor }}
+                          >
+                            <PillarIcon size={12} />
+                          </span>
+                          <span className="text-[11px] font-bold tracking-wider block">
+                            {pillar.label}
+                          </span>
+                        </div>
+                        {pillar.badge && (
+                          <span
+                            className="text-[10px] px-2 py-0.5 rounded-full font-semibold"
+                            style={{ backgroundColor: `${pillar.accentColor}18`, color: pillar.accentColor }}
+                          >
+                            {pillar.badge}
+                          </span>
+                        )}
+                      </div>
+                      <div className={`rounded-2xl p-1.5 grid grid-cols-2 gap-1.5 shadow-xs ${
+                        isDark ? 'bg-white/5 border border-white/10' : 'bg-white border border-slate-200/80'
+                      }`}>
+                        {items.map((item) => {
+                          const active = isItemActive(item, page, arg)
+                          const Icon = item.icon
+                          const activeStyle = {
+                            backgroundColor: pillar.accentColor,
+                            color: '#FFFFFF',
+                          }
+                          return (
+                            <button
+                              key={`${item.id}-${item.arg || ''}`}
+                              type="button"
+                              onClick={() => {
+                                if (item.arg) {
+                                  onNavigate(item.id, item.arg === 'dashboard' ? '' : item.arg)
+                                } else {
+                                  onNavigate(item.id)
+                                }
+                                setMobileMenuOpen(false)
+                              }}
+                              style={active ? activeStyle : undefined}
+                              className={`flex items-center gap-2 p-2 rounded-xl text-xs transition-all text-right select-none ${
+                                active
+                                  ? `active ${pillar.activeClass} !text-white font-bold shadow-md`
+                                  : isDark
+                                  ? 'text-[#E5E5EA] font-semibold hover:bg-white/10'
+                                  : 'text-[#1D1D1F] font-semibold hover:bg-black/[0.04]'
+                              }`}
+                            >
+                              <div
+                                className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${
+                                  active
+                                    ? 'bg-white/20 !text-white'
+                                    : isDark
+                                    ? 'bg-white/5 text-[#98989D]'
+                                    : 'bg-black/[0.04] text-[#86868B]'
+                                }`}
+                                style={active ? { color: '#FFFFFF' } : {}}
+                              >
+                                <Icon size={14} style={active ? { color: '#FFFFFF' } : {}} className={active ? '!text-white' : undefined} />
+                              </div>
+                              <span
+                                className={`truncate flex-1 font-medium ${active ? '!text-white font-bold' : ''}`}
+                                style={active ? { color: '#FFFFFF' } : {}}
+                              >
+                                {item.label}
+                              </span>
+                            </button>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  )
+                })}
+
+                {/* Utility Pillar for Mobile Sheet */}
+                {filteredUtility.items.length > 0 && (
+                  <div className="space-y-1.5">
+                    <span className="text-[11px] font-bold text-[#86868B] dark:text-[#98989D] px-2 tracking-wider block">
+                      {filteredUtility.label}
                     </span>
-                    <div className="bg-white border border-slate-200/80 rounded-2xl p-1.5 grid grid-cols-2 gap-1.5 shadow-xs">
-                      {items.map(([id, itemLabel, Icon]) => {
-                        const active = id === page
+                    <div className={`rounded-2xl p-1.5 grid grid-cols-2 gap-1.5 shadow-xs ${
+                      isDark ? 'bg-white/5 border border-white/10' : 'bg-white border border-slate-200/80'
+                    }`}>
+                      {filteredUtility.items.map((item) => {
+                        const active = isItemActive(item, page, arg)
+                        const Icon = item.icon
+                        const activeStyle = {
+                          backgroundColor: filteredUtility.accentColor,
+                          color: '#FFFFFF',
+                        }
                         return (
                           <button
-                            key={id}
+                            key={item.id}
                             type="button"
                             onClick={() => {
-                              onNavigate(id)
+                              onNavigate(item.id)
                               setMobileMenuOpen(false)
                             }}
-                            style={active ? { backgroundColor: '#0071E3', color: '#FFFFFF' } : {}}
-                            className={`flex items-center gap-2.5 p-2.5 rounded-xl text-xs transition-all text-right select-none ${
+                            style={active ? activeStyle : undefined}
+                            className={`flex items-center gap-2 p-2 rounded-xl text-xs transition-all text-right select-none ${
                               active
-                                ? 'active !bg-[#0071E3] !text-white font-bold shadow-[0_4px_14px_rgba(0,113,227,0.35)]'
+                                ? `active ${filteredUtility.activeClass} !text-white font-bold shadow-md`
+                                : isDark
+                                ? 'text-[#E5E5EA] font-semibold hover:bg-white/10'
                                 : 'text-[#1D1D1F] font-semibold hover:bg-black/[0.04]'
                             }`}
                           >
                             <div
                               className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${
-                                active ? 'bg-white/20 !text-white' : 'bg-black/[0.04] text-[#86868B]'
+                                active
+                                  ? 'bg-white/20 !text-white'
+                                  : isDark
+                                  ? 'bg-white/5 text-[#98989D]'
+                                  : 'bg-black/[0.04] text-[#86868B]'
                               }`}
                               style={active ? { color: '#FFFFFF' } : {}}
                             >
-                              <Icon size={15} style={active ? { color: '#FFFFFF' } : {}} className={active ? '!text-white' : undefined} />
+                              <Icon size={14} style={active ? { color: '#FFFFFF' } : {}} className={active ? '!text-white' : undefined} />
                             </div>
                             <span
-                              className={`truncate flex-1 font-medium ${active ? '!text-white font-bold' : 'text-[#1D1D1F]'}`}
+                              className={`truncate flex-1 font-medium ${active ? '!text-white font-bold' : ''}`}
                               style={active ? { color: '#FFFFFF' } : {}}
                             >
-                              {itemLabel}
+                              {item.label}
                             </span>
                           </button>
                         )
                       })}
                     </div>
                   </div>
-                ))}
+                )}
               </div>
 
-              {/* User Profile & Logout at Bottom */}
-              {onLogout && (
-                <div className="mt-2 pt-3 border-t border-slate-200/80 flex items-center justify-between bg-black/[0.02] p-3 rounded-2xl shrink-0">
-                  <div className="flex items-center gap-2.5 min-w-0">
-                    <span className="w-9 h-9 rounded-xl bg-gradient-to-tr from-[#FF9500] to-[#FFB340] text-white flex items-center justify-center shadow-md shadow-orange-500/25 shrink-0">
-                      <UserRound size={16} />
-                    </span>
-                    <div className="min-w-0">
-                      <button
-                        type="button"
-                        className="text-right font-bold text-xs text-[#1D1D1F] truncate block hover:text-[#0071E3]"
-                        onClick={() => {
-                          setPwOpen(true)
-                          setMobileMenuOpen(false)
-                        }}
-                        title="تغییر رمز"
-                      >
-                        <span dir="ltr">{user || 'کاربر'}</span>
-                      </button>
-                      <small className="text-[10px] text-[#86868B] block">حساب کاربری (تغییر رمز)</small>
-                    </div>
+              {/* User Profile & Appearance Settings at Bottom */}
+              <div className={`mt-2 pt-3 border-t flex items-center justify-between p-3 rounded-2xl shrink-0 ${
+                isDark ? 'border-white/10 bg-white/5' : 'border-slate-200/80 bg-black/[0.02]'
+              }`}>
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <span className="w-9 h-9 rounded-xl bg-gradient-to-tr from-[#FF9500] to-[#FFB340] text-white flex items-center justify-center shadow-md shadow-orange-500/25 shrink-0">
+                    <UserRound size={16} />
+                  </span>
+                  <div className="min-w-0">
+                    <button
+                      type="button"
+                      className={`text-right font-bold text-xs truncate block hover:text-[#0071E3] ${
+                        isDark ? 'text-[#F5F5F7]' : 'text-[#1D1D1F]'
+                      }`}
+                      onClick={() => {
+                        setPwOpen(true)
+                        setMobileMenuOpen(false)
+                      }}
+                      title="تغییر رمز"
+                    >
+                      <span dir="ltr">{user || 'کاربر'}</span>
+                    </button>
+                    <small className="text-[10px] text-[#86868B] dark:text-[#98989D] block">حساب کاربری</small>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setMobileMenuOpen(false)
-                      onLogout()
-                    }}
-                    className="flex items-center gap-1.5 text-xs font-semibold text-rose-600 bg-rose-50 hover:bg-rose-100 px-3 py-1.5 rounded-xl transition-colors shrink-0"
-                    aria-label="خروج از حساب"
-                  >
-                    <LogOut size={14} />
-                    <span>خروج</span>
-                  </button>
                 </div>
-              )}
+
+                <div className="flex items-center gap-2">
+                  <AppearanceSwitcher compact={false} />
+                  {onLogout && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMobileMenuOpen(false)
+                        onLogout()
+                      }}
+                      className="flex items-center gap-1.5 text-xs font-semibold text-rose-600 bg-rose-50 dark:bg-rose-950/40 hover:bg-rose-100 dark:hover:bg-rose-900/40 px-3 py-1.5 rounded-xl transition-colors shrink-0"
+                      aria-label="خروج از حساب"
+                    >
+                      <LogOut size={14} />
+                      <span>خروج</span>
+                    </button>
+                  )}
+                </div>
+              </div>
             </motion.div>
           </>
         )}

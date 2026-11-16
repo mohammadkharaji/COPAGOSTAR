@@ -1,4 +1,5 @@
 import TargetPage from './TargetPage'
+import CustomerMetricsPage from './CustomerMetricsPage'
 import { ClubPage, MyClub, MyVisitorClub } from './ClubPages'
 import AdminPage from './AdminPage'
 import ChatPage from './ChatPage'
@@ -159,6 +160,8 @@ export default function App({ onLogout }) {
       ? 'برای این حساب صفحه‌ای فعال نشده است؛ با مدیر سامانه تماس بگیرید.'
     : page === 'target'
     ? 'پیشرفت فروش نسبت به تارگت ماهانه · مبالغ به ریال و شامل مالیات و عوارض'
+    : page === 'customer_metrics'
+    ? 'سنجش شاخص‌های خرید، ریزش، بازگشت، ارزش طول عمر (CLV) و رفتار سبد فاکتورها'
     : page === 'returns'
       ? `دوره: ${month ? monthLabel(month) : 'همه ماه‌ها'} · حواله‌های پخش، مبالغ به ریال · جدا از ردیف‌های مرجوعی فروش (SR)`
       : `دوره: ${month ? monthLabel(month) : 'همه ماه‌ها'} · مبالغ به ریال و شامل مالیات و عوارض`
@@ -167,7 +170,7 @@ export default function App({ onLogout }) {
     <ExecShell
       page={page} arg={arg} onNavigate={go} core={core} cores={visibleCores} setCore={setCore} title={title} subtitle={subtitle}
       month={month} setMonth={setMonth} filters={options.data ?? {}} dims={dims} onFilterChange={setDim}
-      onReset={() => { setMonth(''); setDims({}) }} showFilters={reports && !['health', 'customer', 'target', 'chat', 'club_b2b', 'club_visitor'].includes(page)} hideMonth={['monthly', 'growth', 'inactive', 'potential', 'chat', 'club_b2b', 'club_visitor'].includes(page)}
+      onReset={() => { setMonth(''); setDims({}) }} showFilters={reports && !['health', 'customer', 'target', 'chat', 'club_b2b', 'club_visitor', 'customer_metrics'].includes(page)} hideMonth={['monthly', 'growth', 'inactive', 'potential', 'customer_metrics', 'chat', 'club_b2b', 'club_visitor'].includes(page)}
       error={error} partial={partial} lastDataDate={health?.last_data_date} syncState={syncState} syncNotice={syncNotice} onDismissNotice={() => setSyncNotice('')} onRefresh={startSync} onLogout={onLogout} user={principal.user}
       allowedPages={allowedPages} isAdmin={isAdmin} canSync={isAdmin}
     >
@@ -193,6 +196,7 @@ export default function App({ onLogout }) {
       {page === 'invoice' && <InvoicePage p={p} />}
       {page === 'inactive' && <InactiveCustomersPage p={p} openCustomer={(c) => go('customer', c)} openVisitor={(c) => go('visitor', c)} />}
       {page === 'potential' && <PotentialCustomersPage p={p} openCustomer={(c) => go('customer', c)} openVisitor={(c) => go('visitor', c)} />}
+      {page === 'customer_metrics' && <CustomerMetricsPage p={p} core={core} setCore={setCore} openCustomer={(c) => go('customer', c)} />}
       {page === 'customer' && <CustomerPage key={arg} core={core} code={arg} setCode={(c) => go('customer', c)} openReturns={(a) => go('returns', a)} />}
       {page === 'health' && <HealthPage health={health} meta={meta} quality={quality} biSync={biSync} onTriggerBiSync={startSync} isAdmin={isAdmin} />}
       {page === 'tickets' && <TicketsPage isAdmin={!!me.data?.is_admin} />}

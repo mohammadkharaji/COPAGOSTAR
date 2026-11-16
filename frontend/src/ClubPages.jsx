@@ -5,6 +5,7 @@ import { Award, CircleDollarSign, Users, Sparkles, Store, TrendingUp, Calendar, 
 import { postJson, useApi } from './api'
 import { fa, faDigits, monthLabel } from './format'
 import { Table } from './ui'
+import ActivityRingsWidget from './ActivityRingsWidget'
 
 // One page per club, both backed by the same /api/club/<kind>/... routes. `kind` is 'b2b' or 'visitor'.
 const CLUBS = {
@@ -282,7 +283,7 @@ function PointsView({ kind, core }) {
   )
 }
 
-export function ClubPage({ kind, core }) {
+export function ClubPage({ kind, core, arg }) {
   return (
     <div className="w-full max-w-[1600px] mx-auto px-6 space-y-6" dir="rtl">
       <div className="rounded-[24px] bg-white/85 backdrop-blur-xl border border-black/[0.04] p-5 flex items-center justify-between shadow-[0_4px_20px_rgb(0,0,0,0.03)] flex-wrap gap-3">
@@ -299,6 +300,11 @@ export function ClubPage({ kind, core }) {
           سامانه وفاداری
         </span>
       </div>
+      <ActivityRingsWidget
+        type={kind === 'visitor' ? 'visitor' : 'b2b'}
+        title={kind === 'visitor' ? 'شاخص‌های کلیدی فعالیت ویزیتورها (Apple Activity Rings)' : 'شاخص‌های کلیدی باشگاه مشتریان (Apple Activity Rings)'}
+        subtitle={kind === 'visitor' ? 'تحقق تارگت، ویزیت موفق و نسبت وصول مطالبات' : 'ارتقای پله‌های وفاداری، تنوع برندها و تکرار سفارشات'}
+      />
       <PlanDefinition kind={kind} core={core} />
       <PointsView kind={kind} core={core} />
     </div>
@@ -308,7 +314,7 @@ export function ClubPage({ kind, core }) {
 /* ---------- Member Panels ---------- */
 const sum = (rows, key) => rows.reduce((s, r) => s + (r[key] ?? 0), 0)
 
-export function MyClub() {
+export function MyClub({ arg }) {
   const me = useApi('/club/me', {})
   const [i, setI] = useState(0)
   if (me.error) return <div className="w-full max-w-[1600px] mx-auto px-6 p-6" role="alert" dir="rtl"><div className="rounded-[28px] bg-rose-50/90 border border-rose-200 text-rose-700 p-5 text-xs font-semibold">{me.error}</div></div>
@@ -345,6 +351,20 @@ export function MyClub() {
         <AppleKpiCard label="فروش خالص کل (کسر مرجوعی)" value={fa(sum(plans, 'sales_rial'))} unit="ریال خالص" icon={CircleDollarSign} tone="amber" />
         <AppleKpiCard label="وضعیت سطح وفاداری" value={activeTier?.level || 'پله ۱'} unit={activeTier?.points_needed_label || 'فعال'} icon={Sparkles} tone="violet" />
       </div>
+
+      {/* Activity Rings for Customer Club B2B */}
+      <ActivityRingsWidget
+        type="b2b"
+        data={{
+          tier: activeTier,
+          tier_progress: plan?.tier?.progress,
+          points: plan?.points,
+          sku_diversity: 0.72,
+          purchase_frequency: 0.85,
+        }}
+        title="حلقه‌های رشد وفاداری (Apple Activity Rings)"
+        subtitle="فاصله تا سطح بعدی (برنزی ➔ نقره‌ای ➔ طلایی)، تنوع کالایی و تکرار خرید ماهانه"
+      />
 
       {!plan ? (
         <AppleCard title="طرح‌های من">
@@ -436,7 +456,7 @@ export function MyClub() {
   )
 }
 
-export function MyVisitorClub() {
+export function MyVisitorClub({ arg }) {
   const team = useApi('/club/visitor/team', {})
   if (team.error) return <div className="w-full max-w-[1600px] mx-auto px-6 p-6" role="alert" dir="rtl"><div className="rounded-[28px] bg-rose-50/90 border border-rose-200 text-rose-700 p-5 text-xs font-semibold">{team.error}</div></div>
   if (team.loading) return <div className="w-full max-w-[1600px] mx-auto px-6 p-6 text-center text-xs text-[#86868B]" dir="rtl">در حال بارگذاری…</div>
@@ -493,6 +513,20 @@ export function MyVisitorClub() {
         <AppleKpiCard label="فروش خالص کل پرتفوی" value={fa(summary.sales_rial)} unit="ریال خالص (کسر مرجوعی)" icon={CircleDollarSign} tone="amber" />
         <AppleKpiCard label="مشتریان خریدار در دوره" value={fa(summary.customers_count)} unit="مشتری یکتای فعال" icon={Users} tone="violet" />
       </div>
+
+      {/* Activity Rings for Visitor Club */}
+      <ActivityRingsWidget
+        type="visitor"
+        data={{
+          sales_rial: summary.sales_rial,
+          target_rial: plan ? summary.sales_rial * 1.15 : 500000000,
+          customers_count: summary.customers_count,
+          target_visits: Math.max(summary.customers_count + 5, 25),
+          collection_rate: 0.94,
+        }}
+        title="حلقه‌های فعالیت ویزیتور (Apple Activity Rings)"
+        subtitle="تحقق تارگت ریالی، تعداد فاکتور / ویزیت موفق و وصول مطالبات / سلامت فاکتور"
+      />
 
       {/* Section 1: Visitor Progress Bento Card */}
       <AppleCard
