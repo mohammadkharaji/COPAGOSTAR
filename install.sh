@@ -58,7 +58,7 @@ mkdir -p "$APP_DIR" /var/lib/sr/python /var/cache/sr/uv /var/cache/sr/npm
 systemctl stop sr-api sr-sync 2>/dev/null || true
 
 echo "==> Copying application to $APP_DIR"
-rsync -a --delete --exclude data --exclude node_modules --exclude .venv --exclude dist --exclude .git "$SRC"/ "$APP_DIR"/
+rsync -a --delete --exclude data --exclude node_modules --exclude .venv --exclude dist --exclude .git --exclude .env --exclude .odbc.ini "$SRC"/ "$APP_DIR"/
 mkdir -p "$APP_DIR/data/raw"
 if [ -n "$DATA_FILE" ]; then
   echo "==> Installing database from $DATA_FILE"
