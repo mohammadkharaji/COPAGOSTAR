@@ -3,7 +3,7 @@ import { ClubPage, MyClub, MyVisitorClub } from './ClubPages'
 import AdminPage from './AdminPage'
 import ChatPage from './ChatPage'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { get, post, useApi } from './api'
+import { get, post, postJson, useApi } from './api'
 import { monthLabel, monthRange } from './format'
 import ExecutiveDashboard, { ExecShell, NAV } from './ExecutiveDashboard'
 import { BranchRegionPage, CustomerPage, GrowthPage, HealthPage, InactiveCustomersPage, InvoicePage, MonthlyTrendPage, PotentialCustomersPage, QuantityPage, TicketsPage, ParetoPage, ProductBrandPage, ProfilePage, ReturnsPage, TrendPage, VisitorPage } from './pages'
@@ -61,22 +61,25 @@ export default function App({ onLogout }) {
   const reports = Boolean(principal) && page !== 'admin' && allowedCores.includes(core)
   const options = useApi('/filters', { core, v: ver, ...(dims.branch && { branch: dims.branch }), ...(dims.region && { region: dims.region }), ...(dims.state && { state: dims.state }), ...(dims.city && { city: dims.city }), ...(dims.main_group && { main_group: dims.main_group }), ...(dims.sub_group && { sub_group: dims.sub_group }), ...(dims.brand && { brand: dims.brand }) }, reports)
   const [tick, setTick] = useState(0)
-  const sync = useApi('/sync-status', { t: tick })
-  const syncState = sync.data?.state
-  const running = syncState === 'running'
+  const biSync = useApi('/bi-sync/status', { t: tick })
+  const biData = biSync.data
+  const running = biData?.state === 'running' || biData?.state === 'staging'
+  const syncState = running ? 'running' : (biData?.last_successful_sync ? 'ok' : 'never')
   const prevSync = useRef(syncState)
   useEffect(() => {
-    const t = setInterval(() => setTick((n) => n + 1), running ? 4000 : 60000)
+    const t = setInterval(() => setTick((n) => n + 1), running ? 3000 : 30000)
     return () => clearInterval(t)
   }, [running])
   useEffect(() => {
     if (prevSync.current === 'running' && syncState === 'ok') {
       setVer((n) => n + 1)
-      setSyncNotice('داده‌ها با موفقیت به‌روزرسانی شدند.')
+      setSyncNotice('داده‌ها مستقیماً از سرور مرکزی BI دریافت و با فرمول ۳گانه با موفقیت به‌روزرسانی شدند.')
     }
-    if (prevSync.current === 'running' && syncState === 'failed') setSyncNotice('به‌روزرسانی ناموفق بود؛ دادهٔ قبلی حفظ شد.')
+    if (prevSync.current === 'running' && biData?.state === 'failed') {
+      setSyncNotice('به‌روزرسانی مستقیم BI ناموفق بود؛ داده‌های قبلی حفظ شدند.')
+    }
     prevSync.current = syncState
-  }, [syncState])
+  }, [syncState, biData?.state])
 
   useEffect(() => {
     const on = () => {
@@ -98,9 +101,13 @@ export default function App({ onLogout }) {
   }, [ver])
   const startSync = () => {
     if (!isAdmin) return
-    post('/sync')
+    postJson('/admin/bi-sync/trigger', {})
       .then(() => setTick((n) => n + 1))
-      .catch(() => setError('شروع به‌روزرسانی ممکن نشد.'))
+      .catch(() => {
+        post('/sync')
+          .then(() => setTick((n) => n + 1))
+          .catch(() => setError('شروع به‌روزرسانی ممکن نشد.'))
+      })
   }
   const firstCore = useRef(true)
   const prevCore = useRef(core)
@@ -143,7 +150,7 @@ export default function App({ onLogout }) {
   }, [principal, core, month, dims, page, arg])
   if (me.error) return <div className="exec-alert err" role="alert" dir="rtl">دریافت اطلاعات حساب ناموفق بود.</div>
   if (!principal) return <div className="banner" dir="rtl">در حال بارگذاری…</div>
-  const title = page === 'admin' ? 'مدیریت کاربران و نقش‌ها' : page ? NAV.find(([k]) => k === page)[1] : 'بدون دسترسی'
+  const title = page === 'admin' ? 'مدیریت کاربران و نقش‌ها' : page ? (NAV.find(([k]) => k === page)?.[1] ?? 'گزارش') : 'بدون دسترسی'
   const subtitle = page === 'chat'
     ? 'پرسش و پاسخ روی دادهٔ فروش · پاسخ‌ها فقط از هسته‌ها و شعب مجاز همین حساب خوانده می‌شوند'
     : page === 'admin'
@@ -158,7 +165,7 @@ export default function App({ onLogout }) {
 
   return (
     <ExecShell
-      page={page} onNavigate={go} core={core} cores={visibleCores} setCore={setCore} title={title} subtitle={subtitle}
+      page={page} arg={arg} onNavigate={go} core={core} cores={visibleCores} setCore={setCore} title={title} subtitle={subtitle}
       month={month} setMonth={setMonth} filters={options.data ?? {}} dims={dims} onFilterChange={setDim}
       onReset={() => { setMonth(''); setDims({}) }} showFilters={reports && !['health', 'customer', 'target', 'chat', 'club_b2b', 'club_visitor'].includes(page)} hideMonth={['monthly', 'growth', 'inactive', 'potential', 'chat', 'club_b2b', 'club_visitor'].includes(page)}
       error={error} partial={partial} lastDataDate={health?.last_data_date} syncState={syncState} syncNotice={syncNotice} onDismissNotice={() => setSyncNotice('')} onRefresh={startSync} onLogout={onLogout} user={principal.user}
@@ -167,8 +174,8 @@ export default function App({ onLogout }) {
       {page === 'admin' && isAdmin && <AdminPage />}
       {page === 'chat' && <ChatPage />}
       {page in CLUB_KIND && reports && (principal.is_admin
-        ? <ClubPage kind={CLUB_KIND[page]} core={core} />
-        : CLUB_KIND[page] === 'visitor' ? <MyVisitorClub /> : <MyClub />)}
+        ? <ClubPage kind={CLUB_KIND[page]} core={core} arg={arg} />
+        : CLUB_KIND[page] === 'visitor' ? <MyVisitorClub arg={arg} /> : <MyClub arg={arg} />)}
       {page && page !== 'admin' && !allowedCores.length && <div className="empty">برای این حساب هسته‌ای فعال نشده است.</div>}
       {reports && page !== 'admin' && <>
       {page === 'overview' && <ExecutiveDashboard p={p} cal={cal} month={month} setMonth={setMonth} onOpenReturns={() => go('returns')} />}
@@ -187,7 +194,7 @@ export default function App({ onLogout }) {
       {page === 'inactive' && <InactiveCustomersPage p={p} openCustomer={(c) => go('customer', c)} openVisitor={(c) => go('visitor', c)} />}
       {page === 'potential' && <PotentialCustomersPage p={p} openCustomer={(c) => go('customer', c)} openVisitor={(c) => go('visitor', c)} />}
       {page === 'customer' && <CustomerPage key={arg} core={core} code={arg} setCode={(c) => go('customer', c)} openReturns={(a) => go('returns', a)} />}
-      {page === 'health' && <HealthPage health={health} meta={meta} quality={quality} />}
+      {page === 'health' && <HealthPage health={health} meta={meta} quality={quality} biSync={biSync} onTriggerBiSync={startSync} isAdmin={isAdmin} />}
       {page === 'tickets' && <TicketsPage isAdmin={!!me.data?.is_admin} />}
       </>}
     </ExecShell>

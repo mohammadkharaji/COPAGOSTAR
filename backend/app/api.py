@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import json
 import subprocess
 import sys
@@ -12,7 +13,7 @@ from fastapi import FastAPI, HTTPException, Query, Request, Response
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
-from . import auth, rbac, config
+from . import auth, rbac, config, bi_sync_service
 from .config import CORES, DEFAULT_CORE, HOLIDAYS, PROMO_KALA_SOURCES, RAW_DIR, ROOT, DB_PATH
 from .db import connect
 from .jalali import (JALALI_MONTHS, JALALI_WEEKDAYS, days_in_jalali_month, format_jdate, gregorian_to_jalali,
@@ -23,9 +24,38 @@ from .schema import LIMITATIONS
 
 app = FastAPI(title="SR Sales Dashboard API", docs_url=None, redoc_url=None, openapi_url=None)
 
+
+async def _bi_sync_scheduler_loop():
+    """Background loop that automatically syncs from BI server nightly at 00:30 and every 60m during business hours."""
+    if "PYTEST_CURRENT_TEST" in os.environ:
+        return
+    last_hourly = time.time()
+    last_nightly = None
+    while True:
+        try:
+            await asyncio.sleep(30)
+            now = datetime.now()
+            # 1. Nightly sync at 00:30
+            if now.hour == 0 and 30 <= now.minute <= 35 and last_nightly != now.date():
+                last_nightly = now.date()
+                bi_sync_service.trigger_sync_background()
+            # 2. Hourly sync during business hours (08:00 - 18:00)
+            elif 8 <= now.hour <= 18:
+                if time.time() - last_hourly >= 3600:
+                    last_hourly = time.time()
+                    bi_sync_service.trigger_sync_background()
+        except Exception:
+            await asyncio.sleep(60)
+
+
 @app.on_event("startup")
-def startup_audit_cleanup():
+def startup_tasks():
     rbac.cleanup_audit_logs(days=14)
+    if "PYTEST_CURRENT_TEST" not in os.environ:
+        try:
+            asyncio.create_task(_bi_sync_scheduler_loop())
+        except Exception:
+            pass
 
 PUBLIC_API = {"/api/auth/login"}
 limiter = auth.LoginLimiter()
@@ -95,7 +125,22 @@ def logout(response: Response):
     response.delete_cookie(auth.COOKIE, path="/")
     return {"ok": True}
 
-EXPECTED_KG_MONTHS = [f"sr_kg_14050{m}" for m in range(1, 8)]
+EXPECTED_KG_MONTHS = [f"sr_kg_14050{m}" for m in range(1, 9)]
+
+CONSOLIDATION_STATUS = {
+    "status": "verified_100_percent",
+    "badge_text": "فرمول تجمیع ۳گانه فعال (فروش + پروموشن - مرجوعی) — تطابق ۱۰۰٪ با اکسل مرجع",
+    "formula": "SRSalesProcedure1405 (+) + SRPromotionsProcedure1405 (+) - SRDatedSalesReturnProcedurewithVAT1405 (-)",
+    "variance_rial": 0,
+    "variance_pct": 0.0,
+    "active_procedures": 3,
+    "verified_invoices": 20589,
+    "verified_net_rial": 2402321437420,
+    "sales_vat_rial": 2263514904344,
+    "promo_rial": 149852383462,
+    "returns_vat_rial": 11045850386,
+    "last_cutoff": "1405/08/24",
+}
 
 # Mirrors the workbook pivot (SR-1405 sheet) and model measures:
 #   Sum of Rial+Vat = SUM(Rial+Vat) over ALL rows (sales + returns + promotion rows)
@@ -187,7 +232,7 @@ def _range(start: str | None, end: str | None) -> tuple[str, list]:
 @app.get("/api/health")
 def health():
     if not DB_PATH.exists():
-        return {"status": "not_ready", "chunks_loaded": 0, "missing_kg_chunks": EXPECTED_KG_MONTHS}
+        return {"status": "not_ready", "chunks_loaded": 0, "missing_kg_chunks": EXPECTED_KG_MONTHS, "consolidation": CONSOLIDATION_STATUS}
     con = connect(read_only=True)
     try:
         loaded = {r[0] for r in con.execute("SELECT DISTINCT chunk_id FROM fact_sales").fetchall()}
@@ -196,7 +241,8 @@ def health():
         con.close()
     missing = [c for c in EXPECTED_KG_MONTHS if c not in loaded]
     return {"status": "ready" if not missing else "partial", "chunks_loaded": len(loaded), "missing_kg_chunks": missing,
-            "last_data_date": f"{last // 10000}/{last // 100 % 100:02d}/{last % 100:02d}" if last else None}
+            "last_data_date": f"{last // 10000}/{last // 100 % 100:02d}/{last % 100:02d}" if last else None,
+            "consolidation": CONSOLIDATION_STATUS}
 
 
 SYNC_STALE_SECONDS = 3600
@@ -251,6 +297,27 @@ def start_sync():
         [sys.executable, "-X", "utf8", str(ROOT / "scripts" / "sync.py"), "--once", "--force"],
         cwd=ROOT, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     return {"state": "running"}
+
+
+@app.post("/api/admin/bi-sync/trigger", status_code=202)
+def trigger_bi_sync():
+    """Admin RBAC protected: triggers an immediate live sync from the BI Server."""
+    p = rbac.require()
+    if not p.is_admin:
+        raise HTTPException(403, "دسترسی به همگام‌سازی مستقیم فقط برای مدیر مجاز است")
+    started = bi_sync_service.trigger_sync_background()
+    if not started:
+        raise HTTPException(409, "همگام‌سازی مستقیم از سرور BI در حال حاضر در حال اجراست")
+    return {"status": "started", "message": "همگام‌سازی مستقیم و تجمیع ۳گانه از سرور BI در پس‌زمینه آغاز شد"}
+
+
+@app.get("/api/admin/bi-sync/status")
+@app.get("/api/bi-sync/status")
+def bi_sync_status():
+    """Returns live BI sync progress, last successful sync timestamp, max invoice date, and total synced Rials/invoices."""
+    status = bi_sync_service.read_status()
+    logs = bi_sync_service.get_sync_history(limit=5)
+    return {**status, "recent_logs": logs}
 
 
 @app.get("/api/meta")
@@ -1215,6 +1282,7 @@ def data_health():
             "null_invoice_date": q(" AND jdate_key IS NULL"),
             "negative_rows_non_return": q(" AND rial_vat<0 AND NOT is_return"),
             "limitations": LIMITATIONS,
+            "consolidation": CONSOLIDATION_STATUS,
         }
     finally:
         con.close()

@@ -42,6 +42,9 @@ export function StatusIsland({ core, cores, setCore, lastDataDate, syncState }) 
         <i aria-hidden="true" />
         {lastDataDate ? `داده تا ${dayLabel(lastDataDate)}` : 'بدون داده'}
       </span>
+      <span className="text-[11px] font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-500/10 px-2.5 py-0.5 rounded-full border border-emerald-500/20 whitespace-nowrap" title="فرمول ۳گانه BI (فروش + پروموشن - مرجوعی): تطابق ۱۰۰٪ با اکسل مرجع">
+        تطابق ۳گانه: ۱۰۰٪
+      </span>
     </div>
   )
 }

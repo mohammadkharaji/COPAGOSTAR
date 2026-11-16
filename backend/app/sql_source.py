@@ -56,6 +56,26 @@ PROMO_SPEC = {
     "tax": "0", "toll": "0", "total_discount": "TotalDiscount", "discount": "0",
     "settlement_discount": "TotalDiscountBySettlementInInvoiceRecord",
 }
+# Returns rows from SRDatedSalesReturnProcedurewithVAT1405 (with negative amounts for net consolidation)
+_TEXT_FROM_RETURNS = {
+    "product_name": "Product_Name", "brand": "Brand_Name", "main_unit": "UnitPacking_Name",
+    "invoice_code": "InvoiceCode", "year_month": "MonthOfInsert", "invoice_date": "DateFactor",
+    "customer_code": "CustomerCode", "customer_name": "CustomerName", "visitor": "Salesman",
+    "visitor_code": "SalesmanCode", "supervisor": "Supervisore", "branch": "OperationBranches",
+    "branch_code": "MasoulBranch", "distributor": "Movaze", "region": "Mantaghe",
+    "city_name": "NULL", "state": "NULL", "guild": "Guild", "sales_point_name": "SalesPointName",
+    "group_name": "[GROUP]", "grade": "[گرید بندی]", "account_class": "[طبقه حساب مشتری]",
+    "sales_type": "BusinessType", "is_formal": "NULL", "product_code": "Product_Code",
+    "status": "N'مرجوعی'", "record_kind": "NULL",
+}
+RETURNS_SPEC = {
+    **_TEXT_FROM_RETURNS, "row_id": "CODE",
+    "rial_vat": "- (" + _sum("TotalPrice", "Tax", "Toll") + ")",
+    "qty": "- ISNULL(Quantity, 0)", "total": "- ISNULL(TotalPrice, 0)",
+    "tax": "- ISNULL(Tax, 0)", "toll": "- ISNULL(Toll, 0)",
+    "total_discount": "- ISNULL(DISCOUNT, 0)", "discount": "ISNULL(DISCOUNT, 0)",
+    "settlement_discount": "0",
+}
 SOURCES = {SALES_TABLE: SALES_SPEC, PROMO_TABLE: PROMO_SPEC}
 
 Fetch = Callable[[str, dict, str], list[dict]]
@@ -80,9 +100,25 @@ def connect():
     import pyodbc
 
     env = _read_env(ENV_FILE)
+    if not env.get("BI_DB_HOST"):
+        root_env = Path(__file__).resolve().parents[2] / ".env"
+        if root_env.exists():
+            env.update(_read_env(root_env))
+
+    avail = pyodbc.drivers()
+    driver = DRIVER
+    for d in ["ODBC Driver 18 for SQL Server", "ODBC Driver 17 for SQL Server", "ODBC Driver 13 for SQL Server", "SQL Server"]:
+        if d in avail:
+            driver = d
+            break
+
     pwd = "{" + env["BI_DB_PASSWORD"].replace("}", "}}") + "}"
-    conn_str = (f"DRIVER={{{DRIVER}}};SERVER={env['BI_DB_HOST']};DATABASE={env['BI_DB_NAME']};UID={env['BI_DB_USER']};"
-                f"PWD={pwd};Encrypt=yes;TrustServerCertificate=yes;ApplicationIntent=ReadOnly;Connection Timeout=15")
+    host = env["BI_DB_HOST"]
+    port = env.get("BI_DB_PORT", "1433")
+    server = f"{host},{port}" if ("," not in host and ":" not in host and port) else host
+
+    conn_str = (f"DRIVER={{{driver}}};SERVER={server};DATABASE={env['BI_DB_NAME']};UID={env['BI_DB_USER']};"
+                f"PWD={pwd};Encrypt=no;TrustServerCertificate=yes;ApplicationIntent=ReadOnly;Connection Timeout=15")
     return pyodbc.connect(conn_str, readonly=True)
 
 

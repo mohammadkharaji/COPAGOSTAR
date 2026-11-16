@@ -344,7 +344,7 @@ def core_clause(col: str = "core") -> tuple[str, list]:
 # Open to every logged-in user: the app shell (sidebar, filter bar, data freshness, calendar, sync state). Anything about
 # sales numbers in them is still limited to the user's cores and branches.
 SHELL = {"/api/auth/me", "/api/auth/logout", "/api/admin/me/password", "/api/health", "/api/meta", "/api/data-health", "/api/calendar",
-         "/api/sync-status", "/api/filters"}
+         "/api/sync-status", "/api/filters", "/api/bi-sync/status"}
 # Endpoint -> pages that may use it (several pages share some endpoints, e.g. /overview is also on the visitor page).
 EXACT = {
     "/api/overview": ("overview", "visitor"), "/api/monthly": ("monthly", "overview"), "/api/growth": ("growth", "overview"),

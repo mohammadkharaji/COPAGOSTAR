@@ -7,6 +7,7 @@ connection, so the existing ingest and reports are untouched. Access is enforced
 from __future__ import annotations
 
 import json
+import logging
 from datetime import datetime
 
 from fastapi import APIRouter, HTTPException, Request
@@ -451,6 +452,20 @@ def link_account(body: LinkBody):
         finally:
             con.close()
     return {"ok": True}
+
+
+def recompute_active_plans() -> int:
+    """Recompute point snapshots for all active club plans in club.duckdb after a sales sync."""
+    refreshed = 0
+    for kind in ("b2b", "visitor"):
+        for plan in _plans(kind):
+            if plan.get("active"):
+                try:
+                    _compute(plan, kind)
+                    refreshed += 1
+                except Exception as exc:
+                    logging.getLogger("club").warning("Failed to refresh club plan %s: %s", plan.get("id"), exc)
+    return refreshed
 
 
 _routes("b2b")
