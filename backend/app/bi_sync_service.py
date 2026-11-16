@@ -5,27 +5,27 @@ extracts and consolidates the 3 core procedures:
   1. SRSalesProcedure1405 (Gross Sales with VAT) [+]
   2. SRPromotionsProcedure1405 (Active Promotions, excluding 'کل برگشتی') [+]
   3. SRDatedSalesReturnProcedurewithVAT1405 (Dated Sales Returns with VAT) [-]
-and performs a zero-downtime atomic refresh into data/sr.duckdb and club.duckdb.
+and performs a zero-downtime atomic staging refresh into data/sr.duckdb and club.duckdb.
 """
 from __future__ import annotations
 
 import json
 import logging
 import os
-import re
+import shutil
 import threading
 import time
 from datetime import datetime, date
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional
 
 import duckdb
+import pyarrow as pa
 from sqlalchemy import create_engine, text
 
-from . import config, db, rbac
+from . import config, db
 from .jalali import gregorian_to_jalali
-from .normalize import normalize_text, normalize_code
-from .schema import COLUMN_MAP, NUMERIC, TEXT, PRODUCT_DIMS
+from .schema import NUMERIC, TEXT, PRODUCT_DIMS
 
 logger = logging.getLogger("bi_sync")
 
@@ -37,12 +37,16 @@ PROMO_EXCLUDED_STATUS = "کل برگشتي"
 CORE_KG = "کوپا گستر"
 
 STATUS_FILE = config.DATA_DIR / "bi_sync_status.json"
+STAGING_DB_PATH = config.DATA_DIR / "sr_staging.duckdb"
+STALE_LOCK_TIMEOUT_SECONDS = 300  # 5 minutes
 
 _sync_lock = threading.Lock()
 _is_running = False
 
+
 def _sum(*cols: str) -> str:
     return " + ".join(f"ISNULL({c}, 0)" for c in cols)
+
 
 # Field mapping specs
 _TEXT_FROM_SALES = {
@@ -96,7 +100,7 @@ SOURCES = {
 
 
 def _read_env() -> Dict[str, str]:
-    """Parse credentials from .env files."""
+    """Parse credentials from .env files and environment variables safely."""
     env = {}
     search_paths = [
         Path("/etc/sr/auth.env"),
@@ -106,22 +110,26 @@ def _read_env() -> Dict[str, str]:
         config.ROOT / ".evn",
     ]
     for p in reversed(search_paths):
-        if p.is_file():
-            with open(p, "r", encoding="utf-8") as f:
-                for line in f:
-                    line = line.strip()
-                    if not line or line.startswith("#") or "=" not in line:
-                        continue
-                    k, v = line.split("=", 1)
-                    k = k.strip()
-                    v = v.strip()
-                    if (v.startswith('"') and v.endswith('"')) or (v.startswith("'") and v.endswith("'")):
-                        v = v[1:-1]
-                    elif "  #" in v:
-                        v = v.split("  #", 1)[0].strip()
-                    env[k] = v
+        try:
+            if p.is_file():
+                with open(p, "r", encoding="utf-8") as f:
+                    for line in f:
+                        line = line.strip()
+                        if not line or line.startswith("#") or "=" not in line:
+                            continue
+                        k, v = line.split("=", 1)
+                        k = k.strip()
+                        v = v.strip()
+                        if (v.startswith('"') and v.endswith('"')) or (v.startswith("'") and v.endswith("'")):
+                            v = v[1:-1]
+                        elif "  #" in v:
+                            v = v.split("  #", 1)[0].strip()
+                        env[k] = v
+        except Exception as e:
+            logger.debug("Skipping env file %s: %s", p, e)
 
-    for k in ("BI_DB_HOST", "BI_DB_PORT", "BI_DB_NAME", "BI_DB_USER", "BI_DB_PASSWORD", "BI_DB_PASS"):
+    for k in ("BI_DB_HOST", "BI_DB_PORT", "BI_DB_NAME", "BI_DB_USER", "BI_DB_PASSWORD", "BI_DB_PASS",
+              "SR_AUTH_USER", "SR_AUTH_PASS_HASH", "SR_AUTH_SECRET"):
         if k in os.environ:
             env[k] = os.environ[k]
     return env
@@ -201,17 +209,68 @@ def get_current_jalali_months() -> List[str]:
 
 def write_status(state: str, **kwargs) -> None:
     """Persist sync status to JSON for real-time polling by the frontend."""
-    STATUS_FILE.parent.mkdir(parents=True, exist_ok=True)
-    payload = {
-        "state": state,
-        "updated_at": datetime.now().isoformat(timespec="seconds"),
-        **kwargs,
-    }
-    STATUS_FILE.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+    try:
+        STATUS_FILE.parent.mkdir(parents=True, exist_ok=True)
+        payload = {
+            "state": state,
+            "updated_at": datetime.now().isoformat(timespec="seconds"),
+            **kwargs,
+        }
+        STATUS_FILE.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+    except Exception as e:
+        logger.warning("Could not write sync status: %s", e)
 
 
-def read_status() -> Dict[str, Any]:
+def _check_and_recover_stale_lock() -> bool:
+    """If sync has been 'running' or 'staging' for > 5 min, or thread died, auto-recover."""
+    global _is_running, _sync_lock
+    st = read_status(skip_stale_check=True)
+    state = st.get("state")
+    if state not in ("running", "staging"):
+        return False
+
+    started_at_str = st.get("started_at") or st.get("updated_at")
+    is_timed_out = False
+    if started_at_str:
+        try:
+            started_dt = datetime.fromisoformat(started_at_str)
+            elapsed = (datetime.now() - started_dt).total_seconds()
+            if elapsed > STALE_LOCK_TIMEOUT_SECONDS:
+                is_timed_out = True
+        except Exception:
+            is_timed_out = True
+
+    has_active_worker = any(
+        t.name == "bi-sync-worker" and t.is_alive() for t in threading.enumerate()
+    )
+
+    if is_timed_out or not has_active_worker:
+        logger.warning(
+            "Auto-recovering stale BI sync lock (timed_out=%s, active_thread=%s, started_at=%s)",
+            is_timed_out, has_active_worker, started_at_str
+        )
+        _is_running = False
+        try:
+            if _sync_lock.locked():
+                _sync_lock.release()
+        except Exception:
+            _sync_lock = threading.Lock()
+
+        write_status(
+            "failed",
+            started_at=started_at_str,
+            error="عملیات همگام‌سازی بیش از ۵ دقیقه طول کشید یا متوقف شد (تایم‌اوت خودکار و آزادسازی قفل).",
+            stale_recovered=True,
+        )
+        return True
+    return False
+
+
+def read_status(skip_stale_check: bool = False) -> Dict[str, Any]:
     """Read the latest persisted sync status."""
+    if not skip_stale_check:
+        _check_and_recover_stale_lock()
+
     if not STATUS_FILE.is_file():
         return {
             "state": "idle",
@@ -228,137 +287,258 @@ def read_status() -> Dict[str, Any]:
         return {"state": "idle"}
 
 
+def _safe_replace(src: Path, dst: Path) -> None:
+    """Atomically replace dst with src, retrying on Windows transient locks."""
+    for attempt in range(5):
+        try:
+            os.replace(src, dst)
+            return
+        except PermissionError:
+            if attempt == 4:
+                raise
+            time.sleep(0.3)
+
+
 def execute_bi_sync(months: Optional[List[str]] = None) -> Dict[str, Any]:
-    """Execute direct extraction and atomic refresh from BI SQL Server to DuckDB."""
-    global _is_running
+    """Execute direct extraction and atomic refresh from BI SQL Server to DuckDB using PyArrow staging."""
+    global _is_running, _sync_lock
+    _check_and_recover_stale_lock()
+
     if not _sync_lock.acquire(blocking=False):
         raise RuntimeError("Another BI sync is currently running.")
 
     _is_running = True
     start_time = time.time()
     started_at = datetime.now().isoformat(timespec="seconds")
+    staging_duck_con: Optional[duckdb.DuckDBPyConnection] = None
 
     if not months:
-        # Default to current month(s)
         months = ["140508"]
 
-    write_status(
-        "running",
-        started_at=started_at,
-        months=months,
-        message="در حال اتصال و استخراج مستقیم ۳ پروسیجر از سرور BI...",
-    )
-
-    engine = get_bi_engine()
-    duck_con = db.connect(read_only=False)
-    init_sync_tables(duck_con)
-
     try:
-        total_extracted_rows = 0
-        all_rows = []
+        write_status(
+            "running",
+            step=1,
+            total_steps=4,
+            progress=5,
+            started_at=started_at,
+            months=months,
+            message="گام ۱/۴: برقراری اتصال به سرور مرکزی BI و آماده‌سازی دیتابیس واسط (Staging)...",
+        )
+
+        # 1. Prepare Staging DuckDB file
+        active_db = config.DB_PATH
+        if STAGING_DB_PATH.exists():
+            try:
+                STAGING_DB_PATH.unlink()
+            except Exception:
+                pass
+
+        if active_db.exists():
+            shutil.copy2(active_db, STAGING_DB_PATH)
+            # Remove any stale wal for staging
+            Path(str(STAGING_DB_PATH) + ".wal").unlink(missing_ok=True)
+        else:
+            active_db.parent.mkdir(parents=True, exist_ok=True)
+
+        staging_duck_con = duckdb.connect(str(STAGING_DB_PATH), read_only=False)
+        init_sync_tables(staging_duck_con)
+
+        # Vectorized Persian normalization macro in DuckDB C++
+        staging_duck_con.execute("""
+            CREATE OR REPLACE MACRO fa_norm(s) AS (
+                trim(regexp_replace(
+                    replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(
+                        COALESCE(s, ''),
+                        'ي', 'ی'), 'ى', 'ی'), 'ك', 'ک'), 'ۀ', 'ه'), 'ة', 'ه'), 'ؤ', 'و'), 'إ', 'ا'), 'أ', 'ا'), 'ـ', ''), '‌', ' '),
+                    '\\s+', ' ', 'g'
+                ))
+            );
+        """)
+
+        # Temporary staging table matching exact fact_sales structure
+        staging_duck_con.execute("DROP TABLE IF EXISTS fact_sales_staging;")
+        staging_duck_con.execute("""
+            CREATE TEMPORARY TABLE fact_sales_staging AS 
+            SELECT * FROM fact_sales WHERE 1=0;
+        """)
+
+        engine = get_bi_engine()
 
         sales_vat_total = 0.0
         promo_total = 0.0
         returns_vat_total = 0.0
         max_date = ""
+        total_extracted_rows = 0
+
+        # Step configuration for UI feedback
+        steps_info = [
+            (SALES_TABLE, 1, "گام ۱/۴: استخراج فروش با مالیات از SRSalesProcedure1405..."),
+            (PROMO_TABLE, 2, "گام ۲/۴: استخراج پروموشن‌ها از SRPromotionsProcedure1405..."),
+            (RETURNS_TABLE, 3, "گام ۳/۴: استخراج مرجوعی‌ها از SRDatedSalesReturnProcedurewithVAT1405..."),
+        ]
 
         with engine.connect() as bi_conn:
-            for ym in months:
-                for table, (spec, is_p, is_r) in SOURCES.items():
-                    select_exprs = [f"({expr}) AS {field}" for field, expr in spec.items()]
-                    select_sql = ", ".join(select_exprs)
-                    
+            # Optimize ODBC fetch buffer size
+            raw_connection = bi_conn.connection
+            cursor = raw_connection.cursor()
+            cursor.arraysize = 10000
+
+            for table, step_num, step_label in steps_info:
+                spec, is_p, is_r = SOURCES[table]
+                progress_pct = 10 + (step_num - 1) * 25
+                write_status(
+                    "running",
+                    step=step_num,
+                    total_steps=4,
+                    progress=progress_pct,
+                    started_at=started_at,
+                    months=months,
+                    message=step_label,
+                    total_rows=total_extracted_rows,
+                )
+
+                select_exprs = [f"({expr}) AS {field}" for field, expr in spec.items()]
+                select_sql = ", ".join(select_exprs)
+
+                for ym in months:
                     where_clause = f"WHERE MonthOfInsert = '{ym}'"
                     if table == PROMO_TABLE:
                         where_clause += f" AND Status <> N'{PROMO_EXCLUDED_STATUS}'"
-                    
+
                     query = f"SELECT {select_sql} FROM dbo.{table} {where_clause}"
-                    cur = bi_conn.execute(text(query))
-                    fetched = cur.fetchall()
-                    col_names = cur.keys()
+                    cursor.execute(query)
+                    col_names = [d[0] for d in cursor.description]
+                    fetched_rows = cursor.fetchall()
+                    if not fetched_rows:
+                        continue
 
-                    for r in fetched:
-                        d = dict(zip(col_names, r))
-                        d["source_table"] = table
-                        d["core"] = CORE_KG
-                        d["chunk_id"] = f"sr_kg_{ym}"
-                        d["is_promo"] = is_p
-                        d["is_return"] = is_r
+                    # Transpose to columnar format for PyArrow
+                    num_rows = len(fetched_rows)
+                    total_extracted_rows += num_rows
 
-                        # Parse jdate_key
-                        inv_date = str(d.get("invoice_date") or "").strip()
-                        digits = inv_date.replace("/", "")
-                        d["jdate_key"] = int(digits) if digits.isdigit() and len(digits) == 8 else None
+                    col_dict = {col: [r[i] for r in fetched_rows] for i, col in enumerate(col_names)}
 
-                        if inv_date > max_date:
-                            max_date = inv_date
+                    # Convert dates and numbers if needed
+                    for r in fetched_rows:
+                        inv_d = str(r[col_names.index("invoice_date")] or "").strip()
+                        if inv_d > max_date:
+                            max_date = inv_d
 
-                        r_vat = float(d.get("rial_vat") or 0.0)
+                    # Accumulate totals
+                    r_vat_idx = col_names.index("rial_vat")
+                    for r in fetched_rows:
+                        val = float(r[r_vat_idx] or 0.0)
                         if is_p:
-                            promo_total += r_vat
+                            promo_total += val
                         elif is_r:
-                            returns_vat_total += abs(r_vat)
+                            returns_vat_total += abs(val)
                         else:
-                            sales_vat_total += r_vat
+                            sales_vat_total += val
 
-                        # Text normalization
-                        for col in TEXT:
-                            d[col] = normalize_text(d.get(col))
+                    # Build PyArrow Table for zero-copy DuckDB registration
+                    arrow_dict = {}
+                    for col, values in col_dict.items():
+                        if col in NUMERIC:
+                            arrow_dict[col] = [float(v) if v is not None else 0.0 for v in values]
+                        else:
+                            arrow_dict[col] = [str(v) if v is not None else "" for v in values]
 
-                        # Numeric casting
-                        for col in NUMERIC:
-                            d[col] = float(d.get(col) or 0.0)
+                    arrow_tbl = pa.Table.from_pydict(arrow_dict)
+                    staging_duck_con.register("raw_step_arrow", arrow_tbl)
 
-                        all_rows.append(d)
-                        total_extracted_rows += 1
+                    staging_duck_con.execute(f"""
+                        INSERT INTO fact_sales_staging (
+                            chunk_id, jdate_key, is_promo, is_return, row_id,
+                            product_name, brand, main_unit, invoice_code, year_month, invoice_date,
+                            customer_code, customer_name, visitor, visitor_code, supervisor,
+                            branch, branch_code, distributor, region, city_name, state, guild,
+                            sales_point_name, group_name, grade, account_class, sales_type,
+                            is_formal, unique_product_code, product_code, status, source_table,
+                            record_kind, core,
+                            rial_vat, qty, total, tax, toll, total_discount, discount, settlement_discount,
+                            main_group, sub_group
+                        )
+                        SELECT
+                            'sr_kg_{ym}' AS chunk_id,
+                            TRY_CAST(replace(substr(invoice_date, 1, 10), '/', '') AS INTEGER) AS jdate_key,
+                            {str(is_p).lower()}::BOOLEAN AS is_promo,
+                            {str(is_r).lower()}::BOOLEAN AS is_return,
+                            row_id,
+                            fa_norm(product_name),
+                            fa_norm(brand),
+                            fa_norm(main_unit),
+                            trim(invoice_code),
+                            trim(year_month),
+                            trim(invoice_date),
+                            trim(customer_code),
+                            fa_norm(customer_name),
+                            fa_norm(visitor),
+                            trim(visitor_code),
+                            fa_norm(supervisor),
+                            fa_norm(branch),
+                            trim(branch_code),
+                            fa_norm(distributor),
+                            fa_norm(region),
+                            fa_norm(city_name),
+                            fa_norm(state),
+                            fa_norm(guild),
+                            fa_norm(sales_point_name),
+                            fa_norm(group_name),
+                            fa_norm(grade),
+                            fa_norm(account_class),
+                            fa_norm(sales_type),
+                            fa_norm(is_formal),
+                            NULL AS unique_product_code,
+                            trim(product_code),
+                            fa_norm(status),
+                            '{table}' AS source_table,
+                            fa_norm(record_kind),
+                            '{CORE_KG}' AS core,
+                            rial_vat::DOUBLE,
+                            qty::DOUBLE,
+                            total::DOUBLE,
+                            tax::DOUBLE,
+                            toll::DOUBLE,
+                            total_discount::DOUBLE,
+                            discount::DOUBLE,
+                            settlement_discount::DOUBLE,
+                            NULL AS main_group,
+                            NULL AS sub_group
+                        FROM raw_step_arrow;
+                    """)
+                    staging_duck_con.unregister("raw_step_arrow")
 
-        if not all_rows:
+            cursor.close()
+
+        if total_extracted_rows == 0:
             raise ValueError(f"No rows were returned from BI SQL Server for months: {months}")
 
-        write_status("staging", started_at=started_at, total_rows=total_extracted_rows, message="در حال اعتبارسنجی و به‌روزرسانی اتمیک DuckDB...")
+        # Step 4: Staging validation and atomic swap
+        write_status(
+            "staging",
+            step=4,
+            total_steps=4,
+            progress=90,
+            started_at=started_at,
+            total_rows=total_extracted_rows,
+            message="گام ۴/۴: به‌روزرسانی ابعاد کالا، تطبیق فرمول تجمیع و جایگزینی اتمیک DuckDB...",
+        )
 
-        import csv
-        import tempfile
-
-        out_cols = ["chunk_id", "jdate_key", "is_promo", "is_return", *TEXT, *NUMERIC, *PRODUCT_DIMS]
-        with tempfile.NamedTemporaryFile("w", suffix=".csv", delete=False, newline="", encoding="utf-8") as tmp:
-            w = csv.writer(tmp)
-            for r in all_rows:
-                digits = str(r.get("invoice_date") or "").replace("/", "")
-                row = [r["chunk_id"], digits if (digits.isdigit() and len(digits) == 8) else "", r["is_promo"], r["is_return"]]
-                row += [r.get(c) or "" for c in TEXT]
-                row += [r.get(c) or 0.0 for c in NUMERIC]
-                row += ["", ""]
-                w.writerow(row)
-            tmp_name = tmp.name
-
+        # Update product dimensions from dim_product if available
         try:
-            duck_con.execute("DROP TABLE IF EXISTS fact_sales_staging;")
-            col_types = ", ".join(f"'{c}': 'VARCHAR'" for c in out_cols)
-            duck_con.execute(f"""
-                CREATE TEMPORARY TABLE fact_sales_staging AS 
-                SELECT 
-                    chunk_id, TRY_CAST(jdate_key AS INTEGER) as jdate_key, 
-                    is_promo::BOOLEAN as is_promo, is_return::BOOLEAN as is_return,
-                    {", ".join(f"NULLIF({c},'') as {c}" for c in TEXT)},
-                    {", ".join(f"TRY_CAST(NULLIF({c},'') AS DOUBLE) as {c}" for c in NUMERIC)},
-                    NULL::VARCHAR as main_group, NULL::VARCHAR as sub_group
-                FROM read_csv(?, header=false, all_varchar=true, columns={{{col_types}}});
-            """, [tmp_name])
-        finally:
-            Path(tmp_name).unlink(missing_ok=True)
-
-        # Join dim_product to populate main_group and sub_group
-        duck_con.execute("""
-            UPDATE fact_sales_staging
-            SET main_group = p.main_group,
-                sub_group = p.sub_group
-            FROM dim_product p
-            WHERE fact_sales_staging.unique_product_code = p.unique_product_code;
-        """)
+            staging_duck_con.execute("""
+                UPDATE fact_sales_staging
+                SET main_group = p.main_group,
+                    sub_group = p.sub_group
+                FROM dim_product p
+                WHERE fact_sales_staging.product_code = p.unique_product_code;
+            """)
+        except Exception as e:
+            logger.debug("dim_product join skipped: %s", e)
 
         # Verification of staging data
-        staging_stats = duck_con.execute("""
+        staging_stats = staging_duck_con.execute("""
             SELECT 
                 COUNT(*) as rows,
                 COUNT(DISTINCT invoice_code) as invs,
@@ -370,26 +550,19 @@ def execute_bi_sync(months: Optional[List[str]] = None) -> Dict[str, Any]:
         if stg_rows == 0:
             raise ValueError("Staging verification failed: 0 rows in staging table.")
 
-        # Zero-downtime atomic swap inside a single transaction
-        duck_con.execute("BEGIN TRANSACTION;")
+        # Atomic swap inside staging database
+        staging_duck_con.execute("BEGIN TRANSACTION;")
         month_list_sql = ", ".join(f"'{m}'" for m in months)
-        duck_con.execute(f"DELETE FROM fact_sales WHERE core = '{CORE_KG}' AND year_month IN ({month_list_sql});")
-        duck_con.execute("INSERT INTO fact_sales SELECT * FROM fact_sales_staging;")
-        duck_con.execute("COMMIT;")
-
-        # Refresh club loyalty points in club.duckdb if available
-        try:
-            from . import club
-            club.recompute_active_plans()
-        except Exception as e:
-            logger.warning("Club points refresh skipped: %s", e)
+        staging_duck_con.execute(f"DELETE FROM fact_sales WHERE core = '{CORE_KG}' AND year_month IN ({month_list_sql});")
+        staging_duck_con.execute("INSERT INTO fact_sales SELECT * FROM fact_sales_staging;")
+        staging_duck_con.execute("COMMIT;")
 
         duration = time.time() - start_time
         completed_at = datetime.now().isoformat(timespec="seconds")
         net_combined_rial = sales_vat_total + promo_total - returns_vat_total
 
-        # Log into bi_sync_logs
-        duck_con.execute("""
+        # Log into bi_sync_logs inside staging
+        staging_duck_con.execute("""
             INSERT INTO bi_sync_logs (
                 started_at, completed_at, duration_sec, status, months_synced,
                 total_rows, total_invoices, total_net_rial, sales_vat_rial,
@@ -400,6 +573,26 @@ def execute_bi_sync(months: Optional[List[str]] = None) -> Dict[str, Any]:
             stg_rows, stg_invs, net_combined_rial, sales_vat_total,
             promo_total, returns_vat_total, max_date, None
         ])
+
+        # Close staging connection cleanly to flush WAL and release file lock
+        staging_duck_con.close()
+        staging_duck_con = None
+
+        # Clean staging wal if any
+        Path(str(STAGING_DB_PATH) + ".wal").unlink(missing_ok=True)
+
+        # Atomic OS rename / replace onto active database
+        _safe_replace(STAGING_DB_PATH, active_db)
+
+        # Clean active wal if leftover
+        Path(str(active_db) + ".wal").unlink(missing_ok=True)
+
+        # Refresh club loyalty points in club.duckdb if available
+        try:
+            from . import club
+            club.recompute_active_plans()
+        except Exception as e:
+            logger.warning("Club points refresh skipped: %s", e)
 
         result_data = {
             "status": "success",
@@ -418,35 +611,65 @@ def execute_bi_sync(months: Optional[List[str]] = None) -> Dict[str, Any]:
             "formula": "SRSalesProcedure1405 (+) + SRPromotionsProcedure1405 (+) - SRDatedSalesReturnProcedurewithVAT1405 (-)",
         }
 
-        write_status("idle", **result_data, last_successful_sync=completed_at)
+        write_status(
+            "idle",
+            **result_data,
+            last_successful_sync=completed_at,
+            progress=100,
+            step=4,
+            total_steps=4,
+            message="همگام‌سازی مستقیم با موفقیت کامل انجام شد.",
+        )
         return result_data
 
     except Exception as exc:
         duration = time.time() - start_time
         err_msg = str(exc)
         logger.error("BI sync failed: %s", err_msg, exc_info=True)
+
+        if staging_duck_con is not None:
+            try:
+                staging_duck_con.close()
+            except Exception:
+                pass
+
+        if STAGING_DB_PATH.exists():
+            try:
+                STAGING_DB_PATH.unlink()
+            except Exception:
+                pass
+
+        # Try to record failure in active DB logs
         try:
-            duck_con.execute("""
+            active_con = db.connect(read_only=False)
+            init_sync_tables(active_con)
+            active_con.execute("""
                 INSERT INTO bi_sync_logs (
                     started_at, completed_at, duration_sec, status, months_synced,
                     total_rows, total_invoices, total_net_rial, sales_vat_rial,
                     promo_rial, returns_vat_rial, max_invoice_date, error_message
                 ) VALUES (?, ?, ?, ?, ?, 0, 0, 0, 0, 0, 0, ?, ?);
             """, [started_at, datetime.now().isoformat(timespec="seconds"), duration, "FAILED", ",".join(months or []), "", err_msg])
+            active_con.close()
         except Exception:
             pass
 
-        write_status("failed", started_at=started_at, error=err_msg)
+        write_status("failed", started_at=started_at, error=err_msg, message=f"خطا در همگام‌سازی: {err_msg}")
         raise
 
     finally:
-        duck_con.close()
         _is_running = False
-        _sync_lock.release()
+        try:
+            if _sync_lock.locked():
+                _sync_lock.release()
+        except Exception:
+            pass
 
 
 def trigger_sync_background(months: Optional[List[str]] = None) -> bool:
     """Trigger the sync in a detached background daemon thread."""
+    _check_and_recover_stale_lock()
+
     if _is_running or _sync_lock.locked():
         return False
 
@@ -457,28 +680,29 @@ def trigger_sync_background(months: Optional[List[str]] = None) -> bool:
 
 def get_sync_history(limit: int = 10) -> List[Dict[str, Any]]:
     """Retrieve recent sync logs from bi_sync_logs table."""
-    con = db.connect(read_only=True)
     try:
-        rows = con.execute("""
-            SELECT id, started_at, completed_at, duration_sec, status,
-                   months_synced, total_rows, total_invoices, total_net_rial,
-                   sales_vat_rial, promo_rial, returns_vat_rial, max_invoice_date, error_message
-            FROM bi_sync_logs
-            ORDER BY id DESC
-            LIMIT ?
-        """, [limit]).fetchall()
+        con = db.connect(read_only=True)
+        try:
+            rows = con.execute("""
+                SELECT id, started_at, completed_at, duration_sec, status,
+                       months_synced, total_rows, total_invoices, total_net_rial,
+                       sales_vat_rial, promo_rial, returns_vat_rial, max_invoice_date, error_message
+                FROM bi_sync_logs
+                ORDER BY id DESC
+                LIMIT ?
+            """, [limit]).fetchall()
 
-        cols = [
-            "id", "started_at", "completed_at", "duration_sec", "status",
-            "months_synced", "total_rows", "total_invoices", "total_net_rial",
-            "sales_vat_rial", "promo_rial", "returns_vat_rial", "max_invoice_date", "error_message"
-        ]
-        return [dict(zip(cols, r)) for r in rows]
+            cols = [
+                "id", "started_at", "completed_at", "duration_sec", "status",
+                "months_synced", "total_rows", "total_invoices", "total_net_rial",
+                "sales_vat_rial", "promo_rial", "returns_vat_rial", "max_invoice_date", "error_message"
+            ]
+            return [dict(zip(cols, r)) for r in rows]
+        finally:
+            con.close()
     except Exception as e:
         logger.warning("Could not read bi_sync_logs: %s", e)
         return []
-    finally:
-        con.close()
 
 
 def get_bi_sync_status(limit: int = 10) -> Dict[str, Any]:
@@ -486,4 +710,3 @@ def get_bi_sync_status(limit: int = 10) -> Dict[str, Any]:
     status = read_status()
     logs = get_sync_history(limit=limit)
     return {**status, "recent_logs": logs}
-

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 import { getActiveModule } from './AmbientCanvas'
+import { getDefaultLandingPage } from './App'
 import { isItemActive, MODULAR_PILLARS, UTILITY_PILLAR } from './ExecutiveDashboard'
 
 describe('Appearance and Theme Logic', () => {
@@ -100,5 +101,30 @@ describe('Modular 3-Pillar Architecture', () => {
     const overviewItem = { id: 'overview' }
     expect(isItemActive(overviewItem, 'overview')).toBe(true)
     expect(isItemActive(overviewItem, 'trend')).toBe(false)
+  })
+
+  it('determines the correct default landing route based on RBAC permissions', () => {
+    // Admin with all permissions lands on 'overview' (NOT 'club_b2b')
+    const adminPages = ['overview', 'trend', 'monthly', 'target', 'club_b2b', 'club_visitor', 'tickets', 'chat']
+    expect(getDefaultLandingPage(adminPages, true)).toBe('overview')
+
+    // Sales & Analytics user with overview lands on 'overview'
+    const salesPages = ['overview', 'trend', 'club_b2b', 'tickets']
+    expect(getDefaultLandingPage(salesPages, false)).toBe('overview')
+
+    // B2B Customer account strictly lacking overview lands on 'club_b2b'
+    const b2bCustomerPages = ['club_b2b', 'tickets']
+    expect(getDefaultLandingPage(b2bCustomerPages, false)).toBe('club_b2b')
+
+    // Visitor account strictly lacking overview lands on 'club_visitor'
+    const visitorPages = ['club_visitor', 'tickets']
+    expect(getDefaultLandingPage(visitorPages, false)).toBe('club_visitor')
+
+    // User lacking overview and club pages falls back to their first allowed report
+    const customReportPages = ['trend', 'branch', 'tickets']
+    expect(getDefaultLandingPage(customReportPages, false)).toBe('trend')
+
+    // Pure admin with no standard report pages falls back to 'admin'
+    expect(getDefaultLandingPage([], true)).toBe('admin')
   })
 })

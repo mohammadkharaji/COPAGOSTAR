@@ -195,7 +195,7 @@ function QuickSelect({ label, value, options, onChange, format = (x) => x }) {
 /* ---------- پوستهٔ مشترک همهٔ صفحه‌ها ---------- */
 export function ExecShell({
   page, arg = '', onNavigate, core, cores, setCore, title, subtitle, month, setMonth, filters = {}, dims = {}, onFilterChange, onReset,
-  showFilters = true, hideMonth = false, error, partial, lastDataDate, syncState = 'never', syncNotice, onDismissNotice, onRefresh, onLogout, user, allowedPages = null, isAdmin = false, canSync = false, children,
+  showFilters = true, hideMonth = false, error, partial, lastDataDate, syncState = 'never', syncNotice, syncMessage = '', syncProgress = 0, onDismissNotice, onRefresh, onLogout, user, allowedPages = null, isAdmin = false, canSync = false, children,
 }) {
   const { mode, isDark, isSolid, isLight } = useAppearance()
   const [pwOpen, setPwOpen] = useState(false)
@@ -255,7 +255,7 @@ export function ExecShell({
       setOpenPillars((s) => ({ ...s, club_visitor: true }))
     } else if (['chat', 'tickets', 'admin', 'health'].includes(page)) {
       setOpenPillars((s) => ({ ...s, utility: true }))
-    } else if (page) {
+    } else if (page === 'overview' || page) {
       setOpenPillars((s) => ({ ...s, sales: true }))
     }
   }, [page])
@@ -702,6 +702,8 @@ export function ExecShell({
           setCore={page === 'admin' ? () => {} : setCore}
           lastDataDate={lastDataDate}
           syncState={syncState}
+          syncMessage={syncMessage}
+          syncProgress={syncProgress}
           onRefresh={onRefresh}
           canSync={canSync}
           page={page}

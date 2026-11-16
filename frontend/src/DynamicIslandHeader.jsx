@@ -27,6 +27,8 @@ export default function DynamicIslandHeader({
   setCore,
   lastDataDate,
   syncState = 'never',
+  syncMessage = '',
+  syncProgress = 0,
   onRefresh,
   canSync = false,
   page,
@@ -147,7 +149,7 @@ export default function DynamicIslandHeader({
               </span>
               <span className="text-xs font-semibold whitespace-nowrap">
                 {running
-                  ? 'در حال دریافت مستقیم از سرور BI…'
+                  ? (syncMessage || 'در حال دریافت مستقیم از سرور BI…')
                   : lastDataDate
                   ? `وضعیت داده: به‌روز تا ${dayLabel(lastDataDate)}`
                   : 'پایگاه داده متصل'}
@@ -454,7 +456,7 @@ export default function DynamicIslandHeader({
                       }`}
                     >
                       <RefreshCw size={13} className={running ? 'animate-spin' : ''} />
-                      <span>{running ? 'در حال دریافت مستقیم از سرور BI…' : 'همگام‌سازی فوری از سرور BI'}</span>
+                      <span>{running ? (syncMessage || 'در حال دریافت مستقیم از سرور BI…') : 'همگام‌سازی فوری از سرور BI'}</span>
                     </button>
                   )}
                 </div>

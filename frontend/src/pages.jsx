@@ -2490,9 +2490,17 @@ export function HealthPage({ health, meta, quality, biSync, onTriggerBiSync, isA
               <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${
                 isRunning ? 'bg-amber-500/10 text-amber-700 animate-pulse' : 'bg-emerald-500/10 text-emerald-700'
               }`}>
-                {isRunning ? 'در حال استخراج مستقیم از BI...' : 'متصل و فعال (زمان‌بندی خودکار ۰۰:۳۰ و ساعتی)'}
+                {isRunning ? (biData?.message || 'در حال استخراج مستقیم از BI...') : 'متصل و فعال (زمان‌بندی خودکار ۰۰:۳۰ و ساعتی)'}
               </span>
             </div>
+            {isRunning && (
+              <div className="w-full bg-black/5 rounded-full h-1.5 overflow-hidden mt-2">
+                <div
+                  className="bg-gradient-to-r from-amber-500 to-emerald-500 h-full rounded-full transition-all duration-300"
+                  style={{ width: `${biData?.progress || 25}%` }}
+                />
+              </div>
+            )}
             <div className="flex items-center gap-3 text-xs text-[#86868B] mt-1 flex-wrap">
               <span>سرور: <code className="font-mono text-[11px] text-[#1D1D1F]">185.119.242.128:1433</code></span>
               <span>•</span>
@@ -2518,7 +2526,7 @@ export function HealthPage({ health, meta, quality, biSync, onTriggerBiSync, isA
               }`}
             >
               <RefreshCw size={15} className={isRunning ? 'animate-spin' : ''} />
-              {isRunning ? 'در حال همگام‌سازی مستقیم...' : 'همگام‌سازی فوری از سرور BI'}
+              {isRunning ? (biData?.message || 'در حال همگام‌سازی...') : 'همگام‌سازی فوری از سرور BI'}
             </button>
           ) : (
             <div className="text-xs text-[#86868B] bg-black/[0.03] px-3 py-1.5 rounded-xl">

@@ -13,6 +13,15 @@ const CORES = { kg: 'کوپا گستر', ch: 'زنجیره‌ای' }
 const SHARED_KEYS = ['month', 'branch', 'region', 'state', 'city', 'brand', 'group', 'grade', 'sales_type', 'main_group', 'sub_group', 'product', 'reason']
 const PAGE_IDS = [...NAV.map(([k]) => k), 'admin']
 const CLUB_KIND = { club_b2b: 'b2b', club_visitor: 'visitor' }
+
+export function getDefaultLandingPage(allowedPages = [], isAdmin = false) {
+  const hasOverview = allowedPages.includes('overview')
+  const clubPage = NAV.find(([k]) => CLUB_KIND[k] && allowedPages.includes(k))?.[0]
+  const firstAllowedNav = NAV.find(([k]) => allowedPages.includes(k))?.[0]
+  return hasOverview
+    ? 'overview'
+    : (clubPage ?? firstAllowedNav ?? (isAdmin ? 'admin' : null))
+}
 // An unknown page is '' here; App turns it (and any page the user may not open) into the first page they can access.
 const parseHash = () => {
   const [path, query = ''] = location.hash.slice(1).split('?')
@@ -52,9 +61,12 @@ export default function App({ onLogout }) {
   const allowedCores = useMemo(() => Object.keys(CORES).filter((k) => principal?.cores?.includes(k)), [principal])
   const visibleCores = useMemo(() => Object.fromEntries(allowedCores.map((k) => [k, CORES[k]])), [allowedCores])
   const isAdmin = Boolean(principal?.is_admin)
-  // A club account lands on its own club page; tickets stays available but is never the landing page.
-  const clubPage = NAV.find(([k]) => CLUB_KIND[k] && allowedPages.includes(k))?.[0]
-  const home = clubPage ?? NAV.find(([k]) => allowedPages.includes(k))?.[0] ?? (isAdmin ? 'admin' : null)
+  // Default landing route:
+  // 1. Users with access to 'overview' (Sales & Analytics) always land on 'overview'.
+  // 2. Only fall back to club_b2b or club_visitor if the logged-in user's role strictly lacks access to 'overview'
+  //    (such as a B2B customer account or a visitor account).
+  // 3. Otherwise fall back to the first allowed page in NAV (or 'admin' for pure admins).
+  const home = getDefaultLandingPage(allowedPages, isAdmin)
   const canOpen = (pg) => (pg === 'admin' ? isAdmin : allowedPages.includes(pg))
   // A hash for a page the user may not open falls back to their first allowed page.
   const page = principal ? (canOpen(route.page) ? route.page : home) : null
@@ -146,7 +158,13 @@ export default function App({ onLogout }) {
   useEffect(() => {
     if (!principal) return
     const next = `#${buildHash(page ?? '', arg)}`
-    if (location.hash !== next) history.replaceState(null, '', next)
+    if (location.hash !== next) {
+      if (!location.hash || location.hash === '#' || !canOpen(route.page)) {
+        window.location.hash = next
+      } else {
+        history.replaceState(null, '', next)
+      }
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [principal, core, month, dims, page, arg])
   if (me.error) return <div className="exec-alert err" role="alert" dir="rtl">دریافت اطلاعات حساب ناموفق بود.</div>
@@ -171,7 +189,7 @@ export default function App({ onLogout }) {
       page={page} arg={arg} onNavigate={go} core={core} cores={visibleCores} setCore={setCore} title={title} subtitle={subtitle}
       month={month} setMonth={setMonth} filters={options.data ?? {}} dims={dims} onFilterChange={setDim}
       onReset={() => { setMonth(''); setDims({}) }} showFilters={reports && !['health', 'customer', 'target', 'chat', 'club_b2b', 'club_visitor', 'customer_metrics'].includes(page)} hideMonth={['monthly', 'growth', 'inactive', 'potential', 'customer_metrics', 'chat', 'club_b2b', 'club_visitor'].includes(page)}
-      error={error} partial={partial} lastDataDate={health?.last_data_date} syncState={syncState} syncNotice={syncNotice} onDismissNotice={() => setSyncNotice('')} onRefresh={startSync} onLogout={onLogout} user={principal.user}
+      error={error} partial={partial} lastDataDate={health?.last_data_date} syncState={syncState} syncNotice={syncNotice} syncMessage={biData?.message} syncProgress={biData?.progress} onDismissNotice={() => setSyncNotice('')} onRefresh={startSync} onLogout={onLogout} user={principal.user}
       allowedPages={allowedPages} isAdmin={isAdmin} canSync={isAdmin}
     >
       {page === 'admin' && isAdmin && <AdminPage />}

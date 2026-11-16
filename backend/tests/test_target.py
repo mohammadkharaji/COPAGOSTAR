@@ -139,3 +139,21 @@ def test_no_target_loaded_reports_unavailable(tmp_path, monkeypatch):
     j = c.get("/api/target").json()
     assert j["available"] is False and j["months"] == [] and "بارگذاری" in j["reason"]
     assert c.get("/api/target", params={"core": "ch"}).json()["available"] is False
+
+def test_month_sales_helper_matches_report(client):
+    from app import target_sales
+    from app.db import connect
+    con = connect(read_only=True)
+    try:
+        rows = target_sales.month_sales(con, "کوپا گستر", "140507")
+        by_name = target_sales.visitor_codes_by_name(con, "کوپا گستر")
+    finally:
+        con.close()
+    # 1000 - 200 + 70 (no category) for visitor 11; 500 + 50 promo for visitor 12; 300 for 13
+    by_code = {}
+    for _, _, code, _, _, rial in rows:
+        by_code[code] = by_code.get(code, 0) + rial
+    assert by_code == {"11": 870, "12": 550, "13": 300}
+    assert target_sales.resolve_code("", "رضا احمدی", by_name) == "12"
+    assert target_sales.resolve_code("", "ویزیتور جدید", by_name) is None
+    assert target_sales.resolve_code("99", "رضا احمدی", by_name) == "99"

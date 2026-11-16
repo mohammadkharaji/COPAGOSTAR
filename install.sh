@@ -94,8 +94,9 @@ if [ -n "${SR_ADMIN_PASSWORD:-}" ] || [ ! -f "$AUTH_ENV" ]; then
     printf 'SR_AUTH_USER=%s\nSR_AUTH_PASS_HASH=%s\nSR_AUTH_SECRET=%s\n' "${SR_ADMIN_USER:-admin}" "$HASH" "$SECRET" > "$AUTH_ENV" )
   PW=""
 fi
-chown root:root "$AUTH_ENV"
-chmod 600 "$AUTH_ENV"
+chown root:sr "$AUTH_ENV"
+chmod 640 "$AUTH_ENV"
+[ ! -f /etc/sr/bi.env ] || { chown root:sr /etc/sr/bi.env && chmod 640 /etc/sr/bi.env; }
 
 echo "==> systemd services (port $PORT)"
 install -m 644 "$APP_DIR/deploy/sr-api.service" /etc/systemd/system/sr-api.service
