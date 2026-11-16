@@ -143,23 +143,26 @@ def get_bi_engine():
     except Exception:
         available = []
 
-    preferred = [
-        "ODBC Driver 18 for SQL Server",
-        "ODBC Driver 17 for SQL Server",
-        "ODBC Driver 13 for SQL Server",
-        "SQL Server",
-    ]
-    driver = "SQL Server"
-    for drv in preferred:
-        if drv in available:
-            driver = drv
-            break
+    if "FreeTDS" in available:
+        odbc_conn = f"DSN=BI_SQL;UID={user};PWD={password};Connection Timeout=20;"
+    else:
+        preferred = [
+            "ODBC Driver 18 for SQL Server",
+            "ODBC Driver 17 for SQL Server",
+            "ODBC Driver 13 for SQL Server",
+            "SQL Server",
+        ]
+        driver = "SQL Server"
+        for drv in preferred:
+            if drv in available:
+                driver = drv
+                break
 
-    safe_pwd = password.replace("}", "}}")
-    odbc_conn = (
-        f"DRIVER={{{driver}}};SERVER={server};DATABASE={db_name};UID={user};PWD={{{safe_pwd}}};"
-        "Encrypt=no;TrustServerCertificate=yes;ApplicationIntent=ReadOnly;Connection Timeout=20;"
-    )
+        safe_pwd = password.replace("}", "}}")
+        odbc_conn = (
+            f"DRIVER={{{driver}}};SERVER={server};DATABASE={db_name};UID={user};PWD={{{safe_pwd}}};"
+            "Encrypt=no;TrustServerCertificate=yes;ApplicationIntent=ReadOnly;Connection Timeout=20;"
+        )
     url = f"mssql+pyodbc:///?odbc_connect={urllib.parse.quote_plus(odbc_conn)}"
     return create_engine(url, pool_pre_ping=True)
 
