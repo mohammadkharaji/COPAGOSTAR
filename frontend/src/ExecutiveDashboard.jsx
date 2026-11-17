@@ -80,7 +80,9 @@ export const MODULAR_PILLARS = [
     icon: BarChart3,
     subgroups: [
       {
+        id: 'sales_perf',
         label: 'فروش و عملکرد',
+        icon: TrendingUp,
         items: [
           { id: 'overview', label: 'نمای کلی', icon: LayoutDashboard },
           { id: 'trend', label: 'روند روزانه', icon: Activity },
@@ -90,7 +92,9 @@ export const MODULAR_PILLARS = [
         ],
       },
       {
+        id: 'branches_products',
         label: 'شعب، کالا و پارتو',
+        icon: Building2,
         items: [
           { id: 'branch', label: 'شعب و مناطق', icon: MapPin },
           { id: 'product', label: 'کالا و برند', icon: ShoppingBag },
@@ -101,7 +105,9 @@ export const MODULAR_PILLARS = [
         ],
       },
       {
+        id: 'customers_invoices',
         label: 'مشتریان و فاکتورها',
+        icon: Users,
         items: [
           { id: 'customer_metrics', label: 'آنالیز شاخصهای خرید مشتریان', icon: Users },
           { id: 'inactive', label: 'مشتریان غیرفعال', icon: UserX },
@@ -252,18 +258,32 @@ export function ExecShell({
     utility: ['chat', 'tickets', 'admin', 'health'].includes(page),
   }))
 
-  // Auto-expand pillar that contains the active page
+  // Accordion state for the 3 independent subgroups under 'sales'
+  const [openSubgroups, setOpenSubgroups] = useState(() => ({
+    sales_perf: !page || page === 'overview' || ['overview', 'trend', 'monthly', 'growth', 'target'].includes(page),
+    branches_products: ['branch', 'product', 'profile', 'pareto', 'returns', 'quantity'].includes(page),
+    customers_invoices: ['customer_metrics', 'inactive', 'potential', 'invoice', 'customer', 'visitor'].includes(page),
+  }))
+
+  // Auto-expand pillar and the specific subgroup that contains the active page
   useEffect(() => {
-    if (page === 'club_b2b') {
+    if (['overview', 'trend', 'monthly', 'growth', 'target'].includes(page) || !page) {
+      setOpenPillars((s) => ({ ...s, sales: true }))
+      setOpenSubgroups((s) => ({ ...s, sales_perf: true }))
+    } else if (['branch', 'product', 'profile', 'pareto', 'returns', 'quantity'].includes(page)) {
+      setOpenPillars((s) => ({ ...s, sales: true }))
+      setOpenSubgroups((s) => ({ ...s, branches_products: true }))
+    } else if (['customer_metrics', 'inactive', 'potential', 'invoice', 'customer', 'visitor'].includes(page)) {
+      setOpenPillars((s) => ({ ...s, sales: true }))
+      setOpenSubgroups((s) => ({ ...s, customers_invoices: true }))
+    } else if (page === 'club_b2b') {
       setOpenPillars((s) => ({ ...s, club_b2b: true }))
     } else if (page === 'club_visitor') {
       setOpenPillars((s) => ({ ...s, club_visitor: true }))
     } else if (['chat', 'tickets', 'admin', 'health'].includes(page)) {
       setOpenPillars((s) => ({ ...s, utility: true }))
-    } else if (page === 'overview' || page) {
-      setOpenPillars((s) => ({ ...s, sales: true }))
     }
-  }, [page])
+  }, [page, arg])
 
   const currentPageLabel = useMemo(() => {
     if (page === 'admin') return 'مدیریت کاربران'
@@ -552,16 +572,61 @@ export function ExecShell({
                     {isOpen && (
                       <div className="mt-1 space-y-1 pr-1">
                         {pillar.id === 'sales' ? (
-                          pillar.subgroups.map((sg, sgi) => (
-                            <div key={sg.label} className={sgi > 0 ? 'mt-2 pt-1.5 border-t border-black/[0.04] dark:border-white/5' : ''}>
-                              <span className="text-[10px] font-bold text-[#86868B] dark:text-[#98989D] px-2 py-0.5 block tracking-wider">
-                                {sg.label}
-                              </span>
-                              <div className="space-y-0.5 mt-0.5">
-                                {sg.items.map((item) => renderMenuItem(item, pillar, false))}
-                              </div>
-                            </div>
-                          ))
+                          <div className="space-y-1.5 mt-0.5">
+                            {pillar.subgroups.map((sg) => {
+                              const isSubOpen = !!openSubgroups[sg.id]
+                              const SgIcon = sg.icon || BarChart3
+                              const hasActive = sg.items.some((item) => isItemActive(item, page, arg))
+
+                              return (
+                                <div key={sg.id} className="rounded-2xl transition-all">
+                                  {/* Subgroup Accordion Header */}
+                                  <button
+                                    type="button"
+                                    onClick={() => setOpenSubgroups((prev) => ({ ...prev, [sg.id]: !isSubOpen }))}
+                                    className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-xl text-xs font-bold transition-all select-none ${
+                                      isDark
+                                        ? 'text-[#F5F5F7] hover:bg-white/[0.06]'
+                                        : 'text-[#1D1D1F] hover:bg-black/[0.04]'
+                                    }`}
+                                    aria-expanded={isSubOpen}
+                                  >
+                                    <div className="flex items-center gap-2 min-w-0">
+                                      <span
+                                        className="w-6 h-6 rounded-lg flex items-center justify-center shrink-0 shadow-xs"
+                                        style={{ backgroundColor: `${pillar.accentColor}20`, color: pillar.accentColor }}
+                                      >
+                                        <SgIcon size={13} />
+                                      </span>
+                                      <span className="font-extrabold tracking-tight truncate text-[11.5px]">{sg.label}</span>
+                                    </div>
+                                    <div className="flex items-center gap-1.5 shrink-0">
+                                      {!isSubOpen && hasActive && (
+                                        <span
+                                          className="w-2 h-2 rounded-full animate-pulse shadow-xs"
+                                          style={{ backgroundColor: pillar.accentColor }}
+                                          aria-label="آیتم فعال در این بخش است"
+                                        />
+                                      )}
+                                      <ChevronDown
+                                        size={13}
+                                        className={`transition-transform duration-200 text-[#86868B] dark:text-[#98989D] ${
+                                          isSubOpen ? 'rotate-180' : ''
+                                        }`}
+                                      />
+                                    </div>
+                                  </button>
+
+                                  {/* Subgroup Accordion Content */}
+                                  {isSubOpen && (
+                                    <div className="mt-1 space-y-0.5 pr-2">
+                                      {sg.items.map((item) => renderMenuItem(item, pillar, false))}
+                                    </div>
+                                  )}
+                                </div>
+                              )
+                            })}
+                          </div>
                         ) : (
                           <div className="space-y-0.5">
                             {pillar.items.map((item) => renderMenuItem(item, pillar, false))}
