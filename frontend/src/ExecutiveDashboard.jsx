@@ -1378,6 +1378,7 @@ export default function ExecutiveDashboard({ p, cal, month, setMonth, onOpenRetu
   // Executive KPI calculations (reconciled with DuckDB)
   const returnsRial = o ? Math.abs(o.returns_rial ?? 0) : 0
   const aov = (o && o.invoice_count) ? Math.round(o.net_rial / o.invoice_count) : null
+  const arpu = (o && o.active_customers) ? Math.round(o.net_rial / o.active_customers) : null
   const targetAchieved = target.data?.summary?.achieved_pct ?? null
   const targetTotal = target.data?.summary?.target_rial ?? null
 
@@ -1401,14 +1402,14 @@ export default function ExecutiveDashboard({ p, cal, month, setMonth, onOpenRetu
 
       {/* ── 6×2 KPI widget grid (Executive, non-duplicate, no digit truncation) ─────────────────────────────── */}
       <KpiSpotlight items={[
-        { icon: Undo2, label: 'مبلغ مرجوعی', value: o ? billions1(returnsRial) : '—', unit: 'میلیارد ریال · مرجوعی کل', tooltip: o ? `${fa(returnsRial)} ریال مرجوعی فروش` : undefined, tone: 'red', onClick: onOpenReturns },
+        { icon: UserCheck, label: 'میانگین خرید هر مشتری', value: arpu ? fa(arpu) : '—', unit: 'ریال · میانگین هر مشتری یکتا', tooltip: arpu ? `${fa(arpu)} ریال میانگین خرید هر مشتری یکتا` : undefined, tone: 'indigo' },
         { icon: PackageSearch, label: 'تعداد کالا', value: o ? fa(o.sum_qty) : '—', unit: 'عدد', tone: 'violet' },
         { icon: PackageSearch, label: 'تعداد کالا خالص', value: o ? fa(o.sum_qty_net) : '—', unit: 'عدد · منهای مرجوعی', tone: 'violet' },
         { icon: FileText, label: 'تعداد فاکتور', value: o ? fa(o.invoice_count) : '—', unit: 'فقره', tone: 'amber' },
         { icon: TrendingUp, label: 'درصد رشد فاکتور', value: pct(invoiceGrowth), unit: growthLabel ? `${growthLabel} نسبت به ماه قبل` : 'مقایسه با ماه قبل', tone: 'teal' },
         { icon: ListOrdered, label: 'میانگین سطر فاکتور', value: invoiceLines.data ? fa2(invoiceLines.data.avg_lines_per_invoice) : '—', unit: 'سطر در هر فاکتور', tone: 'sky' },
         { icon: Users, label: 'مشتری فعال', value: o ? fa(o.active_customers) : '—', unit: 'مشتری یکتا', tone: 'pink' },
-        { icon: Receipt, label: 'میانگین هر فاکتور (AOV)', value: aov ? fa(aov) : '—', unit: 'ریال · ارزش سفارش', tooltip: aov ? `${fa(aov)} ریال میانگین ارزش هر فاکتور` : undefined, tone: 'teal' },
+        { icon: Receipt, label: 'میانگین مبلغ فاکتور', value: aov ? fa(aov) : '—', unit: 'ریال · ارزش سفارش', tooltip: aov ? `${fa(aov)} ریال میانگین مبلغ فاکتور (AOV)` : undefined, tone: 'teal' },
         { icon: Target, label: 'درصد تحقق تارگت', value: targetAchieved != null ? pct(targetAchieved) : (target.loading ? '…' : '—'), unit: targetTotal ? `از تارگت ${billions1(targetTotal)} م.ر` : 'از هدف فروش دوره', tooltip: target.data?.summary ? `تحقق: ${fa(target.data.summary.actual_rial)} از هدف ${fa(target.data.summary.target_rial)} ریال` : undefined, tone: targetAchieved >= 1 ? 'teal' : targetAchieved >= 0.9 ? 'amber' : 'red' },
         { icon: Undo2, label: 'حواله‌های برگشتی', value: retTotal ? fa(retTotal.returned_orders) : '—', unit: retNote ?? `${pct(retTotal.returned_order_percent)} از ${fa(retTotal.orders)} حواله`, tone: 'amber', onClick: onOpenReturns },
         { icon: PackageX, label: 'درصد برگشتی حواله', value: retTotal ? pct(retTotal.return_percent) : '—', unit: retNote ?? (retTotal?.return_rial ? `${billions1(retTotal.return_rial)} م.ر برگشتی` : '—'), tooltip: retTotal?.return_rial ? `${fa(retTotal.return_rial)} ریال برگشتی` : undefined, tone: 'red', onClick: onOpenReturns },

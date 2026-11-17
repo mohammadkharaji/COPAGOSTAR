@@ -347,6 +347,7 @@ export function CalendarGlass({ cal }) {
 ───────────────────────────────────────────────────────────── */
 const TONE_COLORS = {
   blue:   'bg-blue-500/10 text-blue-600',
+  indigo: 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400',
   violet: 'bg-violet-500/10 text-violet-600',
   amber:  'bg-amber-500/10 text-amber-600',
   teal:   'bg-teal-500/10 text-teal-600',
