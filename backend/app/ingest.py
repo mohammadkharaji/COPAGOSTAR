@@ -159,7 +159,8 @@ def ingest_product(con, path: Path) -> dict:
     try:
         con.execute("BEGIN")
         con.execute("DELETE FROM dim_product")
-        con.execute("INSERT INTO dim_product SELECT unique_product_code, "
+        cols_sql = ", ".join(PRODUCT_DIM_COLS)
+        con.execute(f"INSERT INTO dim_product (unique_product_code, {cols_sql}) SELECT unique_product_code, "
                     + ", ".join(f"NULLIF({c},'')" for c in PRODUCT_DIM_COLS)
                     + " FROM read_csv(?, header=false, all_varchar=true, columns={'unique_product_code': 'VARCHAR', "
                     + ", ".join(f"'{c}': 'VARCHAR'" for c in PRODUCT_DIM_COLS) + "})", [tmp_name])
