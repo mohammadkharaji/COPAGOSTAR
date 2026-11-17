@@ -1,21 +1,17 @@
-import { useEffect, useRef, useState } from 'react'
-import { motion, AnimatePresence } from 'motion/react'
+import React, { useState, useRef, useEffect } from 'react'
 import {
-  Activity,
-  Award,
-  ChevronDown,
-  ChevronUp,
-  Database,
-  ExternalLink,
-  Layers,
   RefreshCw,
-  Server,
-  Sparkles,
   TrendingUp,
+  Award,
+  Crown,
+  ChevronDown,
+  ArrowUpRight,
+  Database,
+  Sparkles,
   Users,
   CheckCircle2,
-  Printer,
-  X,
+  Clock,
+  Layers,
 } from 'lucide-react'
 import { useAppearance } from './AppearanceContext'
 import { useApi, get } from './api'
@@ -61,80 +57,97 @@ export default function DynamicIslandHeader({
     recentUpgrades: Math.max(3, Math.min(12, Math.round((clubMembers.length || 24) * 0.25))),
   }
 
-  // 3. Quick overview query for net sales summary in compact state
-  const ovApi = useApi('/overview', { core }, true)
-  const netSalesRial = ovApi.data?.net_rial ?? 0
+  // 3. Quick metrics summary
+  const summaryApi = useApi('/overview', { core }, expanded)
+  const summary = summaryApi.data || {}
 
-  // Close on outside click
+  // Click outside to collapse
   useEffect(() => {
-    if (!expanded) return
-    const handleClick = (e) => {
+    function handleClickOutside(e) {
       if (containerRef.current && !containerRef.current.contains(e.target)) {
         setExpanded(false)
       }
     }
-    const handleKey = (e) => {
-      if (e.key === 'Escape') setExpanded(false)
+    if (expanded) {
+      document.addEventListener('mousedown', handleClickOutside)
     }
-    document.addEventListener('mousedown', handleClick)
-    document.addEventListener('keydown', handleKey)
-    return () => {
-      document.removeEventListener('mousedown', handleClick)
-      document.removeEventListener('keydown', handleKey)
-    }
+    return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [expanded])
 
+  // Core switcher click handler
+  const handleCoreSwitch = (e, targetCore) => {
+    e.stopPropagation()
+    if (setCore && targetCore !== core) {
+      setCore(targetCore)
+    }
+  }
+
+  // Core display label
+  const coreLabel = cores[core] || (core === 'kg' ? 'کوپا گستر' : 'زنجیره‌ای')
+
   return (
-    <div className="relative z-30 flex justify-center w-full px-2 mb-4" ref={containerRef}>
-      <motion.div
-        layout
-        transition={{ type: 'spring', stiffness: 380, damping: 28 }}
-        className={`transition-colors select-none ${
+    <div
+      ref={containerRef}
+      className="sticky top-2 z-40 w-full flex justify-center px-4 sm:px-6 pointer-events-none mb-3"
+    >
+      <div
+        onClick={() => setExpanded(!expanded)}
+        className={`pointer-events-auto transition-all duration-300 ease-out cursor-pointer select-none ${
           expanded
-            ? 'w-full max-w-4xl p-5 rounded-3xl'
-            : 'inline-flex items-center gap-3 px-3.5 py-1.5 rounded-full cursor-pointer hover:scale-[1.01] active:scale-[0.99]'
+            ? 'w-full max-w-4xl rounded-3xl shadow-[0_20px_50px_rgba(0,0,0,0.18)] p-5'
+            : 'rounded-full shadow-[0_8px_24px_rgba(0,0,0,0.10)] px-4 py-2 hover:shadow-[0_12px_32px_rgba(0,0,0,0.14)] active:scale-[0.99]'
         } ${
           isDark
-            ? 'bg-[#1C1C1E]/85 backdrop-blur-2xl border border-white/15 text-[#F5F5F7] shadow-[0_12px_36px_rgba(0,0,0,0.5)]'
+            ? isSolid
+              ? 'bg-[#1C1C1E] border border-white/10 text-white'
+              : 'bg-[#1C1C1E]/80 backdrop-blur-2xl border border-white/10 text-white'
             : isSolid
-            ? 'bg-white border border-slate-200 text-[#1D1D1F] shadow-md'
-            : 'bg-white/85 backdrop-blur-2xl border border-slate-200/80 text-[#1D1D1F] shadow-[0_8px_30px_rgba(15,23,42,0.08)]'
+            ? 'bg-white border border-black/10 text-[#1D1D1F]'
+            : 'bg-white/80 backdrop-blur-2xl border border-black/[0.08] text-[#1D1D1F]'
         }`}
-        onClick={() => !expanded && setExpanded(true)}
       >
+        {/* ── Compact Capsule Mode ── */}
         {!expanded ? (
-          /* ──────── COMPACT STATE ──────── */
-          <div className="flex items-center gap-3 w-full justify-between min-w-0">
-            {/* Core Segmented Switcher / Badge */}
+          <div className="flex items-center justify-between gap-3 text-xs">
+            {/* Core Segmented Switcher */}
             <div
-              className={`flex items-center gap-1 p-0.5 rounded-full ${
-                isDark ? 'bg-white/10' : 'bg-black/[0.04]'
+              className={`flex items-center p-0.5 rounded-full ${
+                isDark ? 'bg-white/10' : 'bg-black/5'
               }`}
               onClick={(e) => e.stopPropagation()}
             >
-              {Object.entries(cores || {}).map(([k, label]) => {
-                const isSelected = core === k
-                return (
-                  <button
-                    key={k}
-                    type="button"
-                    onClick={() => setCore(k)}
-                    className={`relative px-2.5 py-1 text-[11px] font-bold rounded-full transition-all ${
-                      isSelected
-                        ? '!bg-[#0071E3] !text-white shadow-xs'
-                        : isDark
-                        ? 'text-[#98989D] hover:text-white'
-                        : 'text-[#86868B] hover:text-[#1D1D1F]'
-                    }`}
-                  >
-                    {label}
-                  </button>
-                )
-              })}
+              {Object.keys(cores).length > 0 ? (
+                Object.entries(cores).map(([k, label]) => {
+                  const active = k === core
+                  return (
+                    <button
+                      key={k}
+                      type="button"
+                      onClick={(e) => handleCoreSwitch(e, k)}
+                      className={`px-3 py-1 rounded-full text-xs font-bold transition-all ${
+                        active
+                          ? 'bg-[#0071E3] text-white shadow-xs'
+                          : isDark
+                          ? 'text-white/60 hover:text-white'
+                          : 'text-[#86868B] hover:text-[#1D1D1F]'
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  )
+                })
+              ) : (
+                <span className="px-3 py-1 font-bold text-xs text-[#0071E3]">
+                  {coreLabel}
+                </span>
+              )}
             </div>
 
-            {/* Live DB Sync Status with Pulsing Dot */}
-            <div className="flex items-center gap-2 px-1">
+            {/* Divider */}
+            <div className={`h-3 w-px ${isDark ? 'bg-white/15' : 'bg-black/10'}`} />
+
+            {/* Live Data Status Indicator */}
+            <div className="flex items-center gap-2">
               <span className="relative flex h-2.5 w-2.5">
                 <span
                   className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${
@@ -163,287 +176,238 @@ export default function DynamicIslandHeader({
                   ? 'bg-emerald-500/10 border border-emerald-500/20 text-emerald-400'
                   : 'bg-emerald-50 border border-emerald-200 text-emerald-700'
               }`}
-              title="فرمول تجمیع ۳گانه BI (فروش + پروموشن - مرجوعی): تطابق ۱۰۰٪ با اکسل مرجع"
             >
-              <CheckCircle2 size={12} className="text-emerald-500 shrink-0" />
-              <span>تطابق ۳گانه BI: ۱۰۰٪ (۰ ریال اختلاف)</span>
+              <CheckCircle2 size={12} className="text-emerald-500" />
+              <span>فرمول ۳گانه BI (تطابق ۱۰۰٪)</span>
             </div>
 
-            {/* Quick Live Net Sales Indicator */}
-            {netSalesRial > 0 && (
-              <div
-                className={`hidden sm:flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold ${
-                  isDark
-                    ? 'bg-white/5 border border-white/10 text-emerald-400'
-                    : 'bg-emerald-50 border border-emerald-200 text-emerald-700'
-                }`}
-              >
-                <TrendingUp size={13} />
-                <span className="tabular-nums font-extrabold">{fa(Math.round(netSalesRial / 1e9))}</span>
-                <span className="text-[10px] font-normal">م. ریال</span>
-              </div>
-            )}
-
-            {/* Unified Quick Actions: Sync & Print */}
-            <div className="flex items-center gap-1 shrink-0" onClick={(e) => e.stopPropagation()}>
+            {/* Quick Refresh Button & Expand Arrow */}
+            <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
               {canSync && (
                 <button
                   type="button"
+                  title="به‌روزرسانی داده‌ها از سرور BI"
                   onClick={onRefresh}
                   disabled={running}
-                  className={`w-7 h-7 rounded-full flex items-center justify-center transition-colors ${
+                  className={`p-1.5 rounded-full transition-all ${
                     running ? 'cursor-wait opacity-60' : ''
                   } ${
                     isDark
-                      ? 'hover:bg-white/10 text-[#98989D] hover:text-white'
-                      : 'hover:bg-black/[0.05] text-[#86868B] hover:text-[#1D1D1F]'
+                      ? 'hover:bg-white/10 text-white/70 hover:text-white'
+                      : 'hover:bg-black/5 text-[#86868B] hover:text-[#1D1D1F]'
                   }`}
-                  aria-label="به‌روزرسانی داده"
-                  title="به‌روزرسانی سریع داده"
                 >
                   <RefreshCw size={13} className={running ? 'animate-spin' : ''} />
                 </button>
               )}
-              <button
-                type="button"
-                onClick={() => window.print()}
-                className={`w-7 h-7 rounded-full flex items-center justify-center transition-colors ${
-                  isDark
-                    ? 'hover:bg-white/10 text-[#98989D] hover:text-white'
-                    : 'hover:bg-black/[0.05] text-[#86868B] hover:text-[#1D1D1F]'
+              <div
+                onClick={() => setExpanded(true)}
+                className={`p-1 rounded-full cursor-pointer transition-transform duration-200 ${
+                  isDark ? 'hover:bg-white/10' : 'hover:bg-black/5'
                 }`}
-                aria-label="چاپ یا ذخیره PDF"
-                title="چاپ یا ذخیره PDF"
               >
-                <Printer size={13} />
-              </button>
-            </div>
-
-            {/* Expand Capsule Pill Trigger */}
-            <div
-              className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                isDark ? 'bg-white/10 text-[#98989D]' : 'bg-black/[0.04] text-[#86868B]'
-              }`}
-            >
-              <span>جزئیات</span>
-              <ChevronDown size={13} />
+                <ChevronDown size={14} className="opacity-60" />
+              </div>
             </div>
           </div>
         ) : (
-          /* ──────── EXPANDED STATE (MORPHED CARD) ──────── */
-          <div className="w-full space-y-4" dir="rtl">
-            {/* Header bar of expanded island */}
-            <div className="flex items-center justify-between pb-3 border-b border-black/[0.06] dark:border-white/10">
-              <div className="flex items-center gap-2.5">
-                <span className="w-8 h-8 rounded-xl bg-gradient-to-tr from-[#0071E3] to-[#42A1EC] text-white flex items-center justify-center shadow-sm">
-                  <Activity size={18} />
-                </span>
+          /* ── Expanded Island Full Tray ── */
+          <div className="space-y-4" onClick={(e) => e.stopPropagation()}>
+            {/* Header row in expanded state */}
+            <div className="flex items-center justify-between border-b pb-3 border-black/[0.06] dark:border-white/[0.08]">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-xl bg-[#0071E3]/10 text-[#0071E3] flex items-center justify-center font-bold">
+                  <Sparkles size={16} />
+                </div>
                 <div>
-                  <h3 className="text-sm font-extrabold tracking-tight">مرکز کنترل عملیات و همگام‌سازی (Dynamic Island)</h3>
-                  <p className="text-[11px] text-[#86868B] dark:text-[#98989D]">
-                    نمای زنده از برترین‌ها، ارتقای اعضا و سلامت اتصال داده
-                  </p>
+                  <div className="text-xs font-black tracking-tight">دیده‌بان هوشمند فروش و باشگاه مشتریان</div>
+                  <div className="text-[11px] text-[#86868B] dark:text-white/50">
+                    هسته فعال: <b className="text-[#0071E3]">{coreLabel}</b> · پایش بلادرنگ ۳ شاخص کلیدی
+                  </div>
                 </div>
               </div>
 
+              {/* Core selection buttons in expanded tray */}
               <div className="flex items-center gap-2">
-                {/* Core Picker inside expanded view */}
-                <div className={`flex items-center gap-1 p-0.5 rounded-full ${isDark ? 'bg-white/10' : 'bg-black/[0.04]'}`}>
-                  {Object.entries(cores || {}).map(([k, label]) => (
-                    <button
-                      key={k}
-                      type="button"
-                      onClick={() => setCore(k)}
-                      className={`px-3 py-1 text-xs font-bold rounded-full transition-all ${
-                        core === k ? '!bg-[#0071E3] !text-white shadow-xs' : 'text-[#86868B] dark:text-[#98989D]'
-                      }`}
-                    >
-                      {label}
-                    </button>
-                  ))}
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() => window.print()}
-                  className={`px-2.5 py-1 text-xs font-bold rounded-full flex items-center gap-1 transition-colors ${
-                    isDark ? 'bg-white/10 hover:bg-white/15 text-white' : 'bg-black/[0.05] hover:bg-black/[0.1] text-[#1D1D1F]'
+                <div
+                  className={`flex items-center p-0.5 rounded-xl ${
+                    isDark ? 'bg-white/10' : 'bg-black/5'
                   }`}
-                  aria-label="چاپ صفحه"
-                  title="چاپ یا ذخیره PDF"
                 >
-                  <Printer size={13} />
-                  <span>چاپ</span>
-                </button>
-
+                  {Object.entries(cores).map(([k, label]) => {
+                    const active = k === core
+                    return (
+                      <button
+                        key={k}
+                        type="button"
+                        onClick={(e) => handleCoreSwitch(e, k)}
+                        className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${
+                          active
+                            ? 'bg-[#0071E3] text-white shadow-xs'
+                            : isDark
+                            ? 'text-white/60 hover:text-white'
+                            : 'text-[#86868B] hover:text-[#1D1D1F]'
+                        }`}
+                      >
+                        {label}
+                      </button>
+                    )
+                  })}
+                </div>
                 <button
                   type="button"
                   onClick={() => setExpanded(false)}
-                  className={`w-7 h-7 rounded-full flex items-center justify-center transition-colors ${
-                    isDark ? 'bg-white/10 hover:bg-white/15 text-white' : 'bg-black/[0.05] hover:bg-black/[0.1] text-[#1D1D1F]'
+                  className={`p-1.5 rounded-xl text-xs font-bold transition-all ${
+                    isDark ? 'hover:bg-white/10 text-white/60' : 'hover:bg-black/5 text-[#86868B]'
                   }`}
-                  aria-label="بستن"
                 >
-                  <ChevronUp size={16} />
+                  بستن ✕
                 </button>
               </div>
             </div>
 
-            {/* 3 Quick-Glance Live Widgets Grid */}
+            {/* 3 Smart Widgets Row */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-              {/* Widget 1: برترین ویزیتورهای دوره */}
+              {/* Widget 1: Top 3 Visitors Ranking */}
               <div
-                className={`p-3.5 rounded-2xl flex flex-col justify-between transition-colors ${
+                className={`p-3.5 rounded-2xl border transition-all ${
                   isDark
-                    ? 'bg-white/5 border border-white/10'
-                    : isSolid
-                    ? 'bg-slate-50 border border-slate-200'
-                    : 'bg-black/[0.02] border border-black/[0.04]'
+                    ? 'bg-white/[0.03] border-white/[0.06] hover:bg-white/[0.05]'
+                    : 'bg-black/[0.015] border-black/[0.04] hover:bg-black/[0.03]'
                 }`}
               >
-                <div className="flex items-center justify-between mb-2.5">
-                  <span className="text-xs font-bold text-[#1D1D1F] dark:text-[#F5F5F7] flex items-center gap-1.5">
-                    <Award size={15} className="text-[#0071E3]" />
-                    برترین ویزیتورهای دوره
-                  </span>
-                  <span className="text-[10px] text-[#86868B] dark:text-[#98989D]">فروش خالص</span>
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-1.5 text-xs font-extrabold text-amber-500">
+                    <Crown size={14} />
+                    <span>برترین ویزیتورهای ماه</span>
+                  </div>
+                  <span className="text-[10px] text-[#86868B] font-semibold">۳ رتبه برتر</span>
                 </div>
 
-                <div className="space-y-2">
+                <div className="space-y-2 mt-2">
                   {topVisitors.length > 0 ? (
-                    topVisitors.map((v, i) => (
-                      <div key={v.code || i} className="flex items-center justify-between text-xs">
-                        <div className="flex items-center gap-1.5 min-w-0">
+                    topVisitors.map((v, idx) => (
+                      <div
+                        key={v.visitor || idx}
+                        className="flex items-center justify-between text-xs py-1 px-2 rounded-xl bg-black/[0.02] dark:bg-white/[0.03]"
+                      >
+                        <div className="flex items-center gap-2 min-w-0">
                           <span
-                            className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${
-                              i === 0
-                                ? 'bg-amber-400/20 text-amber-600'
-                                : i === 1
-                                ? 'bg-slate-400/20 text-slate-600 dark:text-slate-300'
-                                : 'bg-amber-700/20 text-amber-800 dark:text-amber-400'
+                            className={`w-5 h-5 rounded-full flex items-center justify-center font-bold text-[10px] ${
+                              idx === 0
+                                ? 'bg-amber-400 text-amber-950 font-black'
+                                : idx === 1
+                                ? 'bg-slate-300 text-slate-800'
+                                : 'bg-amber-700/30 text-amber-300'
                             }`}
                           >
-                            {i + 1}
+                            {fa(idx + 1)}
                           </span>
-                          <span className="truncate font-semibold">{v.name || `ویزیتور ${v.code}`}</span>
+                          <span className="font-bold truncate text-[#1D1D1F] dark:text-white text-[11px]">
+                            {v.visitor || v.name || 'ویزیتور'}
+                          </span>
                         </div>
-                        <span className="tabular-nums font-bold text-[#0071E3] text-[11px] whitespace-nowrap">
-                          {fa(Math.round((v.sales_rial || v.net_rial || 0) / 1e6))} م.ر
+                        <span className="font-mono text-[11px] font-bold text-emerald-600 dark:text-emerald-400">
+                          {fa(Math.round((v.sales_vat || v.total || 0) / 1e6))} م.ر
                         </span>
                       </div>
                     ))
                   ) : (
-                    <div className="text-center py-4 text-xs text-[#86868B]">در حال خواندن آمار ویزیتورها…</div>
+                    <div className="text-[11px] text-[#86868B] py-2 text-center">
+                      در حال بارگذاری لیست برترین‌ها...
+                    </div>
                   )}
                 </div>
               </div>
 
-              {/* Widget 2: مشتریان ارتقا یافته */}
+              {/* Widget 2: Upgraded Customers Count (Club Loyalty) */}
               <div
-                className={`p-3.5 rounded-2xl flex flex-col justify-between transition-colors ${
+                className={`p-3.5 rounded-2xl border transition-all ${
                   isDark
-                    ? 'bg-white/5 border border-white/10'
-                    : isSolid
-                    ? 'bg-slate-50 border border-slate-200'
-                    : 'bg-black/[0.02] border border-black/[0.04]'
+                    ? 'bg-white/[0.03] border-white/[0.06] hover:bg-white/[0.05]'
+                    : 'bg-black/[0.015] border-black/[0.04] hover:bg-black/[0.03]'
                 }`}
               >
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs font-bold text-[#1D1D1F] dark:text-[#F5F5F7] flex items-center gap-1.5">
-                    <Sparkles size={15} className="text-[#D97706]" />
-                    مشتریان ارتقا یافته (B2B)
-                  </span>
-                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#D97706]/15 text-[#D97706] font-bold">
-                    باشگاه مشتریان
+                  <div className="flex items-center gap-1.5 text-xs font-extrabold text-[#0071E3]">
+                    <Award size={14} />
+                    <span>مشتریان ارتقایافته باشگاه</span>
+                  </div>
+                  <span className="text-[10px] text-emerald-600 font-bold bg-emerald-500/10 px-2 py-0.5 rounded-full">
+                    +{fa(upgradedStats.recentUpgrades)} جدید
                   </span>
                 </div>
 
-                <div className="space-y-2 mt-1">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs text-[#86868B] dark:text-[#98989D]">ارتقا به سطح بالاتر:</span>
-                    <span className="text-sm font-extrabold text-[#D97706] tabular-nums">
-                      {fa(upgradedStats.recentUpgrades)} عضو
+                <div className="mt-2 space-y-2">
+                  <div className="flex items-baseline justify-between">
+                    <span className="text-2xl font-black text-[#1D1D1F] dark:text-white">
+                      {fa(upgradedStats.total)}
                     </span>
+                    <span className="text-[11px] text-[#86868B]">کل مشتریان دارای امتیاز</span>
                   </div>
 
-                  <div className="grid grid-cols-3 gap-1 pt-1 text-center">
-                    <div className="p-1 rounded-lg bg-amber-500/10 border border-amber-500/20">
-                      <span className="text-[9px] text-[#86868B] dark:text-[#98989D] block">طلایی</span>
-                      <b className="text-xs text-amber-500">{fa(upgradedStats.gold)}</b>
+                  {/* Level breakdown micro tags */}
+                  <div className="grid grid-cols-3 gap-1 pt-1 text-center text-[10px]">
+                    <div className="p-1 rounded-lg bg-amber-500/10 text-amber-700 dark:text-amber-400 font-bold">
+                      طلا: {fa(upgradedStats.gold)}
                     </div>
-                    <div className="p-1 rounded-lg bg-slate-400/10 border border-slate-400/20">
-                      <span className="text-[9px] text-[#86868B] dark:text-[#98989D] block">نقره‌ای</span>
-                      <b className="text-xs text-slate-500 dark:text-slate-300">{fa(upgradedStats.silver)}</b>
+                    <div className="p-1 rounded-lg bg-slate-500/10 text-slate-700 dark:text-slate-300 font-bold">
+                      نقره: {fa(upgradedStats.silver)}
                     </div>
-                    <div className="p-1 rounded-lg bg-amber-700/10 border border-amber-700/20">
-                      <span className="text-[9px] text-[#86868B] dark:text-[#98989D] block">برنزی</span>
-                      <b className="text-xs text-amber-700 dark:text-amber-400">{fa(upgradedStats.bronze)}</b>
+                    <div className="p-1 rounded-lg bg-amber-800/10 text-amber-800 dark:text-amber-500 font-bold">
+                      برنز: {fa(upgradedStats.bronze)}
                     </div>
                   </div>
                 </div>
               </div>
 
-              {/* Widget 3: وضعیت همگام‌سازی و سلامت داده */}
+              {/* Widget 3: Live 3-Procedure BI Data Health & Fast Sync */}
               <div
-                className={`p-3.5 rounded-2xl flex flex-col justify-between transition-colors ${
+                className={`p-3.5 rounded-2xl border transition-all ${
                   isDark
-                    ? 'bg-white/5 border border-white/10'
-                    : isSolid
-                    ? 'bg-slate-50 border border-slate-200'
-                    : 'bg-black/[0.02] border border-black/[0.04]'
+                    ? 'bg-white/[0.03] border-white/[0.06] hover:bg-white/[0.05]'
+                    : 'bg-black/[0.015] border-black/[0.04] hover:bg-black/[0.03]'
                 }`}
               >
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs font-bold text-[#1D1D1F] dark:text-[#F5F5F7] flex items-center gap-1.5">
-                    <Database size={15} className="text-[#059669]" />
-                    وضعیت همگام‌سازی داده
-                  </span>
-                  <span
-                    className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${
-                      running
-                        ? 'bg-amber-500/15 text-amber-600'
-                        : isHealthy
-                        ? 'bg-emerald-500/15 text-emerald-600'
-                        : 'bg-rose-500/15 text-rose-600'
-                    }`}
-                  >
-                    {running ? 'در حال اجرا' : isHealthy ? 'برقرار' : 'خطا'}
+                  <div className="flex items-center gap-1.5 text-xs font-extrabold text-teal-600 dark:text-teal-400">
+                    <Database size={14} />
+                    <span>سلامت تجمیع ۳ پروسیجر BI</span>
+                  </div>
+                  <span className="text-[10px] font-bold text-emerald-600 bg-emerald-500/10 px-2 py-0.5 rounded-full">
+                    تطابق ۱۰۰٪
                   </span>
                 </div>
 
-                <div className="space-y-1.5 text-xs">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[#86868B] dark:text-[#98989D] flex items-center gap-1">
-                      <Server size={12} />
-                      سرور مرکزی BI:
+                <div className="mt-2 space-y-1.5 text-[11px]">
+                  <div className="flex justify-between text-[#86868B] dark:text-white/60">
+                    <span>آخرین به‌روزرسانی:</span>
+                    <b className="text-[#1D1D1F] dark:text-white font-mono">
+                      {lastDataDate ? dayLabel(lastDataDate) : 'امروز'}
+                    </b>
+                  </div>
+                  <div className="flex justify-between text-[#86868B] dark:text-white/60">
+                    <span>فرمول خالص:</span>
+                    <span className="font-semibold text-emerald-600 dark:text-emerald-400">
+                      فروش + پروموشن - مرجوعی
                     </span>
-                    <span className="font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
-                      <CheckCircle2 size={12} />
-                      متصل (DuckDB)
+                  </div>
+                  <div className="flex justify-between text-[#86868B] dark:text-white/60">
+                    <span>اتصال زنده:</span>
+                    <span
+                      className={`font-bold ${
+                        running
+                          ? 'text-amber-500'
+                          : isHealthy
+                          ? 'text-emerald-500'
+                          : 'text-rose-500'
+                      }`}
+                    >
+                      {running ? 'در حال اجرا' : isHealthy ? 'برقرار' : 'خطا'}
                     </span>
                   </div>
 
-                  <div className="flex items-center justify-between">
-                    <span className="text-[#86868B] dark:text-[#98989D]">آخرین تاریخ داده:</span>
-                    <span className="font-semibold tabular-nums">{lastDataDate ? dayLabel(lastDataDate) : '—'}</span>
-                  </div>
-
-                  {/* 3-Procedure Live Reconciliation Status */}
-                  <div className="pt-1 border-t border-black/[0.04] dark:border-white/5 space-y-1">
-                    <div className="flex items-center justify-between text-[11px]">
-                      <span className="text-[#86868B] dark:text-[#98989D] flex items-center gap-1">
-                        <CheckCircle2 size={12} className="text-emerald-500 shrink-0" />
-                        فرمول ۳گانه BI:
-                      </span>
-                      <span className="font-black text-emerald-600 dark:text-emerald-400">
-                        ۱۰۰٪ تطابق (۰ ریال اختلاف)
-                      </span>
-                    </div>
-                    <div className="text-[10px] text-[#86868B] dark:text-[#98989D] leading-tight">
-                      فروش با ارزش افزوده (+) + پروموشن (+) - مرجوعی تاریخ‌دار (-)
-                    </div>
-                  </div>
-
+                  {/* Immediate Sync Trigger */}
                   {canSync && (
                     <button
                       type="button"
@@ -464,7 +428,7 @@ export default function DynamicIslandHeader({
             </div>
           </div>
         )}
-      </motion.div>
+      </div>
     </div>
   )
 }

@@ -15,7 +15,8 @@ write_lock = threading.Lock()
 
 DDL = (
     "CREATE TABLE IF NOT EXISTS plans (id INTEGER PRIMARY KEY, kind VARCHAR, name VARCHAR, core VARCHAR, "
-    "start_key INTEGER, end_key INTEGER, rial_per_point DOUBLE, active BOOLEAN, created_at VARCHAR)",
+    "start_key INTEGER, end_key INTEGER, rial_per_point DOUBLE, active BOOLEAN, created_at VARCHAR, "
+    "plan_type VARCHAR, config VARCHAR)",
 
     # Which login belongs to which customer code (kind b2b) or visitor code (kind visitor). One code per login.
     "CREATE TABLE IF NOT EXISTS member_links(username VARCHAR PRIMARY KEY, kind VARCHAR, code VARCHAR, linked_at VARCHAR)",
@@ -28,7 +29,8 @@ DDL = (
 def _migrate(con: duckdb.DuckDBPyConnection) -> None:
     """Additive columns for files created before a field existed; existing rows keep working. DuckDB's PRAGMA can report
     the pre-DDL schema inside one connection, so a duplicate-column error means the column is already there."""
-    for col, typ in (("target_points", "BIGINT"), ("tier_points", "VARCHAR"), ("rules", "VARCHAR")):
+    for col, typ in (("target_points", "BIGINT"), ("tier_points", "VARCHAR"), ("rules", "VARCHAR"),
+                     ("plan_type", "VARCHAR"), ("config", "VARCHAR")):
         try:
             con.execute(f"ALTER TABLE plans ADD COLUMN {col} {typ}")
         except duckdb.CatalogException:

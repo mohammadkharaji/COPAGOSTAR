@@ -33,10 +33,10 @@ import { useAppearance } from './AppearanceContext'
 import { fa, fa1, fa2, monthLabel } from './format'
 import { ChartTip, Table, pct, rial } from './ui'
 
-const DIM_LABELS = { brand: 'برند', group: 'لاین', product: 'کالا', sales_type: 'نوع فروش' }
+const DIM_LABELS = { brand: 'برند', main_group: 'گروه کالا', product: 'کالا', sales_type: 'نوع فروش' }
 const DRILL_OPTIONS = {
-  brand: ['group', 'product'],
-  group: ['product', 'brand'],
+  brand: ['main_group', 'product'],
+  main_group: ['product'],
 }
 
 const faDate = (k) => {
@@ -113,11 +113,14 @@ export function ProductBrandPage({ p, openProfile }) {
 
   const handleDrill = (key) => {
     if (key == null) return
-    if (DRILL_OPTIONS[by]) {
+    if (!sel && DRILL_OPTIONS[by]) {
       setSel({ by, key: String(key) })
       setChildBy(null)
+    } else if (sel && sel.by === 'brand' && activeChild === 'main_group') {
+      setSel({ by: 'main_group', key: String(key) })
+      setChildBy('product')
     } else if (openProfile) {
-      openProfile(by, String(key))
+      openProfile(sel ? activeChild : by, String(key))
     }
   }
 
@@ -204,7 +207,7 @@ export function ProductBrandPage({ p, openProfile }) {
           </div>
 
           <div className="flex items-center gap-1 p-1 bg-black/[0.04] dark:bg-white/[0.05] rounded-xl flex-wrap">
-            {[['brand', 'برند'], ['product', 'کالا'], ['group', 'لاین'], ['sales_type', 'نوع فروش']].map(([k, label]) => (
+            {[['brand', 'برند'], ['main_group', 'گروه کالا'], ['product', 'کالا'], ['sales_type', 'نوع فروش']].map(([k, label]) => (
               <button
                 key={k}
                 type="button"

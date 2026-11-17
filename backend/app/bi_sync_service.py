@@ -531,8 +531,15 @@ def execute_bi_sync(months: Optional[List[str]] = None) -> Dict[str, Any]:
                 UPDATE fact_sales_staging
                 SET main_group = p.main_group,
                     sub_group = p.sub_group
-                FROM dim_product p
-                WHERE fact_sales_staging.product_code = p.unique_product_code;
+                FROM (
+                    SELECT SUBSTRING(unique_product_code, 1, 10) AS pcode,
+                           FIRST(main_group) AS main_group,
+                           FIRST(sub_group) AS sub_group
+                    FROM dim_product
+                    WHERE main_group IS NOT NULL
+                    GROUP BY 1
+                ) p
+                WHERE fact_sales_staging.product_code = p.pcode;
             """)
         except Exception as e:
             logger.debug("dim_product join skipped: %s", e)

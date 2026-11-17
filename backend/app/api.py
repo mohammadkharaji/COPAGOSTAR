@@ -1302,7 +1302,147 @@ def customer_metrics(request: Request, core: str = DEFAULT_CORE, target_month: s
                 "total_qty": b_qty,
             })
 
-        # 5. Branch Breakdown
+        # 5. Product Group (Category) Breakdown
+        cat_curr_rows = con.execute(
+            f"""WITH pdim AS (
+                    SELECT SUBSTRING(unique_product_code, 1, 10) AS pcode,
+                           FIRST(main_group) AS main_group
+                    FROM dim_product
+                    WHERE main_group IS NOT NULL
+                    GROUP BY 1
+                ),
+                scat AS (
+                    SELECT f.customer_code,
+                           f.invoice_code,
+                           f.product_code,
+                           f.qty,
+                           f.rial_vat,
+                           TRIM(REPLACE(COALESCE(
+                               NULLIF(f.main_group, ''),
+                               p.main_group,
+                               'سایر'
+                           ), 'گروه', '')) AS category_name
+                    FROM fact_sales f
+                    LEFT JOIN pdim p ON f.product_code = p.pcode
+                    WHERE f.core=? AND f.year_month=? AND {SALES_ONLY} AND f.rial_vat > 0 AND f.customer_code IS NOT NULL{dim}
+                )
+                SELECT category_name,
+                       COUNT(DISTINCT customer_code) AS active_custs,
+                       COUNT(DISTINCT invoice_code) AS invoices,
+                       COALESCE(SUM(qty), 0) AS total_qty,
+                       COALESCE(SUM(rial_vat), 0) AS total_rial,
+                       COUNT(DISTINCT invoice_code || '_' || product_code) AS total_skus
+                FROM scat
+                WHERE category_name != '' AND category_name != 'سایر'
+                GROUP BY 1
+                ORDER BY active_custs DESC""",
+            [name, target_month, *dargs],
+        ).fetchall()
+
+        cat_ret_map = {}
+        if lookback_months:
+            pl_c = ",".join("?" * len(lookback_months))
+            c_ret_rows = con.execute(
+                f"""WITH pdim AS (
+                        SELECT SUBSTRING(unique_product_code, 1, 10) AS pcode,
+                               FIRST(main_group) AS main_group
+                        FROM dim_product
+                        WHERE main_group IS NOT NULL
+                        GROUP BY 1
+                    ),
+                    curr AS (
+                        SELECT DISTINCT
+                               TRIM(REPLACE(COALESCE(
+                                   NULLIF(f.main_group, ''),
+                                   p.main_group,
+                                   'سایر'
+                               ), 'گروه', '')) AS category_name,
+                               f.customer_code
+                        FROM fact_sales f
+                        LEFT JOIN pdim p ON f.product_code = p.pcode
+                        WHERE f.core=? AND f.year_month=? AND {SALES_ONLY} AND f.rial_vat > 0 AND f.customer_code IS NOT NULL{dim}
+                    ),
+                    prev AS (
+                        SELECT DISTINCT
+                               TRIM(REPLACE(COALESCE(
+                                   NULLIF(f.main_group, ''),
+                                   p.main_group,
+                                   'سایر'
+                               ), 'گروه', '')) AS category_name,
+                               f.customer_code
+                        FROM fact_sales f
+                        LEFT JOIN pdim p ON f.product_code = p.pcode
+                        WHERE f.core=? AND f.year_month IN ({pl_c}) AND {SALES_ONLY} AND f.rial_vat > 0 AND f.customer_code IS NOT NULL{dim}
+                    )
+                    SELECT p.category_name,
+                           COUNT(DISTINCT p.customer_code) AS prev_custs,
+                           COUNT(DISTINCT c.customer_code) AS ret_custs
+                    FROM prev p
+                    LEFT JOIN curr c ON p.category_name = c.category_name AND p.customer_code = c.customer_code
+                    WHERE p.category_name != '' AND p.category_name != 'سایر'
+                    GROUP BY 1""",
+                [name, target_month, *dargs, name, *lookback_months, *dargs],
+            ).fetchall()
+            cat_ret_map = {r[0]: (r[1], r[2]) for r in c_ret_rows}
+
+        c_cross_rows = con.execute(
+            f"""WITH pdim AS (
+                    SELECT SUBSTRING(unique_product_code, 1, 10) AS pcode,
+                           FIRST(main_group) AS main_group
+                    FROM dim_product
+                    WHERE main_group IS NOT NULL
+                    GROUP BY 1
+                ),
+                cust_total AS (
+                    SELECT f.customer_code,
+                           COUNT(DISTINCT COALESCE(NULLIF(f.brand, ''), 'نامشخص')) AS brand_cnt
+                    FROM fact_sales f
+                    WHERE f.core=? AND f.year_month=? AND {SALES_ONLY} AND f.rial_vat > 0 AND f.customer_code IS NOT NULL{dim}
+                    GROUP BY 1
+                )
+                SELECT TRIM(REPLACE(COALESCE(
+                           NULLIF(f.main_group, ''),
+                           p.main_group,
+                           'سایر'
+                       ), 'گروه', '')) AS category_name,
+                       AVG(ct.brand_cnt)
+                FROM fact_sales f
+                LEFT JOIN pdim p ON f.product_code = p.pcode
+                JOIN cust_total ct ON f.customer_code = ct.customer_code
+                WHERE f.core=? AND f.year_month=? AND {SALES_ONLY} AND f.rial_vat > 0 AND f.customer_code IS NOT NULL{dim}
+                GROUP BY 1""",
+            [name, target_month, *dargs, name, target_month, *dargs],
+        ).fetchall()
+        c_cross_map = {r[0]: r[1] for r in c_cross_rows}
+
+        breakdown_category = []
+        for r in cat_curr_rows:
+            c_name, c_active, c_invs, c_qty, c_rial, c_skus = r
+            c_prev, c_ret = cat_ret_map.get(c_name, (0, 0))
+            c_churn = max(0, c_prev - c_ret)
+            c_ret_rate = round((c_ret / c_prev * 100), 1) if c_prev else 0.0
+            c_churn_rate = round((c_churn / c_prev * 100), 1) if c_prev else 0.0
+            c_clv_qty = round(c_qty / c_active, 1) if c_active else 0.0
+            c_avg_order = round(c_qty / c_invs, 1) if c_invs else 0.0
+            c_avg_sku = round(c_skus / c_invs, 1) if c_invs else 0.0
+            c_avg_cat = round(c_cross_map.get(c_name, 1.0), 1)
+            breakdown_category.append({
+                "name": c_name,
+                "active_custs": c_active,
+                "prev_custs": c_prev,
+                "churned_custs": c_churn,
+                "returning_custs": c_ret,
+                "churn_rate": c_churn_rate,
+                "returning_rate": c_ret_rate,
+                "clv_qty": c_clv_qty,
+                "avg_order_size": c_avg_order,
+                "avg_sku": c_avg_sku,
+                "avg_category": c_avg_cat,
+                "total_rial": c_rial,
+                "total_qty": c_qty,
+            })
+
+        # 6. Branch Breakdown
         branch_curr_rows = con.execute(
             f"""SELECT COALESCE(NULLIF(branch, ''), 'نامشخص') AS branch,
                        COUNT(DISTINCT customer_code) AS active_custs,
@@ -1478,8 +1618,13 @@ def customer_metrics(request: Request, core: str = DEFAULT_CORE, target_month: s
                 "total_invoices": total_invoices,
             },
             "breakdown_brand": breakdown_brand,
+            "breakdown_category": breakdown_category,
             "breakdown_branch": breakdown_branch,
             "breakdown_region": breakdown_region,
+            "by_brand": breakdown_brand,
+            "by_category": breakdown_category,
+            "by_branch": breakdown_branch,
+            "by_region": breakdown_region,
         }
     finally:
         con.close()

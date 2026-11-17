@@ -72,7 +72,17 @@ export default function App({ onLogout }) {
   const page = principal ? (canOpen(route.page) ? route.page : home) : null
   const arg = page === route.page ? route.arg : ''
   const reports = Boolean(principal) && page !== 'admin' && allowedCores.includes(core)
-  const options = useApi('/filters', { core, v: ver, ...(dims.branch && { branch: dims.branch }), ...(dims.region && { region: dims.region }), ...(dims.state && { state: dims.state }), ...(dims.city && { city: dims.city }), ...(dims.main_group && { main_group: dims.main_group }), ...(dims.sub_group && { sub_group: dims.sub_group }), ...(dims.brand && { brand: dims.brand }) }, reports)
+  const options = useApi('/filters', {
+    core,
+    v: ver,
+    ...(dims.branch && { branch: dims.branch }),
+    ...(dims.region && { region: dims.region }),
+    ...(dims.state && { state: dims.state }),
+    ...(dims.city && { city: dims.city }),
+    ...(dims.brand && { brand: dims.brand }),
+    ...(dims.main_group && { main_group: dims.main_group }),
+    ...(dims.product && { product: dims.product }),
+  }, reports)
   const [tick, setTick] = useState(0)
   const biSync = useApi('/bi-sync/status', { t: tick })
   const biData = biSync.data
@@ -152,7 +162,8 @@ export default function App({ onLogout }) {
     if (v) n[k] = v; else delete n[k]
     if (k === 'branch' && d.branch !== v) { delete n.region; delete n.state; delete n.city }
     if (k === 'city' && d.city !== v) { delete n.state; delete n.region }
-    if (k === 'main_group' && d.main_group !== v) delete n.sub_group
+    if (k === 'brand' && d.brand !== v) { delete n.main_group; delete n.product; delete n.sub_group }
+    if (k === 'main_group' && d.main_group !== v) { delete n.product; delete n.sub_group }
     return n
   })
   useEffect(() => {

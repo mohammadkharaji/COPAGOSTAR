@@ -140,7 +140,8 @@ def test_ladder_plan_rejects_bad_weights_and_unaligned_window(client):
     assert ladder_plan(client, config=bad).status_code == 400
     assert ladder_plan(client, start_key=14050702).status_code == 400
     assert ladder_plan(client, end_key=14050829).status_code == 400
-    assert client.post("/api/club/b2b/plans", json={"name": "x", "core": "kg", "start_key": 14050701,
+    # name needs 2+ characters (PlanBody.min_length), or FastAPI answers 422 before the route's ladder-kind rule runs
+    assert client.post("/api/club/b2b/plans", json={"name": "xy", "core": "kg", "start_key": 14050701,
                                                     "end_key": 14050730, "plan_type": "ladder",
                                                     "config": cfg()}).status_code == 400
 
@@ -282,6 +283,40 @@ def test_basket_groups_skip_zero_target_groups():
         rial_targets={"گروه الف": 0.0, "گروه ب": 100.0, D.ALL: 100.0},
         rial_actuals={"گروه الف": 50.0, "گروه ب": 100.0, D.ALL: 150.0},
         coverage_target=None, coverage_actual=0)
-    # a zero target must not divide by zero, and must not count as a reached group
+    # a zero target must not divide by zero, and must never count as a reached group, whatever the threshold
     assert D.basket_groups(vm, 0.5) == 1
-    assert D.basket_groups(vm, 0.0) == 2   # 0.0 still reads the zero-target group as 0.0/0.0-free: only >0 targets count
+    assert D.basket_groups(vm, 0.0) == 1
+
+
+def test_member_routes_survive_a_ladder_plan(client):
+    """A ladder plan stores rial_per_point=0; the linear scoring paths must not divide by it."""
+    ladder_plan(client)
+    client.post("/api/admin/roles/defaults")
+    role = next(x for x in client.get("/api/admin/roles").json() if x["name"] == "Sales Power Club")
+    client.post("/api/admin/users", json={"username": "vis11", "password": "password-123", "role_id": role["id"]})
+    client.put("/api/club/link", json={"username": "vis11", "kind": "visitor", "code": "11"})
+    from fastapi.testclient import TestClient
+    from app.api import app
+    u = TestClient(app)
+    assert u.post("/api/auth/login", json={"username": "vis11", "password": "password-123"}).status_code == 200
+    assert u.get("/api/club/me").status_code == 200
+    assert u.get("/api/club/visitor/team").status_code == 200
+
+
+def test_member_team_endpoint_carries_ladder_summary(client):
+    pid = ladder_plan(client).json()["id"]
+    client.post("/api/admin/roles/defaults")
+    role = next(x for x in client.get("/api/admin/roles").json() if x["name"] == "Sales Power Club")
+    client.post("/api/admin/users", json={"username": "vis11", "password": "password-123", "role_id": role["id"]})
+    client.put("/api/club/link", json={"username": "vis11", "kind": "visitor", "code": "11"})
+    from fastapi.testclient import TestClient
+    from app.api import app
+    u = TestClient(app)
+    u.post("/api/auth/login", json={"username": "vis11", "password": "password-123"})
+    body = u.get("/api/club/visitor/team", params={"plan_id": pid}).json()
+    s = body["visitor_summary"]
+    assert s["points"] == pytest.approx(12.37, abs=0.01) and s["tier"]["level"] == "C" and s["tier"]["rank_national"] == 1
+    assert [h["month"] for h in s["history"]] == ["140507", "140508"] and s["history"][1]["provisional"] is True
+    assert body["scorecard"]["month"] == "140508" and body["plan"]["plan_type"] == "ladder"
+    me = u.get("/api/club/me").json()
+    assert me["plans"][0]["tier"]["level"] == "C" and me["plans"][0]["points"] == pytest.approx(12.37, abs=0.01)

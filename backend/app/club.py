@@ -9,12 +9,17 @@ from __future__ import annotations
 import json
 import logging
 from datetime import datetime
+from typing import Literal
 
 from fastapi import APIRouter, HTTPException, Request
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ValidationError
 
-from . import club_store, rbac
-from .config import DEFAULT_CORE
+from . import club_ladder_report, club_store, rbac
+from .club_ladder import LadderConfig
+from .config import DB_PATH, DEFAULT_CORE
+from .db import connect
+from .jalali import days_in_jalali_month
+from .target import TARGET_CORES, _table_exists
 
 router = APIRouter(prefix="/api/club")
 
@@ -33,7 +38,14 @@ def _con():
 def _core(core: str) -> str:
     from .api import _core as sales_core
     return sales_core(core)
+
+
 KINDS = {"b2b": "customer_code", "visitor": "visitor_code"}
+
+
+def _first_message(exc: ValidationError) -> str:
+    """The first Pydantic error without its "Value error, " prefix, so the Persian validator text reaches the user."""
+    return exc.errors()[0]["msg"].removeprefix("Value error, ")
 
 
 class Rule(BaseModel):
@@ -54,27 +66,34 @@ class PlanBody(BaseModel):
     core: str = Field(DEFAULT_CORE, max_length=4)
     start_key: int = Field(ge=14000101, le=99991231)
     end_key: int = Field(ge=14000101, le=99991231)
-    rial_per_point: float = Field(gt=0)
+    # Linear plans score rial / rial_per_point; a ladder plan scores weighted KPIs and leaves the rate at 0.
+    rial_per_point: float = Field(0, ge=0)
     target_points: int | None = Field(None, ge=0)
     tier_points: list[int] | str | int | None = None
     # Multi-metric scoring, as in the company's gamification workbook: each rule scores one metric of the rows it
     # matches. Empty -> the simple rule "net sales rial / rial_per_point".
     rules: list[Rule] = Field(default_factory=list)
+    # Ladder plans are validated in the route so a bad config answers 400 with the Persian validator text, not 422.
+    plan_type: Literal["linear", "ladder"] = "linear"
+    config: dict | None = None
 
 
 def _plans(kind: str) -> list[dict]:
     con = club_store.connect()
     try:
         rows = con.execute("SELECT id, name, core, start_key, end_key, rial_per_point, active, created_at, "
-                           "target_points, tier_points, rules FROM plans WHERE kind=? ORDER BY id", [kind]).fetchall()
+                           "target_points, tier_points, rules, plan_type, config FROM plans WHERE kind=? ORDER BY id",
+                           [kind]).fetchall()
     finally:
         con.close()
     keys = ("id", "name", "core", "start_key", "end_key", "rial_per_point", "active", "created_at",
-            "target_points", "tier_points", "rules")
+            "target_points", "tier_points", "rules", "plan_type", "config")
     out = []
     for r in rows:
         plan = dict(zip(keys, r))
         plan["rules"] = json.loads(plan["rules"]) if plan.get("rules") else []
+        plan["plan_type"] = plan["plan_type"] or "linear"
+        plan["config"] = json.loads(plan["config"]) if plan.get("config") else None
         if plan.get("tier_points") and isinstance(plan["tier_points"], str):
             try:
                 plan["tier_points"] = json.loads(plan["tier_points"])
@@ -123,6 +142,8 @@ def _metric_value(con, metric: str, core: str, col: str, start: int, end: int, w
 
 def _scores(plan: dict, kind: str) -> dict[str, dict]:
     """code -> {name, sales_rial, points, breakdown} for a plan, honouring net sales and gamification rules."""
+    if plan.get("plan_type") == "ladder":   # no rial_per_point; the ladder report scores these plans
+        return {}
     col = KINDS[kind]
     name_col = "customer_name" if kind == "b2b" else "visitor"
     core = _core(plan["core"])
@@ -184,15 +205,37 @@ def _routes(kind: str) -> None:
         if body.end_key < body.start_key:
             raise HTTPException(400, "تاریخ پایان باید بعد از تاریخ شروع باشد")
         _core(body.core)
+        if body.plan_type == "ladder":
+            if kind != "visitor":
+                raise HTTPException(400, "نردبان تحقق فقط برای باشگاه ویزیتورها")
+            if body.config is None:
+                raise HTTPException(400, "پیکربندی نردبان لازم است")
+            try:
+                cfg = LadderConfig.model_validate(body.config)
+            except ValidationError as exc:
+                raise HTTPException(400, _first_message(exc))
+            end_y, end_m = body.end_key // 10000, body.end_key // 100 % 100
+            if body.start_key % 100 != 1 or body.end_key % 100 != days_in_jalali_month(end_y, end_m):
+                raise HTTPException(400, "بازه طرح نردبان باید ماه کامل باشد")
+            config_json = json.dumps(cfg.model_dump(), ensure_ascii=False)
+        else:
+            if body.rial_per_point <= 0:
+                raise HTTPException(400, "امتیاز به ازای ریال باید بزرگ‌تر از صفر باشد")
+            config_json = None
         tp_str = json.dumps(body.tier_points) if isinstance(body.tier_points, (list, dict)) else str(body.tier_points) if body.tier_points is not None else None
         with club_store.write_lock:
             con = club_store.connect()
             try:
                 new_id = con.execute("SELECT COALESCE(MAX(id), 0) + 1 FROM plans").fetchone()[0]
-                con.execute("INSERT INTO plans VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
-                            [new_id, kind, body.name, body.core, body.start_key, body.end_key, body.rial_per_point,
-                             True, datetime.now().isoformat(timespec="seconds"), body.target_points, tp_str,
-                             json.dumps([r.model_dump() for r in body.rules], ensure_ascii=False) if body.rules else None])
+                # Named columns: _migrate appends plan_type/config to files created before they existed, so the
+                # physical column count and order differ between a fresh and a migrated club.duckdb.
+                con.execute(
+                    "INSERT INTO plans (id, kind, name, core, start_key, end_key, rial_per_point, active, created_at, "
+                    "target_points, tier_points, rules, plan_type, config) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                    [new_id, kind, body.name, body.core, body.start_key, body.end_key, body.rial_per_point,
+                     True, datetime.now().isoformat(timespec="seconds"), body.target_points, tp_str,
+                     json.dumps([r.model_dump() for r in body.rules], ensure_ascii=False) if body.rules else None,
+                     body.plan_type, config_json])
             finally:
                 con.close()
         return {"id": new_id}
@@ -202,6 +245,11 @@ def _routes(kind: str) -> None:
         plan = next((p for p in _plans(kind) if p["id"] == plan_id), None)
         if plan is None:
             raise HTTPException(404, "طرح پیدا نشد")
+        if plan.get("plan_type") == "ladder":
+            unavailable = _ladder_unavailable(plan)
+            if unavailable:
+                return unavailable
+            return club_ladder_report.leaderboard(plan)
         rows = _compute(plan, kind)
         return {"plan": plan, "rows": rows}
 
@@ -223,6 +271,8 @@ def _month_windows(start: int, end: int) -> list[tuple[str, int, int]]:
 def _monthly_points(plan: dict, kind: str, code: str) -> list[dict]:
     """Points earned per month. Each month's points = cumulative points at month end minus the previous month's, so the
     months add up exactly to the plan total (floors are applied on the running sum, never per month)."""
+    if plan.get("plan_type") == "ladder":
+        return []
     rate = plan["rial_per_point"]
     rows, cumulative_sales, prev_points = [], 0.0, 0
     for key, first, last in _month_windows(plan["start_key"], plan["end_key"]):
@@ -324,6 +374,67 @@ def _link_for(username: str) -> tuple[str, str] | None:
     return (row[0], row[1]) if row else None
 
 
+NOT_LOADED_REASON = "هنوز هیچ تارگتی بارگذاری نشده است."
+
+
+def _ladder_unavailable(plan: dict) -> dict | None:
+    """The degraded answer a ladder plan needs, or None when both the target and the sales data are present.
+
+    Mirrors the Target page: an unsupported core and an absent (or empty) fact_target answer `available: False`, a
+    missing sales database is a 503, and no raw DuckDB error ever reaches the client. The gate also guarantees
+    fact_sales exists before the ladder data loader calls MAX(jdate_key) on it.
+    """
+    if plan["core"] not in TARGET_CORES:
+        return {"available": False, "months": [], "rows": [], "reason": "تارگت این هسته هنوز تعریف نشده است."}
+    if not DB_PATH.exists():
+        raise HTTPException(503, "پایگاه داده هنوز ساخته نشده است")
+    con = connect(read_only=True)
+    try:
+        loaded = _table_exists(con, "fact_target") and con.execute(
+            "SELECT COUNT(*) FROM fact_target").fetchone()[0]
+        if not loaded or not _table_exists(con, "fact_sales"):
+            return {"available": False, "months": [], "rows": [], "reason": NOT_LOADED_REASON}
+    finally:
+        con.close()
+    return None
+
+
+@router.get("/visitor/scorecard")
+def visitor_scorecard(plan_id: int, code: str, month: str | None = None):
+    """One visitor's ladder scorecard. An admin reads any code; a linked club account only its own."""
+    p = rbac.require()
+    if not p.is_admin and _link_for(p.user) != ("visitor", code):
+        raise HTTPException(403, "فقط کارنامه خودتان")
+    plan = next((x for x in _plans("visitor") if x["id"] == plan_id), None)
+    if plan is None:
+        raise HTTPException(404, "طرح پیدا نشد")
+    if plan.get("plan_type") != "ladder":
+        raise HTTPException(400, "این طرح نردبان نیست")
+    unavailable = _ladder_unavailable(plan)
+    if unavailable:
+        return unavailable
+    return club_ladder_report.scorecard(plan, code, month)
+
+
+def _ladder_member_view(plan: dict, code: str) -> dict:
+    """Member-facing summary of a ladder plan: the same keys a linear plan returns, plus the full scorecard."""
+    if _ladder_unavailable(plan) is not None:
+        return {"points": 0, "sales_rial": 0.0, "breakdown": [], "history": [], "scorecard": None,
+                "tier": {"level": None, "step": 0, "rank_national": None, "rank_branch": None, "prize": None,
+                         "points_needed_label": "هنوز داده‌ای بارگذاری نشده است"}}
+    sc = club_ladder_report.scorecard(plan, code, None)
+    history = [{"month": m, "points": round(v, 2), "provisional": False} for m, v in sorted(sc["months"].items())]
+    if sc["provisional_month"]:
+        history.append({"month": sc["provisional_month"]["month"],
+                        "points": round(sc["provisional_month"]["score"], 2), "provisional": True})
+    return {"points": round(sc["total"], 2), "sales_rial": 0.0,
+            "breakdown": [{"label": k["label"], "points": round(k["weighted"], 2)} for k in sc["kpis"]],
+            "history": history, "scorecard": sc,
+            "tier": {"level": sc["grade"], "step": 0, "rank_national": sc["rank_national"],
+                     "rank_branch": sc["rank_branch"], "prize": sc["prize"],
+                     "points_needed_label": f"رتبه کشوری {sc['rank_national']}"}}
+
+
 @router.get("/me")
 def my_club():
     """The signed-in user's own club data: the linked code's points on every plan of its club, nothing else."""
@@ -334,6 +445,9 @@ def my_club():
     kind, code = link
     plans = []
     for plan in _plans(kind):
+        if plan.get("plan_type") == "ladder":
+            plans.append({"plan": plan, **_ladder_member_view(plan, code)})
+            continue
         mine = _scores(plan, kind).get(code)
         points = mine["points"] if mine else 0
         plans.append({"plan": plan, "points": points, "sales_rial": mine["sales_rial"] if mine else 0.0,
@@ -346,6 +460,8 @@ def my_club():
 
 def _team(plan: dict, visitor_code: str) -> list[dict]:
     """Customers whose rows carry this visitor code, with net sales, points, and tier distance."""
+    if plan.get("plan_type") == "ladder":
+        return []
     price = plan["rial_per_point"]
     sales = _con()
     try:
@@ -391,6 +507,15 @@ def my_team(plan_id: int | None = None):
                          "tier": None, "history": [], "customers_count": 0}
         return {"code": code, "plan": None, "visitor_summary": empty_summary, "portfolio_customers": [],
                 "team": [], "points": 0, "sales_rial": 0.0, "tier": None, "customers": 0, "history": []}
+
+    if plan.get("plan_type") == "ladder":
+        v = _ladder_member_view(plan, code)
+        sc = v["scorecard"]
+        summary = {"code": code, "name": sc["name"] if sc else code, "points": v["points"], "sales_rial": 0.0,
+                   "breakdown": v["breakdown"], "tier": v["tier"], "history": v["history"], "customers_count": 0}
+        return {"visitor_summary": summary, "portfolio_customers": [], "code": code, "plan": plan,
+                "points": v["points"], "sales_rial": 0.0, "breakdown": v["breakdown"], "tier": v["tier"],
+                "team": [], "customers": 0, "history": v["history"], "scorecard": sc}
 
     # Unified Visitor Summary (aggregated across visitor_code directly with gamification rules)
     v_score = _scores(plan, "visitor").get(code, {})
@@ -459,6 +584,8 @@ def recompute_active_plans() -> int:
     refreshed = 0
     for kind in ("b2b", "visitor"):
         for plan in _plans(kind):
+            if plan.get("plan_type") == "ladder":
+                continue   # no rial_per_point to divide by; its leaderboard is computed on read
             if plan.get("active"):
                 try:
                     _compute(plan, kind)

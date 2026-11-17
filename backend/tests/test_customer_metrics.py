@@ -22,6 +22,17 @@ def test_customer_metrics_calculation():
         assert m["clv_qty"] > 0
         assert m["clv_rial"] > 0
         assert len(res["breakdown_brand"]) > 0
+        assert len(res["breakdown_category"]) > 0
+        assert len(res["by_category"]) > 0
+        cat_names = [c["name"] for c in res["breakdown_category"]]
+        assert any("ویفر" in n or "بیسکو" in n for n in cat_names)
+        c0 = res["breakdown_category"][0]
+        assert "churn_rate" in c0
+        assert "returning_rate" in c0
+        assert "clv_qty" in c0
+        assert "avg_order_size" in c0
+        assert "avg_sku" in c0
+        assert "avg_category" in c0
         assert len(res["breakdown_branch"]) > 0
     finally:
         rbac.CURRENT.reset(ctx)

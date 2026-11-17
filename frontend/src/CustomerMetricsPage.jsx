@@ -55,6 +55,7 @@ export default function CustomerMetricsPage({ p, core, setCore, openCustomer }) 
   const [lookback, setLookback] = useState('prev_1m')
   const [branch, setBranch] = useState('')
   const [geoMode, setGeoMode] = useState('branch') // 'branch' or 'region'
+  const [prodMode, setProdMode] = useState('brand') // 'brand' or 'category'
   const [selectedMetric, setSelectedMetric] = useState('churn_rate')
 
   // Fetch metrics data from API
@@ -131,13 +132,16 @@ export default function CustomerMetricsPage({ p, core, setCore, openCustomer }) 
     return '#0284C7'
   }
 
-  // Top brands list (clean & sorted)
-  const brandChartData = useMemo(() => {
-    if (!data?.breakdown_brand) return []
-    return [...data.breakdown_brand]
-      .filter((b) => b.active_custs > 10)
-      .slice(0, 8)
-  }, [data?.breakdown_brand])
+  // Top brands or product groups list (clean & sorted)
+  const productChartData = useMemo(() => {
+    const list = prodMode === 'brand'
+      ? (data?.breakdown_brand || data?.by_brand)
+      : (data?.breakdown_category || data?.by_category)
+    if (!list) return []
+    return [...list]
+      .filter((b) => b.active_custs > 5)
+      .slice(0, 10)
+  }, [data, prodMode])
 
   // Branches/Regions list (sorted by selected metric or active customers)
   const geoChartData = useMemo(() => {
@@ -707,7 +711,7 @@ export default function CustomerMetricsPage({ p, core, setCore, openCustomer }) 
           6. Dual Breakdown Charts (Right: Brands / Left: Branches & Regions)
       ───────────────────────────────────────────────────────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {/* Right Chart: بر اساس تامین‌کننده و گروه کالا (Vertical Bar Chart) */}
+        {/* Right Chart: بر اساس تامین‌کننده، برندها و گروه کالا (Vertical Bar Chart) */}
         <div className={`rounded-2xl p-4 flex flex-col justify-between ${glassCard}`}>
           <div>
             <div className="flex items-center justify-between mb-2">
@@ -717,39 +721,65 @@ export default function CustomerMetricsPage({ p, core, setCore, openCustomer }) 
                 </div>
                 <div>
                   <h3 className="text-xs sm:text-sm font-extrabold text-[#1D1D1F] dark:text-[#F5F5F7]">
-                    بر اساس تامین‌کننده و برندها (Brands & Categories)
+                    {prodMode === 'brand'
+                      ? 'بر اساس تامین‌کننده و برندها (Brands)'
+                      : 'بر اساس گروه کالا (Product Groups)'}
                   </h3>
                   <span className="text-[10px] text-[#86868B] dark:text-[#98989D]">
-                    شاخص «{activeMetricObj.label}» به تفکیک برندهای اصلی
+                    {prodMode === 'brand'
+                      ? `شاخص «${activeMetricObj.label}» به تفکیک برندهای اصلی`
+                      : `شاخص «${activeMetricObj.label}» به تفکیک گروه کالای اصلی`}
                   </span>
                 </div>
               </div>
 
-              {/* Status Indicator */}
-              <div className="flex items-center gap-2 text-[10px] font-bold">
-                {selectedMetric === 'churn_rate' ? (
-                  <>
-                    <span className="flex items-center gap-1 text-[#F43F5E]">
-                      <span className="w-2 h-2 rounded-full bg-[#F43F5E]" />
-                      ریزش بالا (&gt;۶۵٪)
-                    </span>
-                    <span className="flex items-center gap-1 text-[#10B981]">
-                      <span className="w-2 h-2 rounded-full bg-[#10B981]" />
-                      ریزش پایین (&lt;۵۰٪)
-                    </span>
-                  </>
-                ) : (
-                  <span className="text-[#86868B] dark:text-[#98989D]">
-                    واحد: {activeMetricObj.unit}
-                  </span>
-                )}
+              {/* Dimension Mode Toggle (Brand / Category) */}
+              <div className="flex items-center p-0.5 bg-black/[0.04] dark:bg-white/[0.05] rounded-xl text-xs">
+                <button
+                  type="button"
+                  onClick={() => setProdMode('brand')}
+                  className={`px-2.5 py-1 rounded-lg font-bold text-[11px] transition-all ${
+                    prodMode === 'brand' ? glassPillActive : 'text-[#86868B]'
+                  }`}
+                >
+                  برندها
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setProdMode('category')}
+                  className={`px-2.5 py-1 rounded-lg font-bold text-[11px] transition-all ${
+                    prodMode === 'category' ? glassPillActive : 'text-[#86868B]'
+                  }`}
+                >
+                  گروه کالا
+                </button>
               </div>
+            </div>
+
+            {/* Status Indicator */}
+            <div className="flex items-center justify-end text-[10px] font-bold mb-1">
+              {selectedMetric === 'churn_rate' ? (
+                <div className="flex items-center gap-2">
+                  <span className="flex items-center gap-1 text-[#F43F5E]">
+                    <span className="w-2 h-2 rounded-full bg-[#F43F5E]" />
+                    ریزش بالا (&gt;۶۵٪)
+                  </span>
+                  <span className="flex items-center gap-1 text-[#10B981]">
+                    <span className="w-2 h-2 rounded-full bg-[#10B981]" />
+                    ریزش پایین (&lt;۵۰٪)
+                  </span>
+                </div>
+              ) : (
+                <span className="text-[#86868B] dark:text-[#98989D]">
+                  واحد: {activeMetricObj.unit}
+                </span>
+              )}
             </div>
 
             {/* Vertical Bar Chart */}
             <div className="h-[380px] mt-2 w-full" dir="ltr">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={brandChartData} margin={{ top: 25, right: 10, left: 10, bottom: 25 }}>
+                <BarChart data={productChartData} margin={{ top: 25, right: 10, left: 10, bottom: 25 }}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={isDark ? '#333' : '#E2E8F0'} opacity={0.6} />
                   <XAxis
                     dataKey="name"
@@ -777,10 +807,10 @@ export default function CustomerMetricsPage({ p, core, setCore, openCustomer }) 
                       `${fa2(val)} ${activeMetricObj.unit}`,
                       activeMetricObj.label,
                     ]}
-                    labelFormatter={(label) => `برند: ${label}`}
+                    labelFormatter={(label) => `${prodMode === 'brand' ? 'برند' : 'گروه کالا'}: ${label}`}
                   />
                   <Bar dataKey={selectedMetric} radius={[8, 8, 0, 0]} maxBarSize={44}>
-                    {brandChartData.map((entry, index) => (
+                    {productChartData.map((entry, index) => (
                       <Cell key={`cell-${index}`} fill={getBrandBarColor(entry)} />
                     ))}
                     <LabelList
@@ -801,7 +831,7 @@ export default function CustomerMetricsPage({ p, core, setCore, openCustomer }) 
 
           {/* Quick Data Summary Footer */}
           <div className="pt-2.5 border-t border-black/[0.04] dark:border-white/[0.05] grid grid-cols-4 gap-2 text-center text-[10px]">
-            {brandChartData.slice(0, 4).map((b) => (
+            {productChartData.slice(0, 4).map((b) => (
               <div key={b.name} className="p-1 rounded-lg bg-black/[0.02] dark:bg-white/[0.02]">
                 <span className="font-bold text-[#86868B] block truncate">{b.name}</span>
                 <span className="font-black text-[#1D1D1F] dark:text-[#F5F5F7] tabular-nums mt-0.5 block">

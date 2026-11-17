@@ -232,7 +232,7 @@ function AppleCard({ title, subtitle, badge, action, children, className = '' })
 
 /* ---------- نمودار کیکی سهم فروش (طراحی مدرن اپل دنات) ---------- */
 const PIE_COLORS = ['#2563eb', '#0f766e', '#8b5cf6', '#f59e0b', '#ec4899', '#0ea5e9', '#84cc16', '#ef4444', '#94a3b8']
-const PIE_OPTIONS = [['branch', 'شعبه'], ['region', 'منطقه'], ['brand', 'برند'], ['group', 'لاین'], ['grade', 'گرید مشتری'], ['month', 'ماه']]
+const PIE_OPTIONS = [['branch', 'شعبه'], ['region', 'منطقه'], ['brand', 'برند'], ['main_group', 'گروه کالا'], ['grade', 'گرید مشتری'], ['month', 'ماه']]
 
 function SharePie({ p, defaultBy }) {
   const [by, setBy] = useState(defaultBy)
@@ -630,7 +630,7 @@ const breakdownColumns = (labelHead) => [
   { label: 'درصد مرجوعی', render: (r) => pct(r.return_percent, 2), value: (r) => r.return_percent * 100, unit: '٪' },
 ]
 
-const DIM_LABELS = { brand: 'برند', group: 'لاین', product: 'کالا' }
+const DIM_LABELS = { brand: 'برند', main_group: 'گروه کالا', group: 'لاین', product: 'کالا' }
 
 const PROFILE_LABELS = { branch: 'شعبه', brand: 'برند', group: 'لاین', product: 'کالا' }
 

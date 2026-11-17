@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import { motion, useReducedMotion } from 'motion/react'
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts'
-import { fa, monthLabel, dayLabel } from '../format'
+import { fa, monthLabel, dayLabel, billions, billions1 } from '../format'
 import { useAppearance } from '../AppearanceContext'
 
 const pct  = (v) => (v == null ? '—' : `${new Intl.NumberFormat('fa-IR', { maximumFractionDigits: 1 }).format(v * 100)}٪`)
@@ -142,42 +142,60 @@ export function HeroMetricCard({ rows, period, o, growth, growthLabel }) {
 
       {/* Big Revenue Number */}
       <div className="relative z-10 my-4 sm:my-6">
-        <div className={`text-2xl sm:text-4xl lg:text-5xl font-black tracking-tight tabular-nums break-all ${isDark ? 'text-[#F5F5F7]' : 'text-[#1E1B4B]'}`}>
+        <div
+          title={o ? `${fa(o.net_rial)} ریال خالص` : undefined}
+          className={`text-2xl sm:text-4xl lg:text-5xl font-black tracking-tight tabular-nums whitespace-nowrap overflow-x-auto no-scrollbar ${isDark ? 'text-[#F5F5F7]' : 'text-[#1E1B4B]'}`}
+        >
           {o ? fa(o.net_rial) : '—'} <span className={`text-xs sm:text-base font-bold mr-1 sm:mr-2 ${isDark ? 'text-indigo-400' : 'text-[#4338CA]/80'}`}>ریال</span>
         </div>
       </div>
 
-      {/* Bottom 3 stats */}
+      {/* Bottom 3 stats (Apple Glass Capsules with crisp hover & tooltips) */}
       <div className="relative z-10 grid grid-cols-3 gap-2 sm:gap-3 w-full">
-        <div className={`rounded-2xl p-2.5 sm:p-3.5 min-w-0 transition-all ${
-          isDark
-            ? 'bg-white/[0.06] backdrop-blur-xl border border-white/10'
-            : isSolid
-            ? 'bg-white border border-indigo-100 shadow-xs'
-            : 'bg-white/85 backdrop-blur-xl border border-white shadow-[0_4px_15px_rgba(99,102,241,0.06)]'
-        }`}>
-          <p className={`text-[11px] sm:text-xs font-medium truncate ${isDark ? 'text-slate-400' : 'text-[#64748B]'}`}>فروش ناخالص</p>
-          <p className={`font-extrabold text-base mt-1 tabular-nums truncate ${isDark ? 'text-[#F5F5F7]' : 'text-[#1E1B4B]'}`}>{gross == null ? '—' : `${fa(gross)} م`}</p>
+        <div
+          title={o ? `${fa(o.sum_rial_vat)} ریال (فروش ناخالص شامل مالیات و عوارض)` : undefined}
+          className={`rounded-2xl p-2.5 sm:px-4 sm:py-3 min-w-0 transition-all ${
+            isDark
+              ? 'bg-white/[0.05] backdrop-blur-xl border border-white/10 shadow-[0_2px_10px_rgba(0,0,0,0.25)] hover:bg-white/[0.08]'
+              : isSolid
+              ? 'bg-white border border-indigo-100/80 shadow-xs'
+              : 'bg-white/75 backdrop-blur-xl border border-white/80 shadow-[0_2px_12px_rgba(99,102,241,0.05)] hover:bg-white/90'
+          }`}
+        >
+          <p className={`text-[11px] sm:text-xs font-semibold truncate ${isDark ? 'text-slate-400' : 'text-[#64748B]'}`}>فروش ناخالص</p>
+          <p className={`font-black text-sm sm:text-base lg:text-lg mt-0.5 tabular-nums whitespace-nowrap truncate ${isDark ? 'text-[#F5F5F7]' : 'text-[#1E1B4B]'}`}>
+            {gross == null ? '—' : `${fa(gross)} م. ریال`}
+          </p>
         </div>
-        <div className={`rounded-2xl p-2.5 sm:p-3.5 min-w-0 transition-all ${
-          isDark
-            ? 'bg-white/[0.06] backdrop-blur-xl border border-white/10'
-            : isSolid
-            ? 'bg-white border border-indigo-100 shadow-xs'
-            : 'bg-white/85 backdrop-blur-xl border border-white shadow-[0_4px_15px_rgba(99,102,241,0.06)]'
-        }`}>
-          <p className={`text-[11px] sm:text-xs font-medium truncate ${isDark ? 'text-slate-400' : 'text-[#64748B]'}`}>مجموع پروموشن</p>
-          <p className={`font-extrabold text-base mt-1 tabular-nums truncate ${isDark ? 'text-[#F5F5F7]' : 'text-[#1E1B4B]'}`}>{promo == null ? '—' : `${fa(promo)} م`}</p>
+        <div
+          title={o ? `${fa(o.promo_total_rial)} ریال (مجموع تخفیفات و پروموشن)` : undefined}
+          className={`rounded-2xl p-2.5 sm:px-4 sm:py-3 min-w-0 transition-all ${
+            isDark
+              ? 'bg-white/[0.05] backdrop-blur-xl border border-white/10 shadow-[0_2px_10px_rgba(0,0,0,0.25)] hover:bg-white/[0.08]'
+              : isSolid
+              ? 'bg-white border border-indigo-100/80 shadow-xs'
+              : 'bg-white/75 backdrop-blur-xl border border-white/80 shadow-[0_2px_12px_rgba(99,102,241,0.05)] hover:bg-white/90'
+          }`}
+        >
+          <p className={`text-[11px] sm:text-xs font-semibold truncate ${isDark ? 'text-slate-400' : 'text-[#64748B]'}`}>مجموع پروموشن</p>
+          <p className={`font-black text-sm sm:text-base lg:text-lg mt-0.5 tabular-nums whitespace-nowrap truncate ${isDark ? 'text-[#F5F5F7]' : 'text-[#1E1B4B]'}`}>
+            {promo == null ? '—' : `${fa(promo)} م. ریال`}
+          </p>
         </div>
-        <div className={`rounded-2xl p-2.5 sm:p-3.5 min-w-0 transition-all ${
-          isDark
-            ? 'bg-white/[0.06] backdrop-blur-xl border border-white/10'
-            : isSolid
-            ? 'bg-white border border-indigo-100 shadow-xs'
-            : 'bg-white/85 backdrop-blur-xl border border-white shadow-[0_4px_15px_rgba(99,102,241,0.06)]'
-        }`}>
-          <p className={`text-[11px] sm:text-xs font-medium truncate ${isDark ? 'text-slate-400' : 'text-[#64748B]'}`}>درصد پروموشن</p>
-          <p className={`font-extrabold text-base mt-1 tabular-nums truncate ${isDark ? 'text-[#F5F5F7]' : 'text-[#1E1B4B]'}`}>{promoPct == null ? '—' : pct(promoPct)}</p>
+        <div
+          title={promoPct != null ? `${pct(promoPct)} از کل فروش ناخالص` : undefined}
+          className={`rounded-2xl p-2.5 sm:px-4 sm:py-3 min-w-0 transition-all ${
+            isDark
+              ? 'bg-white/[0.05] backdrop-blur-xl border border-white/10 shadow-[0_2px_10px_rgba(0,0,0,0.25)] hover:bg-white/[0.08]'
+              : isSolid
+              ? 'bg-white border border-indigo-100/80 shadow-xs'
+              : 'bg-white/75 backdrop-blur-xl border border-white/80 shadow-[0_2px_12px_rgba(99,102,241,0.05)] hover:bg-white/90'
+          }`}
+        >
+          <p className={`text-[11px] sm:text-xs font-semibold truncate ${isDark ? 'text-slate-400' : 'text-[#64748B]'}`}>درصد پروموشن</p>
+          <p className={`font-black text-sm sm:text-base lg:text-lg mt-0.5 tabular-nums whitespace-nowrap truncate ${isDark ? 'text-[#F5F5F7]' : 'text-[#1E1B4B]'}`}>
+            {promoPct == null ? '—' : pct(promoPct)}
+          </p>
         </div>
       </div>
     </div>
@@ -187,7 +205,7 @@ export function HeroMetricCard({ rows, period, o, growth, growthLabel }) {
 /* ─────────────────────────────────────────────────────────────
    ForecastRings  — Apple white-glass card (4-col)
    Activity Ring sits next to real Persian forecast numbers.
-   Duplicate English fractions deleted completely!
+   Never truncates financial figures; uses responsive font and tooltips.
 ───────────────────────────────────────────────────────────── */
 export function ForecastRings({ pace }) {
   const { isDark, isSolid } = useAppearance()
@@ -217,9 +235,9 @@ export function ForecastRings({ pace }) {
         <h2 className={`text-base font-bold ${isDark ? 'text-[#F5F5F7]' : 'text-[#1D1D1F]'}`}>پیش‌بینی پایان {monthLabel(d.year_month)}</h2>
       </div>
 
-      <div className="flex items-center gap-5 my-4">
+      <div className="flex items-center gap-4 sm:gap-5 my-4">
         {/* Apple Ring with Persian label */}
-        <div className="relative w-28 h-28 shrink-0 flex items-center justify-center">
+        <div className="relative w-24 h-24 sm:w-28 sm:h-28 shrink-0 flex items-center justify-center">
           <svg className="w-full h-full -rotate-90" viewBox="0 0 100 100">
             <circle cx="50" cy="50" r="40" stroke={isDark ? '#2C2C2E' : '#E5E5EA'} strokeWidth="10" fill="none" />
             <motion.circle
@@ -237,27 +255,41 @@ export function ForecastRings({ pace }) {
             />
           </svg>
           <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
-            <span className={`text-sm font-extrabold tabular-nums ${isDark ? 'text-[#F5F5F7]' : 'text-[#1D1D1F]'}`}>
+            <span className={`text-xs sm:text-sm font-extrabold tabular-nums ${isDark ? 'text-[#F5F5F7]' : 'text-[#1D1D1F]'}`}>
               {fa(daysPassed)} از {fa(totalDays)}
             </span>
             <span className={`text-[10px] ${isDark ? 'text-slate-400' : 'text-[#86868B]'}`}>روز کاری</span>
           </div>
         </div>
 
-        {/* Real Persian Forecast Numbers */}
+        {/* Real Persian Forecast Numbers without ellipsis truncation */}
         <div className="space-y-1.5 flex-1 min-w-0">
-          <p className={`text-xs ${isDark ? 'text-slate-400' : 'text-[#86868B]'}`}>ریال خالص برآوردی پایان ماه</p>
-          <p className={`text-xl font-extrabold tabular-nums truncate ${isDark ? 'text-[#F5F5F7]' : 'text-[#1D1D1F]'}`}>
-            {fa(projected)}
-          </p>
-          <div className={`pt-2 space-y-1 border-t text-xs ${isDark ? 'border-white/10' : 'border-black/[0.06]'}`}>
-            <div className="flex justify-between">
+          <p className={`text-xs font-medium ${isDark ? 'text-slate-400' : 'text-[#86868B]'}`}>ریال خالص برآوردی پایان ماه</p>
+          <div
+            title={projected != null ? `${fa(projected)} ریال برآوردی` : undefined}
+            className="flex items-baseline gap-1.5 mt-0.5"
+          >
+            <span className={`text-base sm:text-lg xl:text-xl font-extrabold tabular-nums whitespace-nowrap ${isDark ? 'text-[#F5F5F7]' : 'text-[#1D1D1F]'}`}>
+              {projected != null ? billions1(projected) : '—'}
+            </span>
+            <span className={`text-[11px] sm:text-xs font-semibold whitespace-nowrap ${isDark ? 'text-slate-400' : 'text-[#86868B]'}`}>
+              میلیارد ریال
+            </span>
+          </div>
+
+          <div className={`pt-2 mt-2 space-y-1.5 border-t text-xs ${isDark ? 'border-white/10' : 'border-black/[0.06]'}`}>
+            <div
+              className="flex justify-between items-center"
+              title={d.sum_rial_vat != null ? `${fa(d.sum_rial_vat)} ریال ناخالص واقعی` : undefined}
+            >
               <span className={isDark ? 'text-slate-400' : 'text-[#86868B]'}>ناخالص واقعی:</span>
-              <strong className={`tabular-nums ${isDark ? 'text-[#F5F5F7]' : 'text-[#1D1D1F]'}`}>{fa(d.sum_rial_vat)}</strong>
+              <span className={`tabular-nums font-bold whitespace-nowrap text-xs sm:text-sm ${isDark ? 'text-[#F5F5F7]' : 'text-[#1D1D1F]'}`}>
+                {billions1(d.sum_rial_vat)} <span className="text-[10px] font-normal text-[#86868B]">م.ر</span>
+              </span>
             </div>
-            <div className="flex justify-between">
+            <div className="flex justify-between items-center">
               <span className={isDark ? 'text-slate-400' : 'text-[#86868B]'}>روز باقی‌مانده:</span>
-              <strong className="text-amber-500 tabular-nums">{fa(d.remaining_working_days)} روز</strong>
+              <strong className="text-amber-500 tabular-nums whitespace-nowrap">{fa(d.remaining_working_days)} روز</strong>
             </div>
           </div>
         </div>
@@ -348,17 +380,22 @@ export function KpiSpotlight({ items }) {
             <Tag
               type={m.onClick ? 'button' : undefined}
               onClick={m.onClick}
-              className={`w-full h-full rounded-2xl sm:rounded-3xl ${cardSurface} p-3 sm:p-4 flex flex-col justify-between transition-all text-right${m.onClick ? ' cursor-pointer' : ''}`}
+              title={m.tooltip || (typeof m.value === 'string' && m.value !== '—' ? `${m.label}: ${m.value}` : undefined)}
+              className={`w-full h-full rounded-2xl sm:rounded-3xl ${cardSurface} p-3 sm:p-4 flex flex-col justify-between transition-all text-right min-w-0${m.onClick ? ' cursor-pointer' : ''}`}
             >
               <div className="flex items-center justify-between mb-2 sm:mb-3">
-                <span className={`text-[11px] sm:text-xs font-medium leading-tight truncate ${isDark ? 'text-slate-400' : 'text-[#86868B]'}`}>{m.label}</span>
+                <span className={`text-[11px] sm:text-xs font-semibold leading-tight truncate ${isDark ? 'text-slate-400' : 'text-[#86868B]'}`}>{m.label}</span>
                 <div className={`w-7 h-7 sm:w-8 sm:h-8 rounded-xl sm:rounded-2xl flex items-center justify-center shrink-0 ${TONE_COLORS[m.tone] ?? 'bg-blue-500/10 text-blue-600'}`}>
                   {m.icon ? <m.icon size={15} /> : null}
                 </div>
               </div>
-              <div>
-                <div className={`text-sm sm:text-base font-extrabold tracking-tight tabular-nums truncate ${isDark ? 'text-[#F5F5F7]' : 'text-[#1D1D1F]'}`}>{m.value}</div>
-                <div className={`text-[10px] sm:text-[11px] mt-0.5 sm:mt-1 truncate ${isDark ? 'text-slate-400' : 'text-[#86868B]'}`}>{m.unit}</div>
+              <div className="min-w-0">
+                <div className={`text-base sm:text-lg xl:text-xl font-black tracking-tight tabular-nums whitespace-nowrap overflow-x-auto no-scrollbar ${isDark ? 'text-[#F5F5F7]' : 'text-[#1D1D1F]'}`}>
+                  {m.value}
+                </div>
+                <div className={`text-[10px] sm:text-[11px] mt-0.5 sm:mt-1 truncate font-medium ${isDark ? 'text-slate-400' : 'text-[#86868B]'}`}>
+                  {m.unit}
+                </div>
               </div>
             </Tag>
           </motion.div>

@@ -22,6 +22,7 @@ import {
   PackageSearch,
   Percent,
   Printer,
+  Receipt,
   RefreshCw,
   ShoppingBag,
   Sparkles,
@@ -41,7 +42,7 @@ import {
 } from 'lucide-react'
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { postJson, useApi } from './api'
-import { dayLabel, fa, fa2, faDigits, monthLabel, monthName } from './format'
+import { billions1, dayLabel, fa, fa2, faDigits, monthLabel, monthName } from './format'
 import { Table } from './ui'
 import { motion, AnimatePresence } from 'motion/react'
 import { HeroMetricCard, ForecastRings, CalendarGlass, KpiSpotlight, ShareTabsCard, CompareBento } from './overview/kokonut-overview'
@@ -52,9 +53,17 @@ import DynamicIslandHeader from './DynamicIslandHeader'
 
 const pct = (v) => (v == null ? '—' : `${new Intl.NumberFormat('fa-IR', { maximumFractionDigits: 1 }).format(v * 100)}٪`)
 const PIE_COLORS = ['#2563eb', '#0f766e', '#8b5cf6', '#f59e0b', '#ec4899', '#0ea5e9', '#84cc16', '#ef4444', '#94a3b8']
-const PIE_BY = [['branch', 'شعبه'], ['region', 'منطقه'], ['brand', 'برند'], ['group', 'لاین'], ['grade', 'گرید مشتری']]
-const FILTER_LABELS = { group: 'لاین', city: 'شهر', state: 'منطقه شهرداری', brand: 'برند', main_group: 'گروه کالای اصلی', sub_group: 'زیرگروه کالای اصلی', product: 'کالا', grade: 'گرید مشتری' }
-const PRODUCT_GROUP_KEYS = ['main_group', 'sub_group', 'product'] // hidden while the data has no product groups (product.tsv not loaded)
+const PIE_BY = [['branch', 'شعبه'], ['region', 'منطقه'], ['brand', 'برند'], ['main_group', 'گروه کالا'], ['grade', 'گرید مشتری']]
+const FILTER_LABELS = {
+  brand: 'برند',
+  main_group: 'گروه کالا',
+  product: 'کالا',
+  city: 'شهر',
+  state: 'منطقه شهرداری',
+  grade: 'گرید مشتری',
+  group: 'لاین فروشگاهی',
+}
+const PRODUCT_GROUP_KEYS = ['main_group', 'product']
 
 export const NAV = [
   ['overview', 'نمای کلی', LayoutDashboard], ['trend', 'روند روزانه', Activity], ['monthly', 'روند ماهانه', BarChart3],
@@ -1352,6 +1361,7 @@ export default function ExecutiveDashboard({ p, cal, month, setMonth, onOpenRetu
   const monthly = useApi('/monthly', { ...dims })
   const trend = useApi('/trend', p)
   const pace = useApi('/pace', dims)
+  const target = useApi('/target', { core: p.core, ...(month ? { month } : {}) })
   const ret = useApi('/returns/summary', p) // dispatch-order returns; separate from SR sales metrics
   const retTotal = ret.data?.available ? ret.data.total : null
   const retNote = ret.error ? 'دریافت داده ناموفق بود' : ret.data?.available === false ? 'داده حواله بارگذاری نشده' : ret.loading && !ret.data ? 'در حال بارگذاری…' : null
@@ -1364,6 +1374,12 @@ export default function ExecutiveDashboard({ p, cal, month, setMonth, onOpenRetu
   const growthLabel = (month ? selectedPeriod : lastPeriod)?.label
   const days = trend.data ?? []
   const toggle = (ym) => setMonth(ym === month ? '' : ym)
+
+  // Executive KPI calculations (reconciled with DuckDB)
+  const returnsRial = o ? Math.abs(o.returns_rial ?? 0) : 0
+  const aov = (o && o.invoice_count) ? Math.round(o.net_rial / o.invoice_count) : null
+  const targetAchieved = target.data?.summary?.achieved_pct ?? null
+  const targetTotal = target.data?.summary?.target_rial ?? null
 
   const surfaceClass = isDark
     ? 'bg-[#1C1C1E]/85 backdrop-blur-2xl border border-white/10 text-[#F5F5F7] shadow-[0_8px_30px_rgba(0,0,0,0.5)]'
@@ -1383,19 +1399,19 @@ export default function ExecutiveDashboard({ p, cal, month, setMonth, onOpenRetu
         <ForecastRings pace={pace} />
       </div>
 
-      {/* ── 6×2 KPI widget grid ─────────────────────────────── */}
+      {/* ── 6×2 KPI widget grid (Executive, non-duplicate, no digit truncation) ─────────────────────────────── */}
       <KpiSpotlight items={[
-        { icon: CircleDollarSign, label: 'فروش ناخالص', value: o ? fa(o.sum_rial_vat) : '—', unit: 'ریال · شامل مالیات و عوارض', tone: 'blue' },
+        { icon: Undo2, label: 'مبلغ مرجوعی', value: o ? billions1(returnsRial) : '—', unit: 'میلیارد ریال · مرجوعی کل', tooltip: o ? `${fa(returnsRial)} ریال مرجوعی فروش` : undefined, tone: 'red', onClick: onOpenReturns },
         { icon: PackageSearch, label: 'تعداد کالا', value: o ? fa(o.sum_qty) : '—', unit: 'عدد', tone: 'violet' },
         { icon: PackageSearch, label: 'تعداد کالا خالص', value: o ? fa(o.sum_qty_net) : '—', unit: 'عدد · منهای مرجوعی', tone: 'violet' },
         { icon: FileText, label: 'تعداد فاکتور', value: o ? fa(o.invoice_count) : '—', unit: 'فقره', tone: 'amber' },
         { icon: TrendingUp, label: 'درصد رشد فاکتور', value: pct(invoiceGrowth), unit: growthLabel ? `${growthLabel} نسبت به ماه قبل` : 'مقایسه با ماه قبل', tone: 'teal' },
         { icon: ListOrdered, label: 'میانگین سطر فاکتور', value: invoiceLines.data ? fa2(invoiceLines.data.avg_lines_per_invoice) : '—', unit: 'سطر در هر فاکتور', tone: 'sky' },
         { icon: Users, label: 'مشتری فعال', value: o ? fa(o.active_customers) : '—', unit: 'مشتری یکتا', tone: 'pink' },
-        { icon: ArrowDownLeft, label: 'مجموع پروموشن', value: o ? fa(o.promo_total_rial) : '—', unit: 'ریال', tone: 'red' },
-        { icon: Percent, label: 'درصد کل پروموشن', value: o ? pct(o.promo_percent) : '—', unit: 'از فروش ناخالص', tone: 'red' },
+        { icon: Receipt, label: 'میانگین هر فاکتور (AOV)', value: aov ? fa(aov) : '—', unit: 'ریال · ارزش سفارش', tooltip: aov ? `${fa(aov)} ریال میانگین ارزش هر فاکتور` : undefined, tone: 'teal' },
+        { icon: Target, label: 'درصد تحقق تارگت', value: targetAchieved != null ? pct(targetAchieved) : (target.loading ? '…' : '—'), unit: targetTotal ? `از تارگت ${billions1(targetTotal)} م.ر` : 'از هدف فروش دوره', tooltip: target.data?.summary ? `تحقق: ${fa(target.data.summary.actual_rial)} از هدف ${fa(target.data.summary.target_rial)} ریال` : undefined, tone: targetAchieved >= 1 ? 'teal' : targetAchieved >= 0.9 ? 'amber' : 'red' },
         { icon: Undo2, label: 'حواله‌های برگشتی', value: retTotal ? fa(retTotal.returned_orders) : '—', unit: retNote ?? `${pct(retTotal.returned_order_percent)} از ${fa(retTotal.orders)} حواله`, tone: 'amber', onClick: onOpenReturns },
-        { icon: PackageX, label: 'درصد برگشتی حواله', value: retTotal ? pct(retTotal.return_percent) : '—', unit: retNote ?? `${fa(retTotal.return_rial)} ریال برگشتی`, tone: 'red', onClick: onOpenReturns },
+        { icon: PackageX, label: 'درصد برگشتی حواله', value: retTotal ? pct(retTotal.return_percent) : '—', unit: retNote ?? (retTotal?.return_rial ? `${billions1(retTotal.return_rial)} م.ر برگشتی` : '—'), tooltip: retTotal?.return_rial ? `${fa(retTotal.return_rial)} ریال برگشتی` : undefined, tone: 'red', onClick: onOpenReturns },
         { icon: PackageX, label: 'تعداد فاکتور تحویلی', value: retTotal ? fa(retTotal.invoiced_orders) : '—', unit: retNote ?? `${pct(retTotal.invoiced_order_percent)} درصد تحویل`, tone: 'blue', onClick: onOpenReturns },
       ]} />
 
