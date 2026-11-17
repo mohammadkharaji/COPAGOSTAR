@@ -7,6 +7,8 @@ import { useAppearance } from './AppearanceContext'
 import { fa, faDigits, monthLabel } from './format'
 import { Table } from './ui'
 import ActivityRingsWidget from './ActivityRingsWidget'
+import LadderPlanForm from './club/LadderPlanForm'
+import { DEFAULT_KPIS, validateConfig } from './club/ladder'
 
 // One page per club, both backed by the same /api/club/<kind>/... routes. `kind` is 'b2b' or 'visitor'.
 const CLUBS = {
@@ -150,10 +152,17 @@ function PlanForm({ kind, core, onCreated }) {
   const [target, setTarget] = useState('')
   const [tierPoints, setTierPoints] = useState('')
   const [rules, setRules] = useState([])
+  const [planType, setPlanType] = useState('linear')
+  const [ladderCfg, setLadderCfg] = useState({ kpis: DEFAULT_KPIS, grade_bands: [], prize_table: [] })
   const [msg, setMsg] = useState('')
+  const isLadder = planType === 'ladder'
   const setRule = (i, k, v) => setRules((rs) => rs.map((r, n) => (n === i ? { ...r, [k]: v } : r)))
   const submit = (e) => {
     e.preventDefault()
+    if (isLadder) {
+      const errs = validateConfig(ladderCfg)
+      if (errs.length) { setMsg(errs[0]); return }
+    }
     const parsedTiers = tierPoints
       ? tierPoints.split(',').map((x) => Number(x.trim())).filter((x) => !isNaN(x) && x > 0)
       : null
@@ -161,10 +170,11 @@ function PlanForm({ kind, core, onCreated }) {
       name, core,
       start_key: Number(start.replace(/\D/g, '')),
       end_key: Number(end.replace(/\D/g, '')),
-      rial_per_point: Number(rate),
+      rial_per_point: isLadder ? 0 : Number(rate),
+      ...(isLadder ? { plan_type: 'ladder', config: ladderCfg } : {}),
       target_points: target ? Number(target.replace(/\D/g, '')) : null,
       tier_points: parsedTiers && parsedTiers.length === 4 ? parsedTiers : null,
-      rules: rules.filter((r) => Number(r.ratio) > 0).map((r) => ({
+      rules: isLadder ? [] : rules.filter((r) => Number(r.ratio) > 0).map((r) => ({
         label: r.label, metric: r.metric, ratio: Number(r.ratio), factor: Number(r.factor) || 0,
         brand: r.brand || null, main_group: null, new_customers: false,
       })),
@@ -189,21 +199,30 @@ function PlanForm({ kind, core, onCreated }) {
           <label className="block text-xs font-medium text-[#86868B] mb-1">پایان (۱۴۰۵۰۷۳۰)</label>
           <input className="w-full bg-white border border-black/[0.08] rounded-xl px-3 py-2 text-xs text-[#1D1D1F] focus:outline-none focus:ring-2 focus:ring-[#0071E3]/25" value={end} onChange={(e) => setEnd(e.target.value)} required inputMode="numeric" />
         </div>
-        <div>
+        {kind === 'visitor' && (
+          <div>
+            <label className="block text-xs font-medium text-[#86868B] mb-1">نوع طرح</label>
+            <select className="w-full bg-white border border-black/[0.08] rounded-xl px-3 py-2 text-xs text-[#1D1D1F]" value={planType} onChange={(e) => setPlanType(e.target.value)}>
+              <option value="linear">خطی</option><option value="ladder">نردبان تحقق</option>
+            </select>
+          </div>
+        )}
+        {!isLadder && <div>
           <label className="block text-xs font-medium text-[#86868B] mb-1">ریال به ازای امتیاز</label>
           <input className="w-full bg-white border border-black/[0.08] rounded-xl px-3 py-2 text-xs text-[#1D1D1F] focus:outline-none focus:ring-2 focus:ring-[#0071E3]/25" value={rate} onChange={(e) => setRate(e.target.value)} required inputMode="numeric" />
-        </div>
-        <div>
+        </div>}
+        {!isLadder && <div>
           <label className="block text-xs font-medium text-[#86868B] mb-1">هدف امتیاز (اختیاری)</label>
           <input className="w-full bg-white border border-black/[0.08] rounded-xl px-3 py-2 text-xs text-[#1D1D1F] focus:outline-none focus:ring-2 focus:ring-[#0071E3]/25" value={target} onChange={(e) => setTarget(e.target.value)} inputMode="numeric" />
-        </div>
-        <div>
+        </div>}
+        {!isLadder && <div>
           <label className="block text-xs font-medium text-[#86868B] mb-1">پله‌ها (مثال: 10,20,30,40)</label>
           <input className="w-full bg-white border border-black/[0.08] rounded-xl px-3 py-2 text-xs text-[#1D1D1F] focus:outline-none focus:ring-2 focus:ring-[#0071E3]/25" placeholder="۴ آستانه عددی" value={tierPoints} onChange={(e) => setTierPoints(e.target.value)} />
-        </div>
+        </div>}
       </div>
 
-      <div className="p-4 rounded-2xl bg-white border border-black/[0.05] space-y-3">
+      {isLadder && <LadderPlanForm value={ladderCfg} onChange={setLadderCfg} />}
+      {!isLadder && <div className="p-4 rounded-2xl bg-white border border-black/[0.05] space-y-3">
         <div className="flex items-center justify-between">
           <span className="text-xs font-bold text-[#1D1D1F]">قوانین و ضرایب گیمیفیکیشن (اختیاری)</span>
           <button
@@ -231,7 +250,7 @@ function PlanForm({ kind, core, onCreated }) {
             </button>
           </div>
         ))}
-      </div>
+      </div>}
 
       <div className="flex items-center gap-3 pt-2">
         <button type="submit" className="px-5 py-2.5 rounded-xl text-xs font-semibold bg-[#0071E3] hover:bg-[#0077ED] text-white shadow-sm shadow-blue-500/25 transition-all">
