@@ -1447,5 +1447,92 @@ button.spot { padding: 0; text-align: right; }
   }
 }
 
+/* ─────────────────────────────────────────────────────────────
+   Universal Apple Glass Theming for All Pages
+   (Targets AppleCard, AppleKpiCard, Form Inputs, Segmented Controls, Tables, and Recharts)
+───────────────────────────────────────────────────────────── */
+[data-appearance="dark"] .apple-card,
+.dark .apple-card,
+[data-appearance="dark"] .apple-kpi-card,
+.dark .apple-kpi-card {
+  background: rgba(28, 28, 30, 0.85) !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
+  color: #F5F5F7 !important;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5) !important;
+}
+
+[data-appearance="dark"] .apple-card h1,
+.dark .apple-card h1,
+[data-appearance="dark"] .apple-card h2,
+.dark .apple-card h2,
+[data-appearance="dark"] .apple-card h3,
+.dark .apple-card h3,
+[data-appearance="dark"] .apple-kpi-card .font-extrabold,
+.dark .apple-kpi-card .font-extrabold,
+[data-appearance="dark"] .apple-kpi-card .font-bold,
+.dark .apple-kpi-card .font-bold {
+  color: #F5F5F7 !important;
+}
+
+[data-appearance="dark"] .apple-card p,
+.dark .apple-card p,
+[data-appearance="dark"] .apple-kpi-card span,
+.dark .apple-kpi-card span {
+  color: #98989D !important;
+}
+
+/* Universal Inputs, Selects, and Textareas in Dark Mode */
+[data-appearance="dark"] input:not([type="checkbox"]):not([type="radio"]),
+.dark input:not([type="checkbox"]):not([type="radio"]),
+[data-appearance="dark"] select,
+.dark select,
+[data-appearance="dark"] textarea,
+.dark textarea {
+  background-color: rgba(255, 255, 255, 0.06) !important;
+  border-color: rgba(255, 255, 255, 0.12) !important;
+  color: #F5F5F7 !important;
+}
+[data-appearance="dark"] select option,
+.dark select option {
+  background-color: #1C1C1E !important;
+  color: #F5F5F7 !important;
+}
+
+/* Universal Segmented Controls and Light Gray Inner Containers in Dark Mode */
+[data-appearance="dark"] .bg-\[\#E8E8ED\]\/80,
+.dark .bg-\[\#E8E8ED\]\/80,
+[data-appearance="dark"] .bg-\[\#E8E8ED\],
+.dark .bg-\[\#E8E8ED\],
+[data-appearance="dark"] .bg-\[\#F5F5F7\],
+.dark .bg-\[\#F5F5F7\],
+[data-appearance="dark"] .bg-\[\#F9F9FB\],
+.dark .bg-\[\#F9F9FB\] {
+  background-color: rgba(255, 255, 255, 0.05) !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+  color: #F5F5F7 !important;
+}
+
+[data-appearance="dark"] .bg-\[\#E8E8ED\]\/80 button:not(.bg-\[\#0071E3\]):not([aria-selected="true"]),
+.dark .bg-\[\#E8E8ED\]\/80 button:not(.bg-\[\#0071E3\]):not([aria-selected="true"]) {
+  color: #98989D !important;
+}
+[data-appearance="dark"] .bg-\[\#E8E8ED\]\/80 button:not(.bg-\[\#0071E3\]):not([aria-selected="true"]):hover,
+.dark .bg-\[\#E8E8ED\]\/80 button:not(.bg-\[\#0071E3\]):not([aria-selected="true"]):hover {
+  background-color: rgba(255, 255, 255, 0.1) !important;
+  color: #F5F5F7 !important;
+}
+
+/* Apple Floating Glass Bars & Generic White/85 Cards */
+[data-appearance="dark"] .bg-white\/85,
+.dark .bg-white\/85,
+[data-appearance="dark"] .bg-white\/80,
+.dark .bg-white\/80,
+[data-appearance="dark"] .bg-white\/70,
+.dark .bg-white\/70 {
+  background-color: rgba(28, 28, 30, 0.85) !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
+  color: #F5F5F7 !important;
+}
+
 
 

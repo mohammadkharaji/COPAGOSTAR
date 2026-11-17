@@ -3,6 +3,7 @@ import { Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, Legend, Line, Pie,
 import { motion } from 'motion/react'
 import { CircleDollarSign, Calendar, TrendingUp, Users, Award, BarChart3, Activity, FileText, Send, UserRound, UserCheck, Layers, Store, ShoppingBag, RotateCcw, CheckCircle2, RefreshCw, Server, Clock, Database } from 'lucide-react'
 import { postJson, useApi } from './api'
+import { useAppearance } from './AppearanceContext'
 import { dayLabel, fa, fa2, monthLabel, monthName } from './format'
 import { ChartTip, Kpi, Panel, Status, Table, Toggle, pct, rial } from './ui'
 import { ReturnsProfileCard, returnsArg } from './ReturnsPage'
@@ -160,6 +161,7 @@ export const QuantityPage = ({ p }) => {
 
 /* ---------- کامپوننت کارت کی‌پی‌آی اپل بنتو ---------- */
 function AppleKpiCard({ label, value, unit, icon: Icon, tone = 'blue' }) {
+  const { isDark, isSolid } = useAppearance()
   const tones = {
     blue: 'bg-blue-500/10 text-blue-600',
     teal: 'bg-teal-500/10 text-teal-600',
@@ -172,17 +174,23 @@ function AppleKpiCard({ label, value, unit, icon: Icon, tone = 'blue' }) {
   return (
     <motion.div
       whileHover={{ y: -3 }}
-      className="rounded-2xl sm:rounded-3xl bg-white/85 backdrop-blur-xl border border-black/[0.04] shadow-[0_4px_20px_rgb(0,0,0,0.03)] p-3 sm:p-5 flex flex-col justify-between hover:shadow-[0_12px_30px_rgb(0,0,0,0.07)] transition-shadow text-right"
+      className={`apple-kpi-card rounded-2xl sm:rounded-3xl border transition-all p-3 sm:p-5 flex flex-col justify-between text-right ${
+        isDark
+          ? 'bg-[#1C1C1E]/85 backdrop-blur-2xl border-white/10 text-[#F5F5F7] shadow-[0_4px_20px_rgba(0,0,0,0.3)] hover:shadow-[0_12px_30px_rgba(0,0,0,0.5)]'
+          : isSolid
+          ? 'bg-white border-slate-200 text-[#1D1D1F] shadow-xs hover:shadow-md'
+          : 'bg-white/85 backdrop-blur-xl border-black/[0.04] text-[#1D1D1F] shadow-[0_4px_20px_rgb(0,0,0,0.03)] hover:shadow-[0_12px_30px_rgb(0,0,0,0.07)]'
+      }`}
     >
       <div className="flex items-center justify-between mb-2 sm:mb-3">
-        <span className="text-[11px] sm:text-xs font-medium text-[#86868B] truncate">{label}</span>
+        <span className={`text-[11px] sm:text-xs font-medium truncate ${isDark ? 'text-slate-400' : 'text-[#86868B]'}`}>{label}</span>
         <div className={`w-7 h-7 sm:w-8 sm:h-8 rounded-xl sm:rounded-2xl flex items-center justify-center shrink-0 ${tones[tone] || tones.blue}`}>
           {Icon ? <Icon size={14} className="sm:w-4 sm:h-4" /> : null}
         </div>
       </div>
       <div>
-        <div className="text-sm sm:text-xl font-extrabold text-[#1D1D1F] tracking-tight tabular-nums truncate">{value}</div>
-        <div className="text-[10px] sm:text-[11px] text-[#86868B] mt-0.5 sm:mt-1 truncate">{unit}</div>
+        <div className={`text-sm sm:text-xl font-extrabold tracking-tight tabular-nums truncate ${isDark ? 'text-[#F5F5F7]' : 'text-[#1D1D1F]'}`}>{value}</div>
+        <div className={`text-[10px] sm:text-[11px] mt-0.5 sm:mt-1 truncate ${isDark ? 'text-slate-400' : 'text-[#86868B]'}`}>{unit}</div>
       </div>
     </motion.div>
   )
@@ -190,13 +198,22 @@ function AppleKpiCard({ label, value, unit, icon: Icon, tone = 'blue' }) {
 
 /* ---------- کامپوننت پوسته کارت اپل بنتو ---------- */
 function AppleCard({ title, subtitle, badge, action, children, className = '' }) {
+  const { isDark, isSolid } = useAppearance()
   return (
-    <div className={`rounded-[24px] sm:rounded-[28px] bg-white/85 backdrop-blur-xl border border-black/[0.04] shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-4 sm:p-6 overflow-hidden w-full max-w-full ${className}`}>
+    <div
+      className={`apple-card rounded-[24px] sm:rounded-[28px] border transition-all p-4 sm:p-6 overflow-hidden w-full max-w-full ${
+        isDark
+          ? 'bg-[#1C1C1E]/85 backdrop-blur-2xl border-white/10 text-[#F5F5F7] shadow-[0_8px_30px_rgba(0,0,0,0.4)]'
+          : isSolid
+          ? 'bg-white border-slate-200 text-[#1D1D1F] shadow-xs'
+          : 'bg-white/85 backdrop-blur-xl border-black/[0.04] text-[#1D1D1F] shadow-[0_8px_30px_rgb(0,0,0,0.04)]'
+      } ${className}`}
+    >
       {(title || subtitle || badge || action) && (
         <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
           <div>
-            {title && <h2 className="text-base font-bold text-[#1D1D1F]">{title}</h2>}
-            {subtitle && <p className="text-xs text-[#86868B] mt-0.5">{subtitle}</p>}
+            {title && <h2 className={`text-base font-bold ${isDark ? 'text-[#F5F5F7]' : 'text-[#1D1D1F]'}`}>{title}</h2>}
+            {subtitle && <p className={`text-xs mt-0.5 ${isDark ? 'text-slate-400' : 'text-[#86868B]'}`}>{subtitle}</p>}
           </div>
           <div className="flex items-center gap-2">
             {badge && (

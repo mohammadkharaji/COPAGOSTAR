@@ -5,6 +5,7 @@ import {
 } from 'lucide-react'
 import { motion } from 'motion/react'
 import { send, useApi } from './api'
+import { useAppearance } from './AppearanceContext'
 import { fa } from './format'
 import { NAV } from './ExecutiveDashboard'
 
@@ -99,13 +100,22 @@ const when = (ts) => {
 const toggleIn = (list, v) => (list.includes(v) ? list.filter((x) => x !== v) : [...list, v])
 
 function AppleCard({ title, subtitle, badge, action, children, className = '' }) {
+  const { isDark, isSolid } = useAppearance()
   return (
-    <div className={`rounded-[28px] bg-white/85 backdrop-blur-xl border border-black/[0.04] shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-6 ${className}`}>
+    <div
+      className={`apple-card rounded-[28px] border transition-all p-6 overflow-hidden w-full max-w-full ${
+        isDark
+          ? 'bg-[#1C1C1E]/85 backdrop-blur-2xl border-white/10 text-[#F5F5F7] shadow-[0_8px_30px_rgba(0,0,0,0.4)]'
+          : isSolid
+          ? 'bg-white border-slate-200 text-[#1D1D1F] shadow-xs'
+          : 'bg-white/85 backdrop-blur-xl border-black/[0.04] text-[#1D1D1F] shadow-[0_8px_30px_rgb(0,0,0,0.04)]'
+      } ${className}`}
+    >
       {(title || subtitle || badge || action) && (
         <div className="flex items-center justify-between mb-5 flex-wrap gap-2">
           <div>
-            {title && <h2 className="text-base font-bold text-[#1D1D1F]">{title}</h2>}
-            {subtitle && <p className="text-xs text-[#86868B] mt-0.5">{subtitle}</p>}
+            {title && <h2 className={`text-base font-bold ${isDark ? 'text-[#F5F5F7]' : 'text-[#1D1D1F]'}`}>{title}</h2>}
+            {subtitle && <p className={`text-xs mt-0.5 ${isDark ? 'text-slate-400' : 'text-[#86868B]'}`}>{subtitle}</p>}
           </div>
           <div className="flex items-center gap-2">
             {badge && (
@@ -598,17 +608,19 @@ function RolePermissionsTree({ form, set, options }) {
           return (
             <div
               key={group.id}
-              className="bg-white border border-slate-200/80 rounded-2xl p-4 shadow-xs space-y-3 flex flex-col justify-between"
+              className={`border rounded-2xl p-4 shadow-xs space-y-3 flex flex-col justify-between transition-all ${
+                isDark ? 'bg-white/5 border-white/10 text-[#F5F5F7]' : 'bg-white border-slate-200/80 text-[#1D1D1F]'
+              }`}
             >
               {/* Group Header */}
-              <div className="flex items-center justify-between pb-2 border-b border-slate-200/80">
+              <div className={`flex items-center justify-between pb-2 border-b ${isDark ? 'border-white/10' : 'border-slate-200/80'}`}>
                 <div className="flex items-center gap-2.5">
-                  <span className="w-7 h-7 rounded-lg bg-black/[0.04] flex items-center justify-center text-[#1D1D1F] shrink-0">
+                  <span className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${isDark ? 'bg-white/10 text-[#F5F5F7]' : 'bg-black/[0.04] text-[#1D1D1F]'}`}>
                     <GroupIcon size={15} />
                   </span>
                   <div>
-                    <h4 className="text-xs font-bold text-[#1D1D1F]">{group.title}</h4>
-                    <span className="text-[10px] text-[#86868B] block mt-0.5">
+                    <h4 className={`text-xs font-bold ${isDark ? 'text-[#F5F5F7]' : 'text-[#1D1D1F]'}`}>{group.title}</h4>
+                    <span className={`text-[10px] block mt-0.5 ${isDark ? 'text-slate-400' : 'text-[#86868B]'}`}>
                       {fa(groupSelectedCount)} از {fa(groupItemCount)} انتخاب‌شده
                     </span>
                   </div>
@@ -621,10 +633,10 @@ function RolePermissionsTree({ form, set, options }) {
                   >
                     انتخاب همه
                   </button>
-                  <span className="text-slate-300 text-xs">|</span>
+                  <span className={`text-xs ${isDark ? 'text-white/20' : 'text-slate-300'}`}>|</span>
                   <button
                     type="button"
-                    className="text-[11px] text-[#86868B] font-semibold hover:underline px-1.5 py-0.5"
+                    className={`text-[11px] font-semibold hover:underline px-1.5 py-0.5 ${isDark ? 'text-slate-400' : 'text-[#86868B]'}`}
                     onClick={deselectGroup}
                   >
                     پاک کردن
@@ -651,13 +663,19 @@ function RolePermissionsTree({ form, set, options }) {
                       className={`px-3 py-2 rounded-xl text-xs font-medium border transition-all text-right flex items-center justify-between gap-2 select-none ${
                         isChecked
                           ? 'bg-[#0071E3]/10 border-[#0071E3]/30 text-[#0071E3] font-bold shadow-xs'
+                          : isDark
+                          ? 'bg-white/5 border-white/10 text-[#F5F5F7] hover:bg-white/10'
                           : 'bg-[#F5F5F7] border-black/[0.04] text-[#1D1D1F] hover:bg-[#E8E8ED]'
                       }`}
                     >
                       <div className="flex items-center gap-2 min-w-0">
                         <span
                           className={`w-4 h-4 rounded-md flex items-center justify-center text-[10px] shrink-0 transition-colors ${
-                            isChecked ? 'bg-[#0071E3] text-white shadow-xs' : 'border border-black/[0.2] bg-white'
+                            isChecked
+                              ? 'bg-[#0071E3] text-white shadow-xs'
+                              : isDark
+                              ? 'border border-white/20 bg-white/10'
+                              : 'border border-black/[0.2] bg-white'
                           }`}
                         >
                           {isChecked && '✓'}
@@ -1073,6 +1091,7 @@ function AuditTab() {
 }
 
 export default function AdminPage() {
+  const { isDark, isSolid } = useAppearance()
   const [tab, setTab] = useState('users')
   const [ver, setVer] = useState(0)
   const bump = () => setVer((n) => n + 1)
@@ -1082,8 +1101,14 @@ export default function AdminPage() {
   return (
     <div className="w-full max-w-[1600px] mx-auto px-6 space-y-6">
       {/* Apple Tabs Bar */}
-      <div className="rounded-[24px] bg-white/85 backdrop-blur-xl border border-black/[0.04] shadow-[0_4px_20px_rgb(0,0,0,0.03)] p-3 flex items-center justify-between flex-wrap gap-3">
-        <div className="flex items-center gap-1 p-1 bg-[#E8E8ED]/80 rounded-2xl">
+      <div className={`apple-card rounded-[24px] border p-3 flex items-center justify-between flex-wrap gap-3 transition-all ${
+        isDark
+          ? 'bg-[#1C1C1E]/85 backdrop-blur-2xl border-white/10 text-[#F5F5F7] shadow-[0_4px_20px_rgba(0,0,0,0.3)]'
+          : isSolid
+          ? 'bg-white border-slate-200 text-[#1D1D1F] shadow-xs'
+          : 'bg-white/85 backdrop-blur-xl border-black/[0.04] text-[#1D1D1F] shadow-[0_4px_20px_rgb(0,0,0,0.03)]'
+      }`}>
+        <div className={`flex items-center gap-1 p-1 rounded-2xl ${isDark ? 'bg-white/10' : 'bg-[#E8E8ED]/80'}`}>
           {[
             ['users', 'کاربران', Users],
             ['roles', 'نقش‌ها و دسترسی‌ها', KeyRound],
@@ -1094,7 +1119,11 @@ export default function AdminPage() {
               type="button"
               onClick={() => setTab(k)}
               className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold transition-all ${
-                tab === k ? 'bg-[#0071E3] text-white shadow-sm' : 'text-[#1D1D1F] hover:bg-black/[0.05]'
+                tab === k
+                  ? 'bg-[#0071E3] text-white shadow-sm'
+                  : isDark
+                  ? 'text-slate-300 hover:text-white hover:bg-white/10'
+                  : 'text-[#1D1D1F] hover:bg-black/[0.05]'
               }`}
             >
               <Icon size={14} />
@@ -1102,7 +1131,7 @@ export default function AdminPage() {
             </button>
           ))}
         </div>
-        <span className="text-xs font-medium text-[#86868B] px-2">مدیریت امنیت و کاربران سامانه</span>
+        <span className={`text-xs font-medium px-2 ${isDark ? 'text-slate-400' : 'text-[#86868B]'}`}>مدیریت امنیت و کاربران سامانه</span>
       </div>
 
       {failed && <div className="banner err" role="alert">دریافت اطلاعات مدیریت ناموفق بود: {failed}</div>}

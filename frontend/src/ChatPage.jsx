@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { ArrowUp, Database, Eraser, Loader2, Sparkles, TriangleAlert } from 'lucide-react'
 import { motion } from 'motion/react'
 import { postJson } from './api'
+import { useAppearance } from './AppearanceContext'
 
 // Starter questions: short on purpose, so they read as suggestions rather than documentation.
 const SAMPLES = [
@@ -11,6 +12,7 @@ const SAMPLES = [
 ]
 
 function Bubble({ role, text }) {
+  const { isDark } = useAppearance()
   const isUser = role === 'user'
   return (
     <motion.li
@@ -28,6 +30,8 @@ function Bubble({ role, text }) {
         className={`px-4 py-3 rounded-2xl text-sm leading-relaxed max-w-[80%] text-right ${
           isUser
             ? 'bg-[#0071E3] text-white rounded-br-sm shadow-sm shadow-blue-500/20'
+            : isDark
+            ? 'bg-white/10 border border-white/10 text-[#F5F5F7] rounded-bl-sm'
             : 'bg-[#F5F5F7] border border-black/[0.04] text-[#1D1D1F] rounded-bl-sm'
         }`}
       >
@@ -38,6 +42,7 @@ function Bubble({ role, text }) {
 }
 
 export default function ChatPage() {
+  const { isDark, isSolid } = useAppearance()
   const [messages, setMessages] = useState([])
   const [question, setQuestion] = useState('')
   const [busy, setBusy] = useState(false)
@@ -87,27 +92,37 @@ export default function ChatPage() {
 
   return (
     <div className="w-full max-w-[1600px] mx-auto px-6">
-      <div className="bg-white/85 backdrop-blur-xl border border-black/[0.04] shadow-[0_8px_30px_rgb(0,0,0,0.04)] rounded-[28px] p-6 max-w-4xl mx-auto flex flex-col h-[calc(100vh-200px)] min-h-[580px]">
+      <div className={`apple-card border rounded-[28px] p-6 max-w-4xl mx-auto flex flex-col h-[calc(100vh-200px)] min-h-[580px] transition-all ${
+        isDark
+          ? 'bg-[#1C1C1E]/85 backdrop-blur-2xl border-white/10 text-[#F5F5F7] shadow-[0_8px_30px_rgba(0,0,0,0.5)]'
+          : isSolid
+          ? 'bg-white border-slate-200 text-[#1D1D1F] shadow-xs'
+          : 'bg-white/85 backdrop-blur-xl border-black/[0.04] text-[#1D1D1F] shadow-[0_8px_30px_rgb(0,0,0,0.04)]'
+      }`}>
         {/* Apple Header */}
-        <div className="flex items-center justify-between pb-4 border-b border-black/[0.05] shrink-0 flex-wrap gap-3">
+        <div className={`flex items-center justify-between pb-4 border-b shrink-0 flex-wrap gap-3 ${
+          isDark ? 'border-white/10' : 'border-black/[0.05]'
+        }`}>
           <div className="flex items-center gap-3">
             <span className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-[#0071E3] to-[#42A1EC] text-white flex items-center justify-center shadow-sm shadow-blue-500/30">
               <Sparkles size={20} />
             </span>
             <div>
               <div className="flex items-center gap-2">
-                <h1 className="text-base font-bold text-[#1D1D1F]">دستیار هوشمند تحلیل فروش</h1>
+                <h1 className={`text-base font-bold ${isDark ? 'text-[#F5F5F7]' : 'text-[#1D1D1F]'}`}>دستیار هوشمند تحلیل فروش</h1>
                 <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-[#0071E3]/10 text-[#0071E3]">
                   هوش مصنوعی
                 </span>
               </div>
-              <p className="text-xs text-[#86868B] mt-0.5">پاسخ‌ها بر پایهٔ داده‌های امن شعب و هسته‌های مجاز حساب شما خوانده می‌شوند.</p>
+              <p className={`text-xs mt-0.5 ${isDark ? 'text-slate-400' : 'text-[#86868B]'}`}>پاسخ‌ها بر پایهٔ داده‌های امن شعب و هسته‌های مجاز حساب شما خوانده می‌شوند.</p>
             </div>
           </div>
           {messages.length > 0 && (
             <button
               type="button"
-              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-black/[0.04] hover:bg-black/[0.08] text-[#1D1D1F] transition-colors"
+              className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-colors ${
+                isDark ? 'bg-white/10 hover:bg-white/15 text-[#F5F5F7]' : 'bg-black/[0.04] hover:bg-black/[0.08] text-[#1D1D1F]'
+              }`}
               onClick={() => { setMessages([]); setError('') }}
             >
               <Eraser size={14} />
@@ -124,19 +139,23 @@ export default function ChatPage() {
                 <Sparkles size={28} />
               </span>
               <div>
-                <h3 className="text-base font-bold text-[#1D1D1F]">پرسش درباره داده‌های فروش</h3>
-                <p className="text-xs text-[#86868B] mt-1 leading-relaxed">
+                <h3 className={`text-base font-bold ${isDark ? 'text-[#F5F5F7]' : 'text-[#1D1D1F]'}`}>پرسش درباره داده‌های فروش</h3>
+                <p className={`text-xs mt-1 leading-relaxed ${isDark ? 'text-slate-400' : 'text-[#86868B]'}`}>
                   هر سؤالی دربارهٔ فروش، شعب، کالاها و روندها بپرسید تا با تحلیل داده پاسخ شما ارائه شود.
                 </p>
               </div>
               <div className="flex flex-col gap-2 w-full pt-2">
-                <span className="text-[11px] text-[#86868B] font-semibold text-right">نمونه سؤالات پیشنهادی:</span>
+                <span className={`text-[11px] font-semibold text-right ${isDark ? 'text-slate-400' : 'text-[#86868B]'}`}>نمونه سؤالات پیشنهادی:</span>
                 {SAMPLES.map((s) => (
                   <button
                     key={s}
                     type="button"
                     onClick={() => ask(s)}
-                    className="text-right px-4 py-2.5 rounded-xl text-xs font-medium bg-[#F5F5F7] hover:bg-[#E8E8ED] text-[#1D1D1F] border border-black/[0.04] transition-all"
+                    className={`text-right px-4 py-2.5 rounded-xl text-xs font-medium border transition-all ${
+                      isDark
+                        ? 'bg-white/5 hover:bg-white/10 text-[#F5F5F7] border-white/10'
+                        : 'bg-[#F5F5F7] hover:bg-[#E8E8ED] text-[#1D1D1F] border-black/[0.04]'
+                    }`}
                   >
                     {s}
                   </button>
@@ -158,7 +177,9 @@ export default function ChatPage() {
               <span className="w-8 h-8 rounded-xl bg-gradient-to-tr from-[#0071E3] to-[#42A1EC] text-white flex items-center justify-center shrink-0 shadow-sm shadow-blue-500/25">
                 <Sparkles size={16} />
               </span>
-              <div className="px-4 py-3 rounded-2xl bg-[#F5F5F7] border border-black/[0.04] text-[#86868B] text-sm flex items-center gap-2">
+              <div className={`px-4 py-3 rounded-2xl border text-sm flex items-center gap-2 ${
+                isDark ? 'bg-white/10 border-white/10 text-slate-300' : 'bg-[#F5F5F7] border-black/[0.04] text-[#86868B]'
+              }`}>
                 <Loader2 size={16} className="animate-spin text-[#0071E3]" />
                 <span>در حال تحلیل داده‌های فروش…</span>
               </div>
@@ -174,8 +195,12 @@ export default function ChatPage() {
         )}
 
         {/* Compose area */}
-        <div className="shrink-0 pt-3 border-t border-black/[0.05]">
-          <form className="relative bg-[#F5F5F7] border border-black/[0.06] rounded-2xl p-2 flex items-center gap-2 focus-within:ring-2 focus-within:ring-[#0071E3]/25 focus-within:border-[#0071E3] transition-all" onSubmit={onSubmit}>
+        <div className={`shrink-0 pt-3 border-t ${isDark ? 'border-white/10' : 'border-black/[0.05]'}`}>
+          <form className={`relative border rounded-2xl p-2 flex items-center gap-2 transition-all ${
+            isDark
+              ? 'bg-white/5 border-white/10 focus-within:ring-2 focus-within:ring-[#0071E3]/25 focus-within:border-[#0071E3]'
+              : 'bg-[#F5F5F7] border-black/[0.06] focus-within:ring-2 focus-within:ring-[#0071E3]/25 focus-within:border-[#0071E3]'
+          }`} onSubmit={onSubmit}>
             <textarea
               ref={input}
               value={question}
@@ -186,7 +211,9 @@ export default function ChatPage() {
               maxLength={2000}
               disabled={busy}
               aria-label="سؤال شما"
-              className="w-full bg-transparent border-none text-sm text-[#1D1D1F] placeholder-[#86868B] px-3 py-1.5 focus:outline-none resize-none"
+              className={`w-full bg-transparent border-none text-sm px-3 py-1.5 focus:outline-none resize-none ${
+                isDark ? 'text-[#F5F5F7] placeholder-[#98989D]' : 'text-[#1D1D1F] placeholder-[#86868B]'
+              }`}
             />
             <button
               type="submit"

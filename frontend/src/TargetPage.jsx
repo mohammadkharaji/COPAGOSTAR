@@ -3,6 +3,7 @@ import { CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, X
 import { motion } from 'motion/react'
 import { Target, TrendingUp, Calendar, CheckCircle2, Award, CircleDollarSign, Filter, Layers, Clock, AlertTriangle } from 'lucide-react'
 import { useApi } from './api'
+import { useAppearance } from './AppearanceContext'
 import { billions, billions1, dayLabel, fa, monthLabel } from './format'
 import { ChartTip, Table, pct } from './ui'
 
@@ -15,13 +16,22 @@ const optValue = (o) => (typeof o === 'string' ? o : o.value)
 
 /* ---------- Apple Bento Components ---------- */
 function AppleCard({ title, subtitle, badge, action, children, className = '' }) {
+  const { isDark, isSolid } = useAppearance()
   return (
-    <div className={`rounded-[24px] sm:rounded-[28px] bg-white/85 backdrop-blur-xl border border-black/[0.04] shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-4 sm:p-6 overflow-hidden w-full max-w-full ${className}`}>
+    <div
+      className={`apple-card rounded-[24px] sm:rounded-[28px] border transition-all p-4 sm:p-6 overflow-hidden w-full max-w-full ${
+        isDark
+          ? 'bg-[#1C1C1E]/85 backdrop-blur-2xl border-white/10 text-[#F5F5F7] shadow-[0_8px_30px_rgba(0,0,0,0.4)]'
+          : isSolid
+          ? 'bg-white border-slate-200 text-[#1D1D1F] shadow-xs'
+          : 'bg-white/85 backdrop-blur-xl border-black/[0.04] text-[#1D1D1F] shadow-[0_8px_30px_rgb(0,0,0,0.04)]'
+      } ${className}`}
+    >
       {(title || subtitle || badge || action) && (
         <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
           <div>
-            {title && <h2 className="text-base font-bold text-[#1D1D1F]">{title}</h2>}
-            {subtitle && <p className="text-xs text-[#86868B] mt-0.5">{subtitle}</p>}
+            {title && <h2 className={`text-base font-bold ${isDark ? 'text-[#F5F5F7]' : 'text-[#1D1D1F]'}`}>{title}</h2>}
+            {subtitle && <p className={`text-xs mt-0.5 ${isDark ? 'text-slate-400' : 'text-[#86868B]'}`}>{subtitle}</p>}
           </div>
           <div className="flex items-center gap-2">
             {badge && (
@@ -39,6 +49,7 @@ function AppleCard({ title, subtitle, badge, action, children, className = '' })
 }
 
 function AppleKpiCard({ label, value, unit, icon: Icon, tone = 'blue' }) {
+  const { isDark, isSolid } = useAppearance()
   const tones = {
     blue: 'bg-blue-500/10 text-blue-600',
     teal: 'bg-teal-500/10 text-teal-600',
@@ -51,17 +62,23 @@ function AppleKpiCard({ label, value, unit, icon: Icon, tone = 'blue' }) {
   return (
     <motion.div
       whileHover={{ y: -3 }}
-      className="rounded-2xl sm:rounded-3xl bg-white/85 backdrop-blur-xl border border-black/[0.04] shadow-[0_4px_20px_rgb(0,0,0,0.03)] p-3 sm:p-5 flex flex-col justify-between hover:shadow-[0_12px_30px_rgb(0,0,0,0.07)] transition-shadow text-right"
+      className={`apple-kpi-card rounded-2xl sm:rounded-3xl border transition-all p-3 sm:p-5 flex flex-col justify-between text-right ${
+        isDark
+          ? 'bg-[#1C1C1E]/85 backdrop-blur-2xl border-white/10 text-[#F5F5F7] shadow-[0_4px_20px_rgba(0,0,0,0.3)] hover:shadow-[0_12px_30px_rgba(0,0,0,0.5)]'
+          : isSolid
+          ? 'bg-white border-slate-200 text-[#1D1D1F] shadow-xs hover:shadow-md'
+          : 'bg-white/85 backdrop-blur-xl border-black/[0.04] text-[#1D1D1F] shadow-[0_4px_20px_rgb(0,0,0,0.03)] hover:shadow-[0_12px_30px_rgb(0,0,0,0.07)]'
+      }`}
     >
       <div className="flex items-center justify-between mb-2 sm:mb-3">
-        <span className="text-[11px] sm:text-xs font-medium text-[#86868B] truncate">{label}</span>
+        <span className={`text-[11px] sm:text-xs font-medium truncate ${isDark ? 'text-slate-400' : 'text-[#86868B]'}`}>{label}</span>
         <div className={`w-7 h-7 sm:w-8 sm:h-8 rounded-xl sm:rounded-2xl flex items-center justify-center shrink-0 ${tones[tone] || tones.blue}`}>
           {Icon ? <Icon size={14} className="sm:w-4 sm:h-4" /> : null}
         </div>
       </div>
       <div>
-        <div className="text-sm sm:text-xl font-extrabold text-[#1D1D1F] tracking-tight tabular-nums truncate">{value}</div>
-        <div className="text-[10px] sm:text-[11px] text-[#86868B] mt-0.5 sm:mt-1 truncate">{unit}</div>
+        <div className={`text-sm sm:text-xl font-extrabold tracking-tight tabular-nums truncate ${isDark ? 'text-[#F5F5F7]' : 'text-[#1D1D1F]'}`}>{value}</div>
+        <div className={`text-[10px] sm:text-[11px] mt-0.5 sm:mt-1 truncate ${isDark ? 'text-slate-400' : 'text-[#86868B]'}`}>{unit}</div>
       </div>
     </motion.div>
   )
@@ -109,6 +126,7 @@ function Bar({ value, expected }) {
 }
 
 export default function TargetPage({ core, onUnavailable }) {
+  const { isDark, isSolid } = useAppearance()
   const [month, setMonth] = useState('')
   const [by, setBy] = useState('branch')
   const [sel, setSel] = useState({})
@@ -151,7 +169,13 @@ export default function TargetPage({ core, onUnavailable }) {
   return (
     <div className="w-full max-w-[1600px] mx-auto space-y-4 sm:space-y-6 px-2 sm:px-6">
       {/* Apple Floating Glass Filter & Control Bar */}
-      <div className="rounded-[24px] bg-white/85 backdrop-blur-xl border border-black/[0.04] shadow-[0_4px_20px_rgb(0,0,0,0.03)] p-4 flex flex-col gap-3 overflow-hidden w-full max-w-full">
+      <div className={`apple-card rounded-[24px] border p-4 flex flex-col gap-3 overflow-hidden w-full max-w-full transition-all ${
+        isDark
+          ? 'bg-[#1C1C1E]/85 backdrop-blur-2xl border-white/10 text-[#F5F5F7] shadow-[0_4px_20px_rgba(0,0,0,0.3)]'
+          : isSolid
+          ? 'bg-white border-slate-200 text-[#1D1D1F] shadow-xs'
+          : 'bg-white/85 backdrop-blur-xl border-black/[0.04] text-[#1D1D1F] shadow-[0_4px_20px_rgb(0,0,0,0.03)]'
+      }`}>
         <div className="flex items-center justify-between gap-3 flex-wrap">
           {/* Month Selector */}
           <div className="flex items-center gap-2">
@@ -239,9 +263,9 @@ export default function TargetPage({ core, onUnavailable }) {
             <div className="h-72 w-full mt-2" dir="ltr">
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={d.daily.map((x) => ({ ...x, actual: x.actual_cum_rial == null ? null : x.actual_cum_rial / 1e9, expected: x.expected_cum_rial / 1e9 }))} margin={{ top: 8, right: 8, left: 8, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E5EA" />
-                  <XAxis dataKey="date" reversed tickFormatter={dayLabel} tickLine={false} axisLine={false} minTickGap={24} tick={{ fill: '#86868B', fontSize: 12 }} />
-                  <YAxis orientation="right" tickFormatter={(v) => fa(v)} tickLine={false} axisLine={false} width={55} tick={{ fill: '#86868B', fontSize: 12 }} />
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={isDark ? 'rgba(255,255,255,0.08)' : '#E5E5EA'} />
+                  <XAxis dataKey="date" reversed tickFormatter={dayLabel} tickLine={false} axisLine={false} minTickGap={24} tick={{ fill: isDark ? '#98989D' : '#86868B', fontSize: 12 }} />
+                  <YAxis orientation="right" tickFormatter={(v) => fa(v)} tickLine={false} axisLine={false} width={55} tick={{ fill: isDark ? '#98989D' : '#86868B', fontSize: 12 }} />
                   <Tooltip content={<ChartTip labelFn={dayLabel} unit="میلیارد ریال" />} />
                   <Legend />
                   <Line type="monotone" dataKey="expected" name="مسیر مورد انتظار" stroke="#94a3b8" strokeWidth={2} strokeDasharray="5 4" dot={false} />
@@ -305,22 +329,22 @@ export default function TargetPage({ core, onUnavailable }) {
         badge="کیفیت داده"
       >
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
-          <div className="bg-[#F5F5F7] p-4 rounded-2xl border border-black/[0.03]">
-            <span className="text-xs text-[#86868B] block mb-1">ویزیتورهای فایل تارگت</span>
-            <b className="text-base font-bold text-[#1D1D1F] block">{fa(q.visitors_in_target)} نفر</b>
-            <span className="text-[11px] text-[#86868B] mt-1 block">بدون کد: {fa(q.visitors_without_code)} نفر ({billions(q.target_rial_without_code)} م ریال)</span>
+          <div className={`p-4 rounded-2xl border ${isDark ? 'bg-white/5 border-white/10' : 'bg-[#F5F5F7] border-black/[0.03]'}`}>
+            <span className={`text-xs block mb-1 ${isDark ? 'text-slate-400' : 'text-[#86868B]'}`}>ویزیتورهای فایل تارگت</span>
+            <b className={`text-base font-bold block ${isDark ? 'text-[#F5F5F7]' : 'text-[#1D1D1F]'}`}>{fa(q.visitors_in_target)} نفر</b>
+            <span className={`text-[11px] mt-1 block ${isDark ? 'text-slate-400' : 'text-[#86868B]'}`}>بدون کد: {fa(q.visitors_without_code)} نفر ({billions(q.target_rial_without_code)} م ریال)</span>
           </div>
 
-          <div className="bg-[#F5F5F7] p-4 rounded-2xl border border-black/[0.03]">
-            <span className="text-xs text-[#86868B] block mb-1">فروش کالاهای بدون دسته تارگتی</span>
-            <b className="text-base font-bold text-[#1D1D1F] block">{billions(q.sales_outside_target_categories_rial)} میلیارد ریال</b>
-            <span className="text-[11px] text-[#86868B] mt-1 block">در ردیف «سایر» جدا نمایش داده می‌شود</span>
+          <div className={`p-4 rounded-2xl border ${isDark ? 'bg-white/5 border-white/10' : 'bg-[#F5F5F7] border-black/[0.03]'}`}>
+            <span className={`text-xs block mb-1 ${isDark ? 'text-slate-400' : 'text-[#86868B]'}`}>فروش کالاهای بدون دسته تارگتی</span>
+            <b className={`text-base font-bold block ${isDark ? 'text-[#F5F5F7]' : 'text-[#1D1D1F]'}`}>{billions(q.sales_outside_target_categories_rial)} میلیارد ریال</b>
+            <span className={`text-[11px] mt-1 block ${isDark ? 'text-slate-400' : 'text-[#86868B]'}`}>در ردیف «سایر» جدا نمایش داده می‌شود</span>
           </div>
 
-          <div className="bg-[#F5F5F7] p-4 rounded-2xl border border-black/[0.03]">
-            <span className="text-xs text-[#86868B] block mb-1">دسته‌های کالای تارگتی</span>
-            <b className="text-base font-bold text-[#1D1D1F] block">{fa(q.target_categories)} دسته</b>
-            <span className="text-[11px] text-[#86868B] mt-1 block">طبق تفکیک فایل تارگت</span>
+          <div className={`p-4 rounded-2xl border ${isDark ? 'bg-white/5 border-white/10' : 'bg-[#F5F5F7] border-black/[0.03]'}`}>
+            <span className={`text-xs block mb-1 ${isDark ? 'text-slate-400' : 'text-[#86868B]'}`}>دسته‌های کالای تارگتی</span>
+            <b className={`text-base font-bold block ${isDark ? 'text-[#F5F5F7]' : 'text-[#1D1D1F]'}`}>{fa(q.target_categories)} دسته</b>
+            <span className={`text-[11px] mt-1 block ${isDark ? 'text-slate-400' : 'text-[#86868B]'}`}>طبق تفکیک فایل تارگت</span>
           </div>
         </div>
       </AppleCard>
