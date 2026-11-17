@@ -2,6 +2,7 @@ import { useMemo } from 'react'
 import { motion, useReducedMotion } from 'motion/react'
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts'
 import { fa, monthLabel, dayLabel } from '../format'
+import { useAppearance } from '../AppearanceContext'
 
 const pct  = (v) => (v == null ? '—' : `${new Intl.NumberFormat('fa-IR', { maximumFractionDigits: 1 }).format(v * 100)}٪`)
 const pctN = (v, d = 1) => (v == null ? '—' : `${new Intl.NumberFormat('fa-IR', { maximumFractionDigits: d }).format(v * 100)}٪`)
@@ -11,13 +12,20 @@ const pctN = (v, d = 1) => (v == null ? '—' : `${new Intl.NumberFormat('fa-IR'
 ───────────────────────────────────────────────────────────── */
 export function SpotlightCard({ children, tone = 'blue', delay = 0, className = '', as: Tag = 'div' }) {
   const reduce = useReducedMotion()
+  const { isDark, isSolid } = useAppearance()
+  const surfaceClass = isDark
+    ? 'bg-[#1C1C1E]/85 backdrop-blur-xl border border-white/10 shadow-[0_4px_20px_rgba(0,0,0,0.4)] text-[#F5F5F7] hover:shadow-[0_12px_30px_rgba(0,0,0,0.6)]'
+    : isSolid
+    ? 'bg-white border border-slate-200 shadow-sm text-[#1D1D1F]'
+    : 'bg-white/85 backdrop-blur-xl border border-black/[0.04] shadow-[0_4px_20px_rgb(0,0,0,0.03)] hover:shadow-[0_12px_30px_rgb(0,0,0,0.07)] text-[#1D1D1F]'
+
   return (
     <motion.div
       initial={reduce ? false : { opacity: 0, y: 14 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.45, delay, ease: [0.23, 1, 0.32, 1] }}
       whileHover={reduce ? undefined : { y: -3 }}
-      className={`rounded-3xl bg-white/85 backdrop-blur-xl border border-black/[0.04] shadow-[0_4px_20px_rgb(0,0,0,0.03)] hover:shadow-[0_12px_30px_rgb(0,0,0,0.07)] transition-shadow ${className}`}
+      className={`rounded-3xl transition-all ${surfaceClass} ${className}`}
     >
       <Tag className="p-4 h-full w-full text-right flex flex-col justify-between">{children}</Tag>
     </motion.div>
@@ -55,6 +63,7 @@ export function StatusIsland({ core, cores, setCore, lastDataDate, syncState }) 
    Clean, luminous aesthetic with ambient glow and sparkline
 ───────────────────────────────────────────────────────────── */
 export function HeroMetricCard({ rows, period, o, growth, growthLabel }) {
+  const { isDark, isSolid } = useAppearance()
   const gross    = o ? o.sum_rial_vat / 1e9 : null
   const promo    = o ? o.promo_total_rial / 1e9 : null
   const promoPct = o ? o.promo_percent : null
@@ -86,10 +95,16 @@ export function HeroMetricCard({ rows, period, o, growth, growthLabel }) {
   }, [rows])
 
   return (
-    <div className="lg:col-span-8 flex flex-col justify-between relative overflow-hidden rounded-[28px] bg-gradient-to-br from-[#EEF2FF] via-[#F3E8FF]/90 to-[#E0E7FF] border border-[#6366F1]/20 shadow-[0_16px_40px_rgba(99,102,241,0.10)] text-[#1E1B4B] p-4 sm:p-7 min-h-[260px] sm:min-h-[300px] w-full max-w-full">
+    <div className={`lg:col-span-8 flex flex-col justify-between relative overflow-hidden rounded-[28px] p-4 sm:p-7 min-h-[260px] sm:min-h-[300px] w-full max-w-full transition-colors ${
+      isDark
+        ? 'bg-[#1C1C1E]/85 backdrop-blur-2xl border border-white/10 shadow-[0_16px_40px_rgba(0,0,0,0.6)] text-[#F5F5F7]'
+        : isSolid
+        ? 'bg-[#EEF2FF] border border-[#6366F1]/30 shadow-md text-[#1E1B4B]'
+        : 'bg-gradient-to-br from-[#EEF2FF] via-[#F3E8FF]/90 to-[#E0E7FF] border border-[#6366F1]/20 shadow-[0_16px_40px_rgba(99,102,241,0.10)] text-[#1E1B4B]'
+    }`}>
       {/* Ambient Glows */}
-      <div className="absolute -top-12 -right-12 w-48 h-48 rounded-full bg-[#8B5CF6]/15 blur-3xl pointer-events-none" />
-      <div className="absolute -bottom-12 -left-12 w-48 h-48 rounded-full bg-[#3B82F6]/15 blur-3xl pointer-events-none" />
+      <div className={`absolute -top-12 -right-12 w-48 h-48 rounded-full ${isDark ? 'bg-[#8B5CF6]/10' : 'bg-[#8B5CF6]/15'} blur-3xl pointer-events-none`} />
+      <div className={`absolute -bottom-12 -left-12 w-48 h-48 rounded-full ${isDark ? 'bg-[#3B82F6]/10' : 'bg-[#3B82F6]/15'} blur-3xl pointer-events-none`} />
 
       {/* Sparkline SVG */}
       <div className="absolute inset-x-0 bottom-0 h-24 sm:h-28 pointer-events-none opacity-60 z-0">
@@ -101,17 +116,25 @@ export function HeroMetricCard({ rows, period, o, growth, growthLabel }) {
             </linearGradient>
           </defs>
           <path d={sparklineData.fillPath} fill="url(#heroSparklineGrad)" className="opacity-20" />
-          <path d={sparklineData.linePath} fill="none" stroke="#6366F1" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+          <path d={sparklineData.linePath} fill="none" stroke={isDark ? '#818CF8' : '#6366F1'} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
       </div>
 
       {/* Top badges */}
       <div className="relative z-10 flex items-center justify-between flex-wrap gap-2">
-        <span className="bg-white/80 backdrop-blur-md border border-indigo-200/70 text-[#312E81] font-bold px-3.5 py-1 rounded-full text-xs">
+        <span className={`backdrop-blur-md border font-bold px-3.5 py-1 rounded-full text-xs ${
+          isDark
+            ? 'bg-white/10 border-white/10 text-indigo-300'
+            : 'bg-white/80 border-indigo-200/70 text-[#312E81]'
+        }`}>
           فروش خالص (پس از کسر پروموشن) · {period}
         </span>
         {growth != null && (
-          <span className={`px-2.5 py-1 rounded-full text-[11px] sm:text-xs font-bold tabular-nums border ${growth >= 0 ? 'bg-emerald-500/15 text-emerald-800 border-emerald-500/25' : 'bg-red-500/15 text-red-800 border-red-500/25'}`}>
+          <span className={`px-2.5 py-1 rounded-full text-[11px] sm:text-xs font-bold tabular-nums border ${
+            growth >= 0
+              ? isDark ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' : 'bg-emerald-500/15 text-emerald-800 border-emerald-500/25'
+              : isDark ? 'bg-red-500/20 text-red-400 border-red-500/30' : 'bg-red-500/15 text-red-800 border-red-500/25'
+          }`}>
             {growth >= 0 ? '▲' : '▼'} {pct(Math.abs(growth))} {growthLabel ?? ''}
           </span>
         )}
@@ -119,24 +142,42 @@ export function HeroMetricCard({ rows, period, o, growth, growthLabel }) {
 
       {/* Big Revenue Number */}
       <div className="relative z-10 my-4 sm:my-6">
-        <div className="text-2xl sm:text-4xl lg:text-5xl font-black tracking-tight text-[#1E1B4B] tabular-nums break-all">
-          {o ? fa(o.net_rial) : '—'} <span className="text-xs sm:text-base font-bold text-[#4338CA]/80 mr-1 sm:mr-2">ریال</span>
+        <div className={`text-2xl sm:text-4xl lg:text-5xl font-black tracking-tight tabular-nums break-all ${isDark ? 'text-[#F5F5F7]' : 'text-[#1E1B4B]'}`}>
+          {o ? fa(o.net_rial) : '—'} <span className={`text-xs sm:text-base font-bold mr-1 sm:mr-2 ${isDark ? 'text-indigo-400' : 'text-[#4338CA]/80'}`}>ریال</span>
         </div>
       </div>
 
       {/* Bottom 3 stats */}
       <div className="relative z-10 grid grid-cols-3 gap-2 sm:gap-3 w-full">
-        <div className="bg-white/85 backdrop-blur-xl border border-white shadow-[0_4px_15px_rgba(99,102,241,0.06)] rounded-2xl p-2.5 sm:p-3.5 min-w-0">
-          <p className="text-[#64748B] text-[11px] sm:text-xs font-medium truncate" style={{ color: '#64748B' }}>فروش ناخالص</p>
-          <p className="text-[#1E1B4B] !text-[#1E1B4B] font-extrabold text-base mt-1 tabular-nums truncate" style={{ color: '#1E1B4B' }}>{gross == null ? '—' : `${fa(gross)} م`}</p>
+        <div className={`rounded-2xl p-2.5 sm:p-3.5 min-w-0 transition-all ${
+          isDark
+            ? 'bg-white/[0.06] backdrop-blur-xl border border-white/10'
+            : isSolid
+            ? 'bg-white border border-indigo-100 shadow-xs'
+            : 'bg-white/85 backdrop-blur-xl border border-white shadow-[0_4px_15px_rgba(99,102,241,0.06)]'
+        }`}>
+          <p className={`text-[11px] sm:text-xs font-medium truncate ${isDark ? 'text-slate-400' : 'text-[#64748B]'}`}>فروش ناخالص</p>
+          <p className={`font-extrabold text-base mt-1 tabular-nums truncate ${isDark ? 'text-[#F5F5F7]' : 'text-[#1E1B4B]'}`}>{gross == null ? '—' : `${fa(gross)} م`}</p>
         </div>
-        <div className="bg-white/85 backdrop-blur-xl border border-white shadow-[0_4px_15px_rgba(99,102,241,0.06)] rounded-2xl p-2.5 sm:p-3.5 min-w-0">
-          <p className="text-[#64748B] text-[11px] sm:text-xs font-medium truncate" style={{ color: '#64748B' }}>مجموع پروموشن</p>
-          <p className="text-[#1E1B4B] !text-[#1E1B4B] font-extrabold text-base mt-1 tabular-nums truncate" style={{ color: '#1E1B4B' }}>{promo == null ? '—' : `${fa(promo)} م`}</p>
+        <div className={`rounded-2xl p-2.5 sm:p-3.5 min-w-0 transition-all ${
+          isDark
+            ? 'bg-white/[0.06] backdrop-blur-xl border border-white/10'
+            : isSolid
+            ? 'bg-white border border-indigo-100 shadow-xs'
+            : 'bg-white/85 backdrop-blur-xl border border-white shadow-[0_4px_15px_rgba(99,102,241,0.06)]'
+        }`}>
+          <p className={`text-[11px] sm:text-xs font-medium truncate ${isDark ? 'text-slate-400' : 'text-[#64748B]'}`}>مجموع پروموشن</p>
+          <p className={`font-extrabold text-base mt-1 tabular-nums truncate ${isDark ? 'text-[#F5F5F7]' : 'text-[#1E1B4B]'}`}>{promo == null ? '—' : `${fa(promo)} م`}</p>
         </div>
-        <div className="bg-white/85 backdrop-blur-xl border border-white shadow-[0_4px_15px_rgba(99,102,241,0.06)] rounded-2xl p-2.5 sm:p-3.5 min-w-0">
-          <p className="text-[#64748B] text-[11px] sm:text-xs font-medium truncate" style={{ color: '#64748B' }}>درصد پروموشن</p>
-          <p className="text-[#1E1B4B] !text-[#1E1B4B] font-extrabold text-base mt-1 tabular-nums truncate" style={{ color: '#1E1B4B' }}>{promoPct == null ? '—' : pct(promoPct)}</p>
+        <div className={`rounded-2xl p-2.5 sm:p-3.5 min-w-0 transition-all ${
+          isDark
+            ? 'bg-white/[0.06] backdrop-blur-xl border border-white/10'
+            : isSolid
+            ? 'bg-white border border-indigo-100 shadow-xs'
+            : 'bg-white/85 backdrop-blur-xl border border-white shadow-[0_4px_15px_rgba(99,102,241,0.06)]'
+        }`}>
+          <p className={`text-[11px] sm:text-xs font-medium truncate ${isDark ? 'text-slate-400' : 'text-[#64748B]'}`}>درصد پروموشن</p>
+          <p className={`font-extrabold text-base mt-1 tabular-nums truncate ${isDark ? 'text-[#F5F5F7]' : 'text-[#1E1B4B]'}`}>{promoPct == null ? '—' : pct(promoPct)}</p>
         </div>
       </div>
     </div>
@@ -149,11 +190,18 @@ export function HeroMetricCard({ rows, period, o, growth, growthLabel }) {
    Duplicate English fractions deleted completely!
 ───────────────────────────────────────────────────────────── */
 export function ForecastRings({ pace }) {
+  const { isDark, isSolid } = useAppearance()
   const d = pace.data?.available ? pace.data : null
 
+  const surfaceClass = isDark
+    ? 'bg-[#1C1C1E]/85 backdrop-blur-2xl border border-white/10 shadow-[0_8px_30px_rgba(0,0,0,0.5)] text-[#F5F5F7]'
+    : isSolid
+    ? 'bg-white border border-slate-200 shadow-sm text-[#1D1D1F]'
+    : 'bg-white/85 backdrop-blur-2xl border border-slate-200/80 shadow-[0_8px_30px_rgb(0,0,0,0.04)] text-[#1D1D1F]'
+
   if (!d) return (
-    <div className="lg:col-span-4 flex flex-col justify-between rounded-[24px] sm:rounded-[28px] bg-white/85 backdrop-blur-xl border border-black/[0.04] shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-4 sm:p-6 min-h-[260px] sm:min-h-[300px] items-center justify-center overflow-hidden w-full max-w-full">
-      <p className="text-sm text-[#86868B]">{pace.loading ? 'در حال بارگذاری…' : 'داده‌ای برای برآورد وجود ندارد.'}</p>
+    <div className={`lg:col-span-4 flex flex-col justify-between rounded-[24px] sm:rounded-[28px] ${surfaceClass} p-4 sm:p-6 min-h-[260px] sm:min-h-[300px] items-center justify-center overflow-hidden w-full max-w-full`}>
+      <p className={`text-sm ${isDark ? 'text-slate-400' : 'text-[#86868B]'}`}>{pace.loading ? 'در حال بارگذاری…' : 'داده‌ای برای برآورد وجود ندارد.'}</p>
     </div>
   )
 
@@ -164,16 +212,16 @@ export function ForecastRings({ pace }) {
   const daysRatio = Math.min(Math.max(daysPassed / totalDays, 0), 1)
 
   return (
-    <div className="lg:col-span-4 flex flex-col justify-between rounded-[24px] sm:rounded-[28px] bg-white/85 backdrop-blur-xl border border-black/[0.04] shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-4 sm:p-6 overflow-hidden w-full max-w-full">
+    <div className={`lg:col-span-4 flex flex-col justify-between rounded-[24px] sm:rounded-[28px] ${surfaceClass} p-4 sm:p-6 overflow-hidden w-full max-w-full`}>
       <div>
-        <h2 className="text-base font-bold text-[#1D1D1F]">پیش‌بینی پایان {monthLabel(d.year_month)}</h2>
+        <h2 className={`text-base font-bold ${isDark ? 'text-[#F5F5F7]' : 'text-[#1D1D1F]'}`}>پیش‌بینی پایان {monthLabel(d.year_month)}</h2>
       </div>
 
       <div className="flex items-center gap-5 my-4">
         {/* Apple Ring with Persian label */}
         <div className="relative w-28 h-28 shrink-0 flex items-center justify-center">
           <svg className="w-full h-full -rotate-90" viewBox="0 0 100 100">
-            <circle cx="50" cy="50" r="40" stroke="#E5E5EA" strokeWidth="10" fill="none" />
+            <circle cx="50" cy="50" r="40" stroke={isDark ? '#2C2C2E' : '#E5E5EA'} strokeWidth="10" fill="none" />
             <motion.circle
               cx="50"
               cy="50"
@@ -189,33 +237,33 @@ export function ForecastRings({ pace }) {
             />
           </svg>
           <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
-            <span className="text-sm font-extrabold text-[#1D1D1F] tabular-nums">
+            <span className={`text-sm font-extrabold tabular-nums ${isDark ? 'text-[#F5F5F7]' : 'text-[#1D1D1F]'}`}>
               {fa(daysPassed)} از {fa(totalDays)}
             </span>
-            <span className="text-[10px] text-[#86868B]">روز کاری</span>
+            <span className={`text-[10px] ${isDark ? 'text-slate-400' : 'text-[#86868B]'}`}>روز کاری</span>
           </div>
         </div>
 
         {/* Real Persian Forecast Numbers */}
         <div className="space-y-1.5 flex-1 min-w-0">
-          <p className="text-xs text-[#86868B]">ریال خالص برآوردی پایان ماه</p>
-          <p className="text-xl font-extrabold text-[#1D1D1F] tabular-nums truncate">
+          <p className={`text-xs ${isDark ? 'text-slate-400' : 'text-[#86868B]'}`}>ریال خالص برآوردی پایان ماه</p>
+          <p className={`text-xl font-extrabold tabular-nums truncate ${isDark ? 'text-[#F5F5F7]' : 'text-[#1D1D1F]'}`}>
             {fa(projected)}
           </p>
-          <div className="pt-2 space-y-1 border-t border-black/[0.06] text-xs">
+          <div className={`pt-2 space-y-1 border-t text-xs ${isDark ? 'border-white/10' : 'border-black/[0.06]'}`}>
             <div className="flex justify-between">
-              <span className="text-[#86868B]">ناخالص واقعی:</span>
-              <strong className="text-[#1D1D1F] tabular-nums">{fa(d.sum_rial_vat)}</strong>
+              <span className={isDark ? 'text-slate-400' : 'text-[#86868B]'}>ناخالص واقعی:</span>
+              <strong className={`tabular-nums ${isDark ? 'text-[#F5F5F7]' : 'text-[#1D1D1F]'}`}>{fa(d.sum_rial_vat)}</strong>
             </div>
             <div className="flex justify-between">
-              <span className="text-[#86868B]">روز باقی‌مانده:</span>
-              <strong className="text-amber-600 tabular-nums">{fa(d.remaining_working_days)} روز</strong>
+              <span className={isDark ? 'text-slate-400' : 'text-[#86868B]'}>روز باقی‌مانده:</span>
+              <strong className="text-amber-500 tabular-nums">{fa(d.remaining_working_days)} روز</strong>
             </div>
           </div>
         </div>
       </div>
 
-      <p className="text-[10px] text-[#86868B] leading-relaxed">
+      <p className={`text-[10px] leading-relaxed ${isDark ? 'text-slate-400' : 'text-[#86868B]'}`}>
         {d.method}. این عدد پیش‌بینی است، نه فروش ثبت‌شده.
       </p>
     </div>
@@ -226,20 +274,28 @@ export function ForecastRings({ pace }) {
    CalendarGlass  — Apple compact status pill bar
 ───────────────────────────────────────────────────────────── */
 export function CalendarGlass({ cal }) {
+  const { isDark, isSolid } = useAppearance()
   const share = cal ? Math.min(1, cal.days_passed / (cal.working_days || 1)) : 0
+
+  const surfaceClass = isDark
+    ? 'bg-[#1C1C1E]/85 backdrop-blur-2xl border border-white/10 shadow-[0_4px_20px_rgba(0,0,0,0.4)] text-[#F5F5F7]'
+    : isSolid
+    ? 'bg-white border border-slate-200 text-[#1D1D1F]'
+    : 'bg-white/80 backdrop-blur-2xl border border-slate-200/80 shadow-[0_4px_20px_rgb(0,0,0,0.04)] text-[#1D1D1F]'
+
   return (
-    <div className="w-full flex flex-wrap items-center justify-between gap-2 sm:gap-3 bg-white/80 backdrop-blur-2xl border border-black/[0.05] shadow-[0_4px_20px_rgb(0,0,0,0.04)] rounded-2xl sm:rounded-3xl p-3 sm:px-5 sm:py-3.5">
-      <div className="flex items-center gap-2 text-xs sm:text-sm font-semibold text-[#1D1D1F]">
+    <div className={`w-full flex flex-wrap items-center justify-between gap-2 sm:gap-3 rounded-2xl sm:rounded-3xl p-3 sm:px-5 sm:py-3.5 transition-colors ${surfaceClass}`}>
+      <div className={`flex items-center gap-2 text-xs sm:text-sm font-semibold ${isDark ? 'text-[#F5F5F7]' : 'text-[#1D1D1F]'}`}>
         <span className="w-6 h-6 sm:w-7 sm:h-7 rounded-lg sm:rounded-xl bg-[#0071E3]/10 text-[#0071E3] flex items-center justify-center select-none text-xs sm:text-sm">📅</span>
         <span className="truncate">{cal ? `${cal.weekday_name} ${fa(cal.day)} ${cal.month_name} ${fa(cal.year)}` : '—'}</span>
       </div>
       <div className="flex items-center gap-2 sm:gap-4 text-[11px] sm:text-xs">
-        <span className="text-[#86868B]">روز کاری: <strong className="text-[#1D1D1F] font-semibold">{cal ? fa(cal.working_days) : '—'}</strong></span>
-        <span className="text-[#86868B]">سپری‌شده: <strong className="text-[#0071E3] font-semibold">{cal ? fa(cal.days_passed) : '—'}</strong></span>
-        <span className="text-[#86868B]">باقی‌مانده: <strong className="text-amber-600 font-semibold">{cal ? fa(cal.days_remaining) : '—'}</strong></span>
+        <span className={isDark ? 'text-slate-400' : 'text-[#86868B]'}>روز کاری: <strong className={`font-semibold ${isDark ? 'text-[#F5F5F7]' : 'text-[#1D1D1F]'}`}>{cal ? fa(cal.working_days) : '—'}</strong></span>
+        <span className={isDark ? 'text-slate-400' : 'text-[#86868B]'}>سپری‌شده: <strong className="text-[#0071E3] font-semibold">{cal ? fa(cal.days_passed) : '—'}</strong></span>
+        <span className={isDark ? 'text-slate-400' : 'text-[#86868B]'}>باقی‌مانده: <strong className="text-amber-500 font-semibold">{cal ? fa(cal.days_remaining) : '—'}</strong></span>
       </div>
       <div className="hidden sm:flex items-center gap-2 flex-1 min-w-[80px] max-w-[180px]">
-        <div className="h-1.5 w-full bg-black/[0.06] rounded-full overflow-hidden">
+        <div className={`h-1.5 w-full rounded-full overflow-hidden ${isDark ? 'bg-white/10' : 'bg-black/[0.06]'}`}>
           <motion.div
             initial={{ width: 0 }}
             animate={{ width: `${share * 100}%` }}
@@ -268,6 +324,14 @@ const TONE_COLORS = {
 }
 
 export function KpiSpotlight({ items }) {
+  const { isDark, isSolid } = useAppearance()
+
+  const cardSurface = isDark
+    ? 'bg-[#1C1C1E]/85 backdrop-blur-xl border border-white/10 shadow-[0_4px_20px_rgba(0,0,0,0.4)] hover:shadow-[0_12px_30px_rgba(0,0,0,0.6)] text-[#F5F5F7]'
+    : isSolid
+    ? 'bg-white border border-slate-200 shadow-sm text-[#1D1D1F]'
+    : 'bg-white/85 backdrop-blur-xl border border-black/[0.04] shadow-[0_4px_20px_rgb(0,0,0,0.03)] hover:shadow-[0_12px_30px_rgb(0,0,0,0.07)] text-[#1D1D1F]'
+
   return (
     <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-2.5 sm:gap-4 w-full">
       {items.map((m, i) => {
@@ -284,17 +348,17 @@ export function KpiSpotlight({ items }) {
             <Tag
               type={m.onClick ? 'button' : undefined}
               onClick={m.onClick}
-              className={`w-full h-full rounded-2xl sm:rounded-3xl bg-white/85 backdrop-blur-xl border border-black/[0.04] shadow-[0_4px_20px_rgb(0,0,0,0.03)] p-3 sm:p-4 flex flex-col justify-between hover:shadow-[0_12px_30px_rgb(0,0,0,0.07)] transition-shadow text-right${m.onClick ? ' cursor-pointer' : ''}`}
+              className={`w-full h-full rounded-2xl sm:rounded-3xl ${cardSurface} p-3 sm:p-4 flex flex-col justify-between transition-all text-right${m.onClick ? ' cursor-pointer' : ''}`}
             >
               <div className="flex items-center justify-between mb-2 sm:mb-3">
-                <span className="text-[11px] sm:text-xs font-medium text-[#86868B] leading-tight truncate">{m.label}</span>
+                <span className={`text-[11px] sm:text-xs font-medium leading-tight truncate ${isDark ? 'text-slate-400' : 'text-[#86868B]'}`}>{m.label}</span>
                 <div className={`w-7 h-7 sm:w-8 sm:h-8 rounded-xl sm:rounded-2xl flex items-center justify-center shrink-0 ${TONE_COLORS[m.tone] ?? 'bg-blue-500/10 text-blue-600'}`}>
                   {m.icon ? <m.icon size={15} /> : null}
                 </div>
               </div>
               <div>
-                <div className="text-sm sm:text-base font-extrabold text-[#1D1D1F] tracking-tight tabular-nums truncate">{m.value}</div>
-                <div className="text-[10px] sm:text-[11px] text-[#86868B] mt-0.5 sm:mt-1 truncate">{m.unit}</div>
+                <div className={`text-sm sm:text-base font-extrabold tracking-tight tabular-nums truncate ${isDark ? 'text-[#F5F5F7]' : 'text-[#1D1D1F]'}`}>{m.value}</div>
+                <div className={`text-[10px] sm:text-[11px] mt-0.5 sm:mt-1 truncate ${isDark ? 'text-slate-400' : 'text-[#86868B]'}`}>{m.unit}</div>
               </div>
             </Tag>
           </motion.div>
@@ -308,16 +372,24 @@ export function KpiSpotlight({ items }) {
    ShareTabsCard  — Apple glass card with Donut Chart + animated bars
 ───────────────────────────────────────────────────────────── */
 export function ShareTabsCard({ by, setBy, options, slices, total, colors }) {
+  const { isDark, isSolid } = useAppearance()
+
+  const cardSurface = isDark
+    ? 'bg-[#1C1C1E]/85 backdrop-blur-2xl border border-white/10 shadow-[0_8px_30px_rgba(0,0,0,0.5)] text-[#F5F5F7]'
+    : isSolid
+    ? 'bg-white border border-slate-200 shadow-sm text-[#1D1D1F]'
+    : 'bg-white/85 backdrop-blur-xl border border-black/[0.04] shadow-[0_8px_30px_rgb(0,0,0,0.04)] text-[#1D1D1F]'
+
   return (
-    <div className="rounded-[24px] sm:rounded-[28px] bg-white/85 backdrop-blur-xl border border-black/[0.04] shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-4 sm:p-6 h-full flex flex-col justify-between overflow-hidden w-full max-w-full">
+    <div className={`rounded-[24px] sm:rounded-[28px] ${cardSurface} p-4 sm:p-6 h-full flex flex-col justify-between overflow-hidden w-full max-w-full transition-colors`}>
       <div>
         <div className="flex items-center justify-between mb-3 gap-2">
-          <h2 className="text-base font-bold text-[#1D1D1F]">سهم از فروش</h2>
-          <span className="text-[11px] text-[#86868B] truncate">۸ مورد برتر و بقیه در «سایر»</span>
+          <h2 className={`text-base font-bold ${isDark ? 'text-[#F5F5F7]' : 'text-[#1D1D1F]'}`}>سهم از فروش</h2>
+          <span className={`text-[11px] truncate ${isDark ? 'text-slate-400' : 'text-[#86868B]'}`}>۸ مورد برتر و بقیه در «سایر»</span>
         </div>
 
         {/* Apple Segmented Control Bar */}
-        <div className="flex items-center gap-1 p-1 bg-[#E8E8ED]/80 rounded-2xl flex-nowrap overflow-x-auto no-scrollbar max-w-full pb-1 mb-3" role="tablist" aria-label="بعد نمودار">
+        <div className={`flex items-center gap-1 p-1 rounded-2xl flex-nowrap overflow-x-auto no-scrollbar max-w-full pb-1 mb-3 ${isDark ? 'bg-white/10' : 'bg-[#E8E8ED]/80'}`} role="tablist" aria-label="بعد نمودار">
           {options.map(([k, label]) => {
             const active = by === k
             return (
@@ -338,7 +410,7 @@ export function ShareTabsCard({ by, setBy, options, slices, total, colors }) {
                 )}
                 <span
                   className="relative z-10 font-bold transition-colors"
-                  style={{ color: active ? '#FFFFFF' : '#6E6E73' }}
+                  style={{ color: active ? '#FFFFFF' : (isDark ? '#98989D' : '#6E6E73') }}
                 >
                   {label}
                 </span>
@@ -369,40 +441,41 @@ export function ShareTabsCard({ by, setBy, options, slices, total, colors }) {
               <Tooltip
                 formatter={(v, n) => [`${fa(v)} ریال (${pct(v / total)})`, n]}
                 contentStyle={{
-                  background: '#0F172A',
+                  background: isDark ? 'rgba(28, 28, 30, 0.95)' : '#0F172A',
                   borderRadius: '14px',
-                  border: 'none',
+                  border: isDark ? '1px solid rgba(255, 255, 255, 0.15)' : 'none',
                   color: '#FFFFFF',
                   fontSize: '12px',
                   direction: 'rtl',
                   fontFamily: 'Vazirmatn, sans-serif',
                   boxShadow: '0 10px 25px -5px rgba(0,0,0,0.3)',
+                  backdropFilter: 'blur(16px)',
                 }}
                 itemStyle={{ color: '#FFFFFF' }}
               />
             </PieChart>
           </ResponsiveContainer>
           <div className="absolute inset-0 flex flex-col items-center justify-center text-center pointer-events-none">
-            <span className="text-[10px] text-[#86868B] font-medium">مجموع سهم</span>
-            <span className="text-base font-extrabold text-[#1D1D1F] tabular-nums mt-0.5">
+            <span className={`text-[10px] font-medium ${isDark ? 'text-slate-400' : 'text-[#86868B]'}`}>مجموع سهم</span>
+            <span className={`text-base font-extrabold tabular-nums mt-0.5 ${isDark ? 'text-[#F5F5F7]' : 'text-[#1D1D1F]'}`}>
               {fa(Math.round(total / 1e9))}
             </span>
-            <span className="text-[10px] text-[#86868B]">میلیارد ریال</span>
+            <span className={`text-[10px] ${isDark ? 'text-slate-400' : 'text-[#86868B]'}`}>میلیارد ریال</span>
           </div>
         </div>
       </div>
 
       {/* Breakdown list with animated bars */}
-      <ul className="space-y-2 mt-3 pt-3 border-t border-black/[0.05] max-h-48 overflow-y-auto w-full px-1">
+      <ul className={`space-y-2 mt-3 pt-3 border-t max-h-48 overflow-y-auto w-full px-1 ${isDark ? 'border-white/10' : 'border-black/[0.05]'}`}>
         {slices.map((s, i) => (
           <li key={s.name} className="flex items-center justify-between gap-2 text-xs w-full px-2">
             <div className="flex items-center gap-2 min-w-0 flex-1">
               <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: colors[i % colors.length] }} />
-              <span className="text-xs text-[#1D1D1F] font-medium truncate">{s.name}</span>
+              <span className={`text-xs font-medium truncate ${isDark ? 'text-[#F5F5F7]' : 'text-[#1D1D1F]'}`}>{s.name}</span>
             </div>
             <div className="flex items-center gap-2 shrink-0">
-              <span className="text-xs font-semibold text-[#1D1D1F] tabular-nums">{pct(s.value / total)}</span>
-              <span aria-hidden="true" className="w-12 sm:w-16 h-1.5 bg-black/[0.06] rounded-full overflow-hidden shrink-0">
+              <span className={`text-xs font-semibold tabular-nums ${isDark ? 'text-[#F5F5F7]' : 'text-[#1D1D1F]'}`}>{pct(s.value / total)}</span>
+              <span aria-hidden="true" className={`w-12 sm:w-16 h-1.5 rounded-full overflow-hidden shrink-0 ${isDark ? 'bg-white/10' : 'bg-black/[0.06]'}`}>
                 <motion.span
                   className="block h-full rounded-full"
                   initial={{ width: 0 }}
@@ -423,6 +496,7 @@ export function ShareTabsCard({ by, setBy, options, slices, total, colors }) {
    CompareBento  — animated comparison row list
 ───────────────────────────────────────────────────────────── */
 export function CompareBento({ c, b, items, Delta }) {
+  const { isDark } = useAppearance()
   return (
     <ul className="space-y-3">
       {items.map(([label, key], i) => (
@@ -433,12 +507,13 @@ export function CompareBento({ c, b, items, Delta }) {
           transition={{ delay: i * 0.05 }}
           className="flex items-center gap-2 text-xs"
         >
-          <span className="text-[#86868B] flex-1">{label}</span>
-          <span className="font-semibold text-[#1D1D1F] tabular-nums">{fa(c[key])}</span>
-          <span className="text-[#86868B] tabular-nums">{fa(b[key])}</span>
+          <span className={`flex-1 ${isDark ? 'text-slate-400' : 'text-[#86868B]'}`}>{label}</span>
+          <span className={`font-semibold tabular-nums ${isDark ? 'text-[#F5F5F7]' : 'text-[#1D1D1F]'}`}>{fa(c[key])}</span>
+          <span className={`tabular-nums ${isDark ? 'text-slate-400' : 'text-[#86868B]'}`}>{fa(b[key])}</span>
           <Delta cur={c[key]} prev={b[key]} />
         </motion.li>
       ))}
     </ul>
   )
 }
+

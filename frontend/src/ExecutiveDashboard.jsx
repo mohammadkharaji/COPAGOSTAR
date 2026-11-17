@@ -177,6 +177,11 @@ const TIP = {
   itemStyle: { color: '#fff' },
   labelStyle: { color: '#93a7c9', marginBottom: 4 },
 }
+const TIP_DARK = {
+  contentStyle: { background: 'rgba(28, 28, 30, 0.95)', border: '1px solid rgba(255, 255, 255, 0.15)', borderRadius: 14, boxShadow: '0 14px 30px -10px rgba(0,0,0,.6)', direction: 'rtl', fontFamily: 'Vazirmatn, sans-serif', fontSize: 12, backdropFilter: 'blur(16px)' },
+  itemStyle: { color: '#F5F5F7' },
+  labelStyle: { color: '#98989D', marginBottom: 4 },
+}
 
 const cleanDistrictLabel = (label) => (typeof label === 'string' ? label.replace(/\s*[-_]\s*[\d۰-۹]+$/, '').trim() : label)
 
@@ -301,7 +306,7 @@ export function ExecShell({
             active
               ? `active ${pillar.activeClass} !text-white shadow-md`
               : isDark
-              ? 'text-[#98989D] hover:text-[#F5F5F7] hover:bg-white/10'
+              ? 'text-slate-300 hover:text-white hover:bg-white/10'
               : 'text-[#86868B] hover:text-[#1D1D1F] hover:bg-black/[0.04]'
           }`}
           onClick={handleClick}
@@ -323,7 +328,7 @@ export function ExecShell({
           active
             ? `active ${pillar.activeClass} !text-white font-bold shadow-md`
             : isDark
-            ? 'text-[#E5E5EA] hover:bg-white/[0.07]'
+            ? 'text-slate-300 hover:text-white hover:bg-white/10'
             : isSolid
             ? 'text-[#1D1D1F] hover:bg-slate-100'
             : 'text-[#1D1D1F] hover:bg-black/[0.04]'
@@ -337,7 +342,7 @@ export function ExecShell({
             active
               ? 'bg-white/20 !text-white'
               : isDark
-              ? 'bg-white/5 text-[#98989D]'
+              ? 'bg-white/5 text-slate-400'
               : 'bg-black/[0.03] text-[#86868B]'
           }`}
           style={active ? { color: '#FFFFFF' } : {}}
@@ -674,13 +679,15 @@ export function ExecShell({
                 >
                   <b dir="ltr">{user || 'کاربر'}</b>
                 </button>
-                <small className="text-[10px] text-[#86868B] dark:text-[#98989D] block">حساب کاربری</small>
+                <small className={`text-[10px] block ${isDark ? 'text-slate-400' : 'text-[#86868B]'}`}>حساب کاربری</small>
               </div>
               <AppearanceSwitcher compact={false} />
               {onLogout && (
                 <button
                   type="button"
-                  className="exec-logout w-8 h-8 rounded-lg flex items-center justify-center text-[#86868B] hover:text-red-500 hover:bg-red-500/10 transition-colors shrink-0"
+                  className={`exec-logout w-8 h-8 rounded-lg flex items-center justify-center transition-colors shrink-0 ${
+                    isDark ? 'text-slate-400 hover:text-red-400 hover:bg-red-500/10' : 'text-[#86868B] hover:text-red-500 hover:bg-red-500/10'
+                  }`}
                   onClick={onLogout}
                   aria-label="خروج از حساب"
                   title="خروج از حساب"
@@ -768,7 +775,13 @@ export function ExecShell({
       {/* ── 2. Floating iOS Glass Bottom Dock (Mobile / Tablet < 1024px) ── */}
       <nav
         data-mobile-dock
-        className="flex lg:!hidden fixed bottom-3 inset-x-3 z-40 h-16 bg-white/90 backdrop-blur-2xl border border-slate-200/90 shadow-lg rounded-[26px] px-2 items-center justify-around select-none text-[#1D1D1F]"
+        className={`flex lg:!hidden fixed bottom-3 inset-x-3 z-40 h-16 shadow-lg rounded-[26px] px-2 items-center justify-around select-none transition-colors duration-300 ${
+          isDark
+            ? 'bg-[#1C1C1E]/85 backdrop-blur-2xl border border-white/10 text-[#F5F5F7]'
+            : isSolid
+            ? 'bg-white border border-slate-200 text-[#1D1D1F]'
+            : 'bg-white/90 backdrop-blur-2xl border border-slate-200/90 text-[#1D1D1F]'
+        }`}
         aria-label="ناوبری اصلی موبایل"
       >
         {DOCK_TABS.map((tab) => {
@@ -1110,7 +1123,11 @@ function CardHead({ title, note, chip }) {
 }
 
 function SalesChart({ rows }) {
+  const { isDark } = useAppearance()
   const data = rows.map((r) => ({ ...r, value: r.sum_rial_vat / 1e9, net: r.net_rial / 1e9 }))
+  const tipConfig = isDark ? TIP_DARK : TIP
+  const gridColor = isDark ? 'rgba(255, 255, 255, 0.08)' : '#e5eaf3'
+  const cursorFill = isDark ? 'rgba(255, 255, 255, 0.04)' : '#f1f5ff'
   return (
     <div className="exec-chart">
       <ResponsiveContainer width="100%" height="100%">
@@ -1119,10 +1136,10 @@ function SalesChart({ rows }) {
             <linearGradient id="execNetBar" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#3b82f6" /><stop offset="1" stopColor="#1d4ed8" /></linearGradient>
             <linearGradient id="execGrossBar" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#5eead4" /><stop offset="1" stopColor="#14b8a6" /></linearGradient>
           </defs>
-          <CartesianGrid vertical={false} stroke="#e5eaf3" strokeDasharray="4 4" />
-          <XAxis dataKey="year_month" reversed tickFormatter={monthName} axisLine={false} tickLine={false} />
-          <YAxis orientation="right" axisLine={false} tickLine={false} tickFormatter={(v) => fa(v)} width={50} />
-          <Tooltip {...TIP} formatter={(v, n) => [`${fa(v)} میلیارد ریال`, n]} labelFormatter={monthLabel} cursor={{ fill: '#f1f5ff', radius: 10 }} />
+          <CartesianGrid vertical={false} stroke={gridColor} strokeDasharray="4 4" />
+          <XAxis dataKey="year_month" reversed tickFormatter={monthName} axisLine={false} tickLine={false} tick={{ fill: isDark ? '#98989D' : '#64748B' }} />
+          <YAxis orientation="right" axisLine={false} tickLine={false} tickFormatter={(v) => fa(v)} width={50} tick={{ fill: isDark ? '#98989D' : '#64748B' }} />
+          <Tooltip {...tipConfig} formatter={(v, n) => [`${fa(v)} میلیارد ریال`, n]} labelFormatter={monthLabel} cursor={{ fill: cursorFill, radius: 10 }} />
           <Bar dataKey="net" name="ریال خالص" fill="url(#execNetBar)" radius={[8, 8, 3, 3]} maxBarSize={26} />
           <Bar dataKey="value" name="فروش ناخالص" fill="url(#execGrossBar)" radius={[8, 8, 3, 3]} maxBarSize={26} />
         </BarChart>
@@ -1132,22 +1149,25 @@ function SalesChart({ rows }) {
 }
 
 function DailyChart({ rows }) {
+  const { isDark } = useAppearance()
   const data = rows.map((r) => ({ ...r, value: r.sum_rial_vat / 1e9 }))
+  const tipConfig = isDark ? TIP_DARK : TIP
+  const gridColor = isDark ? 'rgba(255, 255, 255, 0.08)' : '#e5eaf3'
   return (
     <div className="exec-chart">
       <ResponsiveContainer width="100%" height="100%">
         <AreaChart data={data} margin={{ top: 12, right: 4, left: 4, bottom: 0 }}>
           <defs>
             <linearGradient id="execFill" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0" stopColor="#2563eb" stopOpacity=".28" />
+              <stop offset="0%" stopColor="#2563eb" stopOpacity={isDark ? '.4' : '.28'} />
               <stop offset="1" stopColor="#2563eb" stopOpacity=".02" />
             </linearGradient>
           </defs>
-          <CartesianGrid vertical={false} stroke="#e5eaf3" strokeDasharray="4 4" />
-          <XAxis dataKey="date" reversed tickFormatter={dayLabel} axisLine={false} tickLine={false} minTickGap={32} />
-          <YAxis orientation="right" axisLine={false} tickLine={false} tickFormatter={(v) => fa(v)} width={50} />
-          <Tooltip {...TIP} formatter={(v) => [`${fa(v)} میلیارد ریال`, 'فروش']} labelFormatter={dayLabel} />
-          <Area type="monotone" dataKey="value" stroke="#2563eb" fill="url(#execFill)" strokeWidth={2.5} strokeLinejoin="round" activeDot={{ r: 5, fill: '#fff', stroke: '#2563eb', strokeWidth: 2.5 }} />
+          <CartesianGrid vertical={false} stroke={gridColor} strokeDasharray="4 4" />
+          <XAxis dataKey="date" reversed tickFormatter={dayLabel} axisLine={false} tickLine={false} minTickGap={32} tick={{ fill: isDark ? '#98989D' : '#64748B' }} />
+          <YAxis orientation="right" axisLine={false} tickLine={false} tickFormatter={(v) => fa(v)} width={50} tick={{ fill: isDark ? '#98989D' : '#64748B' }} />
+          <Tooltip {...tipConfig} formatter={(v) => [`${fa(v)} میلیارد ریال`, 'فروش']} labelFormatter={dayLabel} />
+          <Area type="monotone" dataKey="value" stroke="#3b82f6" fill="url(#execFill)" strokeWidth={2.5} strokeLinejoin="round" activeDot={{ r: 5, fill: isDark ? '#1C1C1E' : '#fff', stroke: '#3b82f6', strokeWidth: 2.5 }} />
         </AreaChart>
       </ResponsiveContainer>
     </div>
@@ -1181,6 +1201,7 @@ function Delta({ cur, prev }) {
 }
 
 function CompareCard({ dims, month, pace, months }) {
+  const { isDark, isSolid } = useAppearance()
   const pc = pace.data?.available ? pace.data : null
   const ym = month || pc?.year_month || ''
   const pym = ym ? prevMonthKey(ym) : null
@@ -1193,8 +1214,15 @@ function CompareCard({ dims, month, pace, months }) {
   const b = ready ? prev.data : null
   const span = partial ? ` (۱ تا ${fa(lastDay)})` : ''
   const items = [['ریال خالص', 'net_rial'], ['فروش ناخالص', 'sum_rial_vat'], ['تعداد کالا', 'sum_qty'], ['تعداد فاکتور', 'invoice_count'], ['مشتری فعال', 'active_customers']]
+
+  const surfaceClass = isDark
+    ? 'bg-[#1C1C1E]/85 backdrop-blur-2xl border border-white/10 text-[#F5F5F7] shadow-[0_8px_30px_rgba(0,0,0,0.5)]'
+    : isSolid
+    ? 'bg-white border border-slate-200 text-[#1D1D1F] shadow-sm'
+    : 'bg-white/85 backdrop-blur-2xl border border-slate-200/80 text-[#1D1D1F] shadow-[0_8px_30px_rgb(0,0,0,0.04)]'
+
   return (
-    <div className="rounded-[28px] bg-white/85 backdrop-blur-xl border border-black/[0.04] shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-6 h-full flex flex-col">
+    <div className={`rounded-[28px] ${surfaceClass} p-6 h-full flex flex-col transition-colors`}>
       <CardHead title="مقایسه با ماه قبل"
         note={ready ? `${monthLabel(ym)}${span} در برابر ${monthLabel(pym)}${span}` : 'برای مقایسه به دو ماه متوالی داده نیاز است'}
         chip={<span className="exec-chip blue">{partial ? 'هم‌بازه' : 'ماه کامل'}</span>} />
@@ -1251,6 +1279,7 @@ function PasswordDialog({ onClose }) {
 }
 
 export default function ExecutiveDashboard({ p, cal, month, setMonth, onOpenReturns }) {
+  const { isDark, isSolid } = useAppearance()
   const { month: _m, start: _s, end: _e, ...dims } = p
   const ov = useApi('/overview', p)
   const invoiceLines = useApi('/invoice-lines', p)
@@ -1270,6 +1299,13 @@ export default function ExecutiveDashboard({ p, cal, month, setMonth, onOpenRetu
   const growthLabel = (month ? selectedPeriod : lastPeriod)?.label
   const days = trend.data ?? []
   const toggle = (ym) => setMonth(ym === month ? '' : ym)
+
+  const surfaceClass = isDark
+    ? 'bg-[#1C1C1E]/85 backdrop-blur-2xl border border-white/10 text-[#F5F5F7] shadow-[0_8px_30px_rgba(0,0,0,0.5)]'
+    : isSolid
+    ? 'bg-white border border-slate-200 text-[#1D1D1F] shadow-sm'
+    : 'bg-white/85 backdrop-blur-2xl border border-slate-200/80 text-[#1D1D1F] shadow-[0_8px_30px_rgb(0,0,0,0.04)]'
+
   return (
     <div className="w-full max-w-[1600px] mx-auto space-y-3 sm:space-y-5 px-1 sm:px-0">
 
@@ -1302,9 +1338,9 @@ export default function ExecutiveDashboard({ p, cal, month, setMonth, onOpenRetu
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 w-full">
 
         {/* Monthly sales chart */}
-        <div className="lg:col-span-8 rounded-[24px] sm:rounded-[28px] bg-white/85 backdrop-blur-xl border border-black/[0.04] shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-4 sm:p-6 overflow-hidden w-full max-w-full flex flex-col">
+        <div className={`lg:col-span-8 rounded-[24px] sm:rounded-[28px] ${surfaceClass} p-4 sm:p-6 overflow-hidden w-full max-w-full flex flex-col transition-colors`}>
           <CardHead title="روند فروش ماهانه" note="ریال خالص و فروش ناخالص · میلیارد ریال"
-            chip={<span className="exec-legend-inline"><i style={{ background: '#2563eb' }} />خالص<i style={{ background: '#14b8a6' }} />ناخالص</span>} />
+            chip={<span className={`exec-legend-inline ${isDark ? 'text-slate-300' : ''}`}><i style={{ background: '#2563eb' }} />خالص<i style={{ background: '#14b8a6' }} />ناخالص</span>} />
           <SalesChart rows={rows} />
         </div>
 
@@ -1319,14 +1355,14 @@ export default function ExecutiveDashboard({ p, cal, month, setMonth, onOpenRetu
         </div>
 
         {/* Daily trend chart */}
-        <div className="lg:col-span-5 rounded-[24px] sm:rounded-[28px] bg-white/85 backdrop-blur-xl border border-black/[0.04] shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-4 sm:p-6 overflow-hidden w-full max-w-full flex flex-col exec-daily">
+        <div className={`lg:col-span-5 rounded-[24px] sm:rounded-[28px] ${surfaceClass} p-4 sm:p-6 overflow-hidden w-full max-w-full flex flex-col exec-daily transition-colors`}>
           <CardHead title="روند فروش روزانه" note={month ? `روزهای ${monthLabel(month)} · میلیارد ریال` : 'روزهای دورهٔ انتخاب‌شده · میلیارد ریال'}
             chip={<span className="exec-chip blue">Rial+Vat</span>} />
           <DailyChart rows={days} />
         </div>
 
         {/* Monthly summary table */}
-        <div className="lg:col-span-12 rounded-[24px] sm:rounded-[28px] bg-white/85 backdrop-blur-xl border border-black/[0.04] shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-4 sm:p-6 overflow-hidden w-full max-w-full">
+        <div className={`lg:col-span-12 rounded-[24px] sm:rounded-[28px] ${surfaceClass} p-4 sm:p-6 overflow-hidden w-full max-w-full transition-colors`}>
           <CardHead title="خلاصهٔ ماهانه" note="برای تمرکز روی یک ماه، ردیف آن را انتخاب کنید"
             chip={<span className="exec-chip blue">مدل Power Pivot</span>} />
           <div className="w-full overflow-x-auto -mx-2 px-2">
