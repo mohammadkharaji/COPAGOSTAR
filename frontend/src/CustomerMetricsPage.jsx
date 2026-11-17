@@ -777,16 +777,25 @@ export default function CustomerMetricsPage({ p, core, setCore, openCustomer }) 
             </div>
 
             {/* Vertical Bar Chart */}
-            <div className="h-[380px] mt-2 w-full" dir="ltr">
+            <div className="h-[390px] mt-2 w-full" dir="ltr">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={productChartData} margin={{ top: 25, right: 10, left: 10, bottom: 25 }}>
+                <BarChart data={productChartData} margin={{ top: 25, right: 10, left: 10, bottom: 10 }}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={isDark ? '#333' : '#E2E8F0'} opacity={0.6} />
                   <XAxis
                     dataKey="name"
-                    tick={{ fill: isDark ? '#F5F5F7' : '#1D1D1F', fontSize: 11, fontWeight: 700 }}
+                    interval={0}
+                    angle={productChartData.length > 5 ? -35 : 0}
+                    textAnchor={productChartData.length > 5 ? 'end' : 'middle'}
+                    height={productChartData.length > 5 ? 70 : 35}
+                    dx={productChartData.length > 5 ? -4 : 0}
+                    dy={productChartData.length > 5 ? 6 : 0}
+                    tick={{
+                      fill: isDark ? '#F5F5F7' : '#1D1D1F',
+                      fontSize: 10,
+                      fontWeight: 700,
+                    }}
                     axisLine={{ stroke: isDark ? '#444' : '#E2E8F0' }}
                     tickLine={false}
-                    interval={0}
                   />
                   <YAxis
                     tick={{ fill: isDark ? '#98989D' : '#64748B', fontSize: 10 }}
@@ -809,7 +818,7 @@ export default function CustomerMetricsPage({ p, core, setCore, openCustomer }) 
                     ]}
                     labelFormatter={(label) => `${prodMode === 'brand' ? 'برند' : 'گروه کالا'}: ${label}`}
                   />
-                  <Bar dataKey={selectedMetric} radius={[8, 8, 0, 0]} maxBarSize={44}>
+                  <Bar dataKey={selectedMetric} radius={[8, 8, 0, 0]} maxBarSize={38}>
                     {productChartData.map((entry, index) => (
                       <Cell key={`cell-${index}`} fill={getBrandBarColor(entry)} />
                     ))}
@@ -819,7 +828,7 @@ export default function CustomerMetricsPage({ p, core, setCore, openCustomer }) 
                       formatter={(val) => `${fa2(val)}${activeMetricObj.unit === '٪' ? '٪' : ''}`}
                       style={{
                         fill: isDark ? '#F5F5F7' : '#1D1D1F',
-                        fontSize: 10,
+                        fontSize: 9.5,
                         fontWeight: 700,
                       }}
                     />

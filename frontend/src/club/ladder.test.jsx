@@ -14,7 +14,8 @@ describe('ladder config helpers', () => {
 
   it('rejects overlapping prize ranges and non-increasing ladders', () => {
     const errs = validateConfig({
-      kpis: [{ ...DEFAULT_KPIS[0], ladder: [[0.9, 25], [0.6, 8]] }],
+      // weight 1 and equal scores isolate the two faults under test: thresholds going down, and the prize overlap
+      kpis: [{ ...DEFAULT_KPIS[0], weight: 1, ladder: [[0.9, 25], [0.6, 25]] }],
       grade_bands: [],
       prize_table: [{ rank_from: 1, rank_to: 3, amount: 1 }, { rank_from: 3, rank_to: 5, amount: 1 }],
     })
