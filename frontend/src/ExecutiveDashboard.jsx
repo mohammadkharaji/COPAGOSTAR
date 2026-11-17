@@ -63,7 +63,7 @@ const FILTER_LABELS = {
   grade: 'گرید مشتری',
   group: 'لاین فروشگاهی',
 }
-const PRODUCT_GROUP_KEYS = ['main_group', 'product']
+const PRODUCT_GROUP_KEYS = []
 
 export const NAV = [
   ['overview', 'نمای کلی', LayoutDashboard], ['trend', 'روند روزانه', Activity], ['monthly', 'روند ماهانه', BarChart3],

@@ -182,8 +182,15 @@ def apply_product_groups(con, chunk_ids: list[str] | None = None) -> None:
             return
         where = f" AND fact_sales.chunk_id IN ({','.join('?' * len(chunk_ids))})"
         args = chunk_ids
+    # 1. Match by unique_product_code if available
     con.execute("UPDATE fact_sales SET main_group=d.main_group, sub_group=d.sub_group FROM dim_product d "
-                f"WHERE fact_sales.unique_product_code=d.unique_product_code{where}", args)
+                f"WHERE fact_sales.unique_product_code IS NOT NULL AND fact_sales.unique_product_code=d.unique_product_code{where}", args)
+    # 2. Fall back to matching by product_code (which is 100% populated in sales extracts)
+    con.execute(
+        "UPDATE fact_sales SET main_group=d.main_group, sub_group=d.sub_group "
+        "FROM (SELECT product_code, FIRST(main_group) AS main_group, FIRST(sub_group) AS sub_group "
+        "      FROM dim_product WHERE product_code IS NOT NULL AND main_group IS NOT NULL GROUP BY product_code) d "
+        f"WHERE fact_sales.main_group IS NULL AND fact_sales.product_code IS NOT NULL AND fact_sales.product_code=d.product_code{where}", args)
 
 
 def ingest_target(con, path: Path) -> dict:

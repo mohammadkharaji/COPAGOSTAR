@@ -20,9 +20,10 @@ TEXT = tuple(c for c in COLUMN_MAP.values() if c not in NUMERIC)
 # Product dimension (product.tsv, extracted from the model's Product table) -> dim_product. main_group/sub_group are
 # copied onto fact_sales (joined by unique_product_code) so they filter like any other fact column.
 PRODUCT_FILE = "product.tsv"
-PRODUCT_MAP = {"Product[UniqueProductCode]": "unique_product_code", "Product[گروه کالای اصلی]": "main_group",
-               "Product[ProductCategory]": "sub_group", "Product[TargetCategory]": "target_category",
-               "Product[Brand]": "brand", "Product[ProductType]": "product_type"}
+PRODUCT_MAP = {"Product[UniqueProductCode]": "unique_product_code", "Product[ProductCode]": "product_code",
+               "Product[گروه کالای اصلی]": "main_group", "Product[ProductCategory]": "sub_group",
+               "Product[TargetCategory]": "target_category", "Product[Brand]": "brand",
+               "Product[ProductType]": "product_type"}
 # Sub group = brand + product type (ProductCategory is only the fallback), see ingest.ingest_product.
 PRODUCT_DIMS = ("main_group", "sub_group")
 PRODUCT_DIM_COLS = tuple(v for v in PRODUCT_MAP.values() if v != "unique_product_code")  # columns of dim_product
