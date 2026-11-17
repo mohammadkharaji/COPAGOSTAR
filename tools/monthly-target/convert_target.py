@@ -8,11 +8,12 @@ Run once a month, when the new target is announced. Separate from publish-to-ser
   python tools/monthly-target/convert_target.py Target.xlsx --month 1405/08 --check    # legacy name: --month required
 
 Reads the visible sheet «هدف نهایی» (columns: شعبه، Line، TargetCategory، گروه، کد ویزیتوری، VIS.VIS،
-هدف ریالی تارگت کتگوری، نام سرپرست، نام مدیر) and writes target_kg_<YYYYMM>.tsv with
+هدف ریالی تارگت کتگوری، نام سرپرست، نام مدیر، and optionally هدف پوشش) and writes target_kg_<YYYYMM>.tsv with
 columns month, branch, line, target_category, product_group, visitor_code, visitor_name, supervisor, manager,
-target_rial. Columns are found by their header names, so a «هدف کل» column may be present or deleted; it is never
-read. The total for a month is the sum of «هدف ریالی تارگت کتگوری» and is derived at both the product-group
-(گروه کالایی) and target-category levels. Rows with the same branch, line, category and visitor are summed into
+target_rial, target_coverage. Columns are found by their header names, so a «هدف کل» column may be present or deleted;
+it is never read. هدف پوشش is the visitor's active-customer target: optional, and its TSV field is empty when the
+workbook has no such column. The total for a month is the sum of «هدف ریالی تارگت کتگوری» and is derived at both the
+product-group (گروه کالایی) and target-category levels. Rows with the same branch, line, category and visitor are summed into
 one row (the monthly file may repeat a category at several levels). Standard library only; refuses to write
 anything if the workbook fails validation. Target.xlsx holds no date: a strict Target.MM.xlsx name gives the month
 (year 1405); the legacy Target.xlsx needs --month. An upload to a month that already exists on the server asks
@@ -49,6 +50,9 @@ REQUIRED_HEADERS = {
     "کد ویزیتوری": "code", "VIS.VIS": "name", "هدف ریالی تارگت کتگوری": "rial",
     "نام سرپرست": "supervisor", "نام مدیر": "manager",
 }
+# Optional: «هدف پوشش» is the number of active customers the visitor must reach. Absent in older workbooks, in which
+# case the TSV's 11th field is empty and fact_target.target_coverage stays NULL.
+OPTIONAL_HEADERS = {"هدف پوشش": "coverage"}
 LINES = {"لاین سوپرمارکت", "لاین داروخانه"}  # same spelling as the sales column SR[GROUP]
 TARGET_YEAR = "1405"
 MONTH_FILE = re.compile(r"Target\.(0[1-9]|1[0-2])\.xlsx")  # strict: Target.07.xlsx, not Target.7.xlsx or Target.07.xlsx.bak
@@ -88,10 +92,10 @@ def read_rows(path: Path) -> list[dict[str, str | None]]:
 
 def _column_map(header: dict[str, str | None]) -> dict[str, str]:
     """Map logical fields to letters so deleting or reordering optional columns is safe."""
-    columns = {field: None for field in REQUIRED_HEADERS.values()}
+    columns = {field: None for field in (*REQUIRED_HEADERS.values(), *OPTIONAL_HEADERS.values())}
     for letter, value in header.items():
         name = normalize_text(value or "")
-        field = REQUIRED_HEADERS.get(name)
+        field = REQUIRED_HEADERS.get(name) or OPTIONAL_HEADERS.get(name)
         if field and columns[field] is None:
             columns[field] = letter
     missing = [name for name, field in REQUIRED_HEADERS.items() if columns[field] is None]
@@ -111,6 +115,7 @@ def convert(path: Path, month: str) -> tuple[list[list[str]], dict]:
         raise TargetError("شیت خالی است")
     columns = _column_map(rows[0])
     aggregated: dict[tuple[str, str, str, str], dict] = {}
+    coverage: dict[tuple[str, str], str] = {}  # (branch, visitor) -> هدف پوشش, one value per visitor
     errors = []
     for n, row in enumerate(rows[1:], start=2):
         fields = {field: normalize_text(row.get(letter) or "") or "" for field, letter in columns.items()}
@@ -118,6 +123,14 @@ def convert(path: Path, month: str) -> tuple[list[list[str]], dict]:
             rial = float(fields["rial"])
         except ValueError:
             errors.append(f"ردیف {n}: مبلغ عددی نیست")
+            continue
+        try:
+            cov = float(fields["coverage"]) if fields["coverage"] else None
+        except ValueError:
+            errors.append(f"ردیف {n}: هدف پوشش عددی نیست")
+            continue
+        if cov is not None and cov < 0:
+            errors.append(f"ردیف {n}: هدف پوشش منفی")
             continue
         line = fields["line"] if fields["line"] in LINES else None
         if line is None:
@@ -130,6 +143,14 @@ def convert(path: Path, month: str) -> tuple[list[list[str]], dict]:
             errors.append(f"ردیف {n}: شعبه، دسته کالا یا نام ویزیتور خالی است")
             continue
         code = "" if fields["code"].upper() in ("", "#N/A", "N/A") else fields["code"]
+        # هدف پوشش is per visitor, so it must agree across that visitor's category rows
+        vkey = (fields["branch"], fields["name"])
+        known = coverage.get(vkey)
+        if known is not None and cov is not None and float(known) != cov:
+            errors.append(f"ردیف {n}: هدف پوشش برای همین ویزیتور متفاوت است")
+            continue
+        if known is None:
+            coverage[vkey] = fields["coverage"] or None
         key = (fields["branch"], line, fields["category"], fields["name"])
         previous = aggregated.get(key)
         if previous is None:
@@ -157,7 +178,7 @@ def convert(path: Path, month: str) -> tuple[list[list[str]], dict]:
         raise TargetError(f"یک ویزیتور چند سرپرست دارد: {multi[:5]}")
     ym = month.replace("/", "")
     tsv = [[ym, x["branch"], x["line"], x["category"], x["group"], x["code"], x["name"], x["supervisor"], x["manager"],
-            f"{x['rial']:.2f}"] for x in out]
+            f"{x['rial']:.2f}", coverage.get((x["branch"], x["name"])) or ""] for x in out]
     group_totals = defaultdict(float)
     category_totals = defaultdict(float)
     for x in out:

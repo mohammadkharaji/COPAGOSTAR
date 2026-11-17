@@ -31,7 +31,7 @@ PRODUCT_DIM_COLS = tuple(v for v in PRODUCT_MAP.values() if v != "unique_product
 #   target_<core>_<YYYYMM>.tsv, \x1f/\x1e delimited like the other extracts, one row per visitor x target category.
 TARGET_GLOB = "target_*_*.tsv"
 TARGET_COLS = ("month", "branch", "line", "target_category", "product_group", "visitor_code", "visitor_name",
-               "supervisor", "manager", "target_rial")
+               "supervisor", "manager", "target_rial", "target_coverage")  # target_coverage is optional in the file
 
 # Distribution-order returns (one row per dispatch order, written by tools/returns/convert_returns.py):
 #   ret_<core>_<YYYYMMDD>_<HHMM>.tsv, \x1f/\x1e delimited. Each file holds only the new or changed orders since the

@@ -8,6 +8,8 @@ import tempfile
 import time
 from pathlib import Path
 
+from duckdb import CatalogException
+
 from .config import CORES, RAW_DIR
 from .db import connect
 from .normalize import normalize_text
@@ -22,8 +24,10 @@ FACT_DDL = (
 PRODUCT_DDL = ("CREATE TABLE IF NOT EXISTS dim_product (unique_product_code VARCHAR, "
                + ", ".join(f"{c} VARCHAR" for c in PRODUCT_DIM_COLS) + ")")
 # One row per visitor x target category for a core and month; chunk_id is the file stem (target_kg_140507).
+# target_coverage is NULL for files written before the coverage target existed.
+TARGET_TEXT = tuple(c for c in TARGET_COLS if c not in ("target_rial", "target_coverage"))
 TARGET_DDL = ("CREATE TABLE IF NOT EXISTS fact_target (chunk_id VARCHAR, core VARCHAR, "
-              + ", ".join(f"{c} VARCHAR" for c in TARGET_COLS if c != "target_rial") + ", target_rial DOUBLE)")
+              + ", ".join(f"{c} VARCHAR" for c in TARGET_TEXT) + ", target_rial DOUBLE, target_coverage DOUBLE)")
 # One row per distribution (dispatch) order; upserted by (core, branch, dispatch_no, tour_date, customer_code, order_date) from the ret_*.tsv delta files.
 RETURNS_DDL = ("CREATE TABLE IF NOT EXISTS fact_returns (core VARCHAR, " + ", ".join(f"{c} VARCHAR" for c in RETURN_TEXT)
                + ", " + ", ".join(f"{c} DOUBLE" for c in RETURN_NUMERIC)
@@ -72,6 +76,10 @@ def initialize(con) -> None:
     con.execute(MANIFEST_DDL)
     con.execute(PRODUCT_DDL)
     con.execute(TARGET_DDL)
+    try:  # fact_target from before the coverage target existed: add the column, keep the loaded months
+        con.execute("ALTER TABLE fact_target ADD COLUMN target_coverage DOUBLE")
+    except CatalogException:
+        pass
     con.execute(RETURNS_DDL)
     have = {r[0] for r in con.execute(
         "SELECT column_name FROM information_schema.columns WHERE table_name='dim_product'").fetchall()}
@@ -190,9 +198,10 @@ def ingest_target(con, path: Path) -> dict:
         return {"file": path.name, "status": "skipped", "rows": 0}
     header, sep, body = path.read_text(encoding="utf-8").partition("\x1e")
     cols = header.split("\x1f")
-    if not sep or sorted(cols) != sorted(TARGET_COLS):
+    # target_coverage is optional: files written before it existed have 10 columns and load unchanged
+    if not sep or sorted(cols) not in (sorted(TARGET_COLS), sorted(TARGET_TEXT + ("target_rial",))):
         raise ValueError(f"{path.name}: truncated extract or unexpected columns {cols}")
-    idx = {c: cols.index(c) for c in TARGET_COLS}
+    idx = {c: cols.index(c) for c in cols}
     out = []
     for line in body.split("\x1e"):
         if not line:
@@ -200,24 +209,24 @@ def ingest_target(con, path: Path) -> dict:
         vals = line.split("\x1f")
         if len(vals) != len(cols):
             raise ValueError(f"{path.name}: row has {len(vals)} fields, expected {len(cols)}")
-        r = {c: normalize_text(vals[idx[c]]) or "" for c in TARGET_COLS if c != "target_rial"}
+        r = {c: (normalize_text(vals[idx[c]]) or "") if c in idx else "" for c in TARGET_COLS if c != "target_rial"}
         if r["month"] != ym:
             raise ValueError(f"{path.name}: row month {r['month']!r} does not match the file name")
         rial = float(vals[idx["target_rial"]])
         if not (r["branch"] and r["line"] and r["target_category"] and r["visitor_name"]) or rial < 0:
             raise ValueError(f"{path.name}: incomplete or negative target row {r}")
-        out.append([path.stem, core, *(r[c] for c in TARGET_COLS if c != "target_rial"), repr(rial)])
+        out.append([path.stem, core, *(repr(rial) if c == "target_rial" else r[c] for c in TARGET_COLS)])
     if not out:
         raise ValueError(f"{path.name}: no target rows")
     with tempfile.NamedTemporaryFile("w", suffix=".csv", delete=False, newline="", encoding="utf-8") as tmp:
         csv.writer(tmp).writerows(out)
         tmp_name = tmp.name
-    names = ["chunk_id", "core", *(c for c in TARGET_COLS if c != "target_rial"), "target_rial"]
+    names = ["chunk_id", "core", *TARGET_COLS]
     try:
         con.execute("BEGIN")
         con.execute("DELETE FROM fact_target WHERE chunk_id=?", [path.stem])
-        con.execute("INSERT INTO fact_target SELECT " + ", ".join(
-            "TRY_CAST(target_rial AS DOUBLE)" if c == "target_rial" else f"NULLIF({c},'')" for c in names)
+        con.execute("INSERT INTO fact_target (" + ", ".join(names) + ") SELECT " + ", ".join(
+            f"TRY_CAST({c} AS DOUBLE)" if c in ("target_rial", "target_coverage") else f"NULLIF({c},'')" for c in names)
             + " FROM read_csv(?, header=false, all_varchar=true, columns={"
             + ", ".join(f"'{c}': 'VARCHAR'" for c in names) + "})", [tmp_name])
         con.execute("INSERT OR REPLACE INTO ingest_manifest VALUES (?,?,?,?)",

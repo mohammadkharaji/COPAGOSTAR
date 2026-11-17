@@ -11,8 +11,8 @@ PRODUCT = product_tsv(("P1", "گروه الف", "زیر ۱", "دسته A"), ("P2
 LINE = "لاین سوپرمارکت"
 
 
-def trow(branch, cat, rial, code, name, sup="سرپرست ۱", mgr="مدیر ۱", month="140507", line=LINE):
-    return [month, branch, line, cat, "گروه", code, name, sup, mgr, str(rial)]
+def trow(branch, cat, rial, code, name, sup="سرپرست ۱", mgr="مدیر ۱", month="140507", line=LINE, cov=""):
+    return [month, branch, line, cat, "گروه", code, name, sup, mgr, str(rial), cov]
 
 
 def target_tsv(*rows):
@@ -157,3 +157,29 @@ def test_month_sales_helper_matches_report(client):
     assert target_sales.resolve_code("", "رضا احمدی", by_name) == "12"
     assert target_sales.resolve_code("", "ویزیتور جدید", by_name) is None
     assert target_sales.resolve_code("99", "رضا احمدی", by_name) == "99"
+
+def test_legacy_ten_column_target_file_still_loads(client, tmp_path):
+    legacy_cols = [c for c in TARGET_COLS if c != "target_coverage"]
+    body = "\x1f".join(legacy_cols) + "\x1e" + "\x1f".join(
+        ["140508", "شعبه تهران", LINE, "دسته A", "گروه", "11", "علی رضایی", "س", "م", "900"]) + "\x1e"
+    (tmp_path / "raw" / "target_kg_140508.tsv").write_text(body, encoding="utf-8")
+    from app import ingest
+    from app.db import connect
+    assert any(r["file"] == "target_kg_140508.tsv" and r["status"] == "loaded" for r in ingest.ingest_all())
+    con = connect(read_only=True)
+    try:
+        assert con.execute("SELECT target_coverage FROM fact_target WHERE month='140508'").fetchone() == (None,)
+    finally:
+        con.close()
+
+def test_coverage_column_is_loaded_when_present(client, tmp_path):
+    (tmp_path / "raw" / "target_kg_140509.tsv").write_text(target_tsv(
+        trow("شعبه تهران", "دسته A", 900, "11", "علی رضایی", month="140509") [:-1] + ["25"]), encoding="utf-8")
+    from app import ingest
+    from app.db import connect
+    ingest.ingest_all()
+    con = connect(read_only=True)
+    try:
+        assert con.execute("SELECT target_coverage FROM fact_target WHERE month='140509'").fetchone() == (25.0,)
+    finally:
+        con.close()

@@ -1,8 +1,9 @@
 """Monthly sales target vs actual (read-only). Targets are loaded from target_<core>_<YYYYMM>.tsv by app.ingest.
 
-Actual = Rial+Vat of non-promotion rows (returns count negatively) whose product's TargetCategory is one of the month's
-target categories. The expected share of the month is the same working-day rule the dashboard's pace card uses: working
-days up to the last day with data / working days of the month (Fridays and SR_HOLIDAYS are off).
+Actual = Rial+Vat of every row of the month, promotions included and returns counted negatively, whose product's
+TargetCategory is one of the month's target categories. The expected share of the month is the same working-day rule
+the dashboard's pace card uses: working days up to the last day with data / working days of the month (Fridays and
+SR_HOLIDAYS are off).
 """
 from __future__ import annotations
 

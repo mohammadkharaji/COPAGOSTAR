@@ -31,7 +31,7 @@ def make_workbook(path: Path, rows=None) -> Path:
             strings.append(text)
         return index[text]
 
-    cols = "ABCDEFGHIJ"
+    cols = "ABCDEFGHIJK"
     body = "".join(
         f'<row r="{n}">' + "".join(f'<c r="{cols[i]}{n}" t="s"><v>{sidx(v)}</v></c>' for i, v in enumerate(vals) if v)
         + "</row>" for n, vals in enumerate(rows, start=1))
@@ -138,7 +138,7 @@ def test_duplicate_category_rows_are_summed_into_one_row(tmp_path):
     wb = make_workbook(tmp_path / "Target.08.xlsx", rows)
     tsv, rep = ct.convert(wb, "1405/08")
     assert len(tsv) == 1
-    assert tsv[0][-1] == "4000.00"
+    assert tsv[0][-2] == "4000.00"
     assert rep["total_rial"] == 4000
 
 
@@ -162,7 +162,7 @@ def test_legacy_header_with_goal_column_is_accepted(tmp_path):
     wb = make_workbook(tmp_path / "Target.07.xlsx", legacy)
     tsv, rep = ct.convert(wb, "1405/07")
     assert rep["total_rial"] == 2000
-    assert tsv[0][-1] == "2000.00"
+    assert tsv[0][-2] == "2000.00"
 
 
 def test_missing_rial_column_is_reported(tmp_path):
@@ -289,3 +289,17 @@ def test_main_replaces_existing_month_with_yes(tmp_path, monkeypatch):
                                       "--yes"])
     assert ct.main() == 0
     assert "mv -f" in fake.scripts()[-1]
+
+def test_optional_coverage_header_is_read(tmp_path):
+    rows = [HEADER + ["هدف پوشش"], ROW + ["40"], ["شعبه تهران", "لاین سوپرمارکت", "دسته B", "گروه", "11", "علی رضایی", "500", "سرپرست ۱", "مدیر ۱", "40"]]
+    tsv, _ = ct.convert(make_workbook(tmp_path / "t.xlsx", rows), "1405/07")
+    assert all(r[-1] == "40" for r in tsv) and len(tsv[0]) == 11
+
+def test_missing_coverage_header_gives_empty_field(tmp_path):
+    tsv, _ = ct.convert(make_workbook(tmp_path / "t.xlsx"), "1405/07")
+    assert tsv[0][-1] == "" and len(tsv[0]) == 11
+
+def test_conflicting_coverage_for_one_visitor_is_rejected(tmp_path):
+    rows = [HEADER + ["هدف پوشش"], ROW + ["40"], ["شعبه تهران", "لاین سوپرمارکت", "دسته B", "گروه", "11", "علی رضایی", "500", "سرپرست ۱", "مدیر ۱", "41"]]
+    with pytest.raises(ct.TargetError):
+        ct.convert(make_workbook(tmp_path / "t.xlsx", rows), "1405/07")

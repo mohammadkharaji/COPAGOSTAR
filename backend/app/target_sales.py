@@ -7,7 +7,9 @@ from __future__ import annotations
 
 
 def month_sales(con, core_name: str, ym: str, scope: str = "", scope_args: list | None = None) -> list[tuple]:
-    """(branch, group_name, visitor_code, target_category, day, rial) rows of one month."""
+    """(branch, group_name, visitor_code, target_category, day, rial) rows of one month.
+
+    `scope` must be a fragment produced by `rbac.scope_clause`, never user input."""
     return con.execute(
         f"""SELECT s.branch, s.group_name, s.visitor_code, d.target_category, COALESCE(s.jdate_key, 0) % 100, SUM(s.rial_vat)
            FROM fact_sales s LEFT JOIN dim_product d ON d.unique_product_code = s.unique_product_code
