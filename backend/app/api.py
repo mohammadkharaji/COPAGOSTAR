@@ -1303,27 +1303,49 @@ def customer_metrics(request: Request, core: str = DEFAULT_CORE, target_month: s
             })
 
         # 5. Product Group (Category) Breakdown
-        cat_curr_rows = con.execute(
-            f"""WITH pdim AS (
+        tables_res = {r[0].lower() for r in con.execute("SHOW TABLES").fetchall()}
+        has_dim_prod = "dim_product" in tables_res
+        fs_cols = {c[0].lower() for c in con.execute("DESCRIBE fact_sales").fetchall()}
+        has_fs_main_group = "main_group" in fs_cols
+
+        pdim_cte = ""
+        pdim_join = ""
+        if has_dim_prod and has_fs_main_group:
+            pdim_cte = """pdim AS (
                     SELECT SUBSTRING(unique_product_code, 1, 10) AS pcode,
                            FIRST(main_group) AS main_group
                     FROM dim_product
                     WHERE main_group IS NOT NULL
                     GROUP BY 1
-                ),
+                ),"""
+            pdim_join = "LEFT JOIN pdim p ON f.product_code = p.pcode"
+            cat_expr = "TRIM(REPLACE(COALESCE(NULLIF(f.main_group, ''), p.main_group, 'سایر'), 'گروه', ''))"
+        elif has_dim_prod:
+            pdim_cte = """pdim AS (
+                    SELECT SUBSTRING(unique_product_code, 1, 10) AS pcode,
+                           FIRST(main_group) AS main_group
+                    FROM dim_product
+                    WHERE main_group IS NOT NULL
+                    GROUP BY 1
+                ),"""
+            pdim_join = "LEFT JOIN pdim p ON f.product_code = p.pcode"
+            cat_expr = "TRIM(REPLACE(COALESCE(p.main_group, 'سایر'), 'گروه', ''))"
+        elif has_fs_main_group:
+            cat_expr = "TRIM(REPLACE(COALESCE(NULLIF(f.main_group, ''), 'سایر'), 'گروه', ''))"
+        else:
+            cat_expr = "'سایر'"
+
+        cat_curr_rows = con.execute(
+            f"""WITH {pdim_cte}
                 scat AS (
                     SELECT f.customer_code,
                            f.invoice_code,
                            f.product_code,
                            f.qty,
                            f.rial_vat,
-                           TRIM(REPLACE(COALESCE(
-                               NULLIF(f.main_group, ''),
-                               p.main_group,
-                               'سایر'
-                           ), 'گروه', '')) AS category_name
+                           {cat_expr} AS category_name
                     FROM fact_sales f
-                    LEFT JOIN pdim p ON f.product_code = p.pcode
+                    {pdim_join}
                     WHERE f.core=? AND f.year_month=? AND {SALES_ONLY} AND f.rial_vat > 0 AND f.customer_code IS NOT NULL{dim}
                 )
                 SELECT category_name,
@@ -1343,35 +1365,21 @@ def customer_metrics(request: Request, core: str = DEFAULT_CORE, target_month: s
         if lookback_months:
             pl_c = ",".join("?" * len(lookback_months))
             c_ret_rows = con.execute(
-                f"""WITH pdim AS (
-                        SELECT SUBSTRING(unique_product_code, 1, 10) AS pcode,
-                               FIRST(main_group) AS main_group
-                        FROM dim_product
-                        WHERE main_group IS NOT NULL
-                        GROUP BY 1
-                    ),
+                f"""WITH {pdim_cte}
                     curr AS (
                         SELECT DISTINCT
-                               TRIM(REPLACE(COALESCE(
-                                   NULLIF(f.main_group, ''),
-                                   p.main_group,
-                                   'سایر'
-                               ), 'گروه', '')) AS category_name,
+                               {cat_expr} AS category_name,
                                f.customer_code
                         FROM fact_sales f
-                        LEFT JOIN pdim p ON f.product_code = p.pcode
+                        {pdim_join}
                         WHERE f.core=? AND f.year_month=? AND {SALES_ONLY} AND f.rial_vat > 0 AND f.customer_code IS NOT NULL{dim}
                     ),
                     prev AS (
                         SELECT DISTINCT
-                               TRIM(REPLACE(COALESCE(
-                                   NULLIF(f.main_group, ''),
-                                   p.main_group,
-                                   'سایر'
-                               ), 'گروه', '')) AS category_name,
+                               {cat_expr} AS category_name,
                                f.customer_code
                         FROM fact_sales f
-                        LEFT JOIN pdim p ON f.product_code = p.pcode
+                        {pdim_join}
                         WHERE f.core=? AND f.year_month IN ({pl_c}) AND {SALES_ONLY} AND f.rial_vat > 0 AND f.customer_code IS NOT NULL{dim}
                     )
                     SELECT p.category_name,
@@ -1386,13 +1394,7 @@ def customer_metrics(request: Request, core: str = DEFAULT_CORE, target_month: s
             cat_ret_map = {r[0]: (r[1], r[2]) for r in c_ret_rows}
 
         c_cross_rows = con.execute(
-            f"""WITH pdim AS (
-                    SELECT SUBSTRING(unique_product_code, 1, 10) AS pcode,
-                           FIRST(main_group) AS main_group
-                    FROM dim_product
-                    WHERE main_group IS NOT NULL
-                    GROUP BY 1
-                ),
+            f"""WITH {pdim_cte}
                 cust_total AS (
                     SELECT f.customer_code,
                            COUNT(DISTINCT COALESCE(NULLIF(f.brand, ''), 'نامشخص')) AS brand_cnt
@@ -1400,14 +1402,10 @@ def customer_metrics(request: Request, core: str = DEFAULT_CORE, target_month: s
                     WHERE f.core=? AND f.year_month=? AND {SALES_ONLY} AND f.rial_vat > 0 AND f.customer_code IS NOT NULL{dim}
                     GROUP BY 1
                 )
-                SELECT TRIM(REPLACE(COALESCE(
-                           NULLIF(f.main_group, ''),
-                           p.main_group,
-                           'سایر'
-                       ), 'گروه', '')) AS category_name,
+                SELECT {cat_expr} AS category_name,
                        AVG(ct.brand_cnt)
                 FROM fact_sales f
-                LEFT JOIN pdim p ON f.product_code = p.pcode
+                {pdim_join}
                 JOIN cust_total ct ON f.customer_code = ct.customer_code
                 WHERE f.core=? AND f.year_month=? AND {SALES_ONLY} AND f.rial_vat > 0 AND f.customer_code IS NOT NULL{dim}
                 GROUP BY 1""",
