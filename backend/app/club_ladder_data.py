@@ -69,16 +69,21 @@ def load_visitor_months(con, core_name: str, months: list[str]) -> list[VisitorM
                 group_actual[(month, code, group)] += rial or 0.0
                 month_actual[(month, code)] += rial or 0.0
 
+    actual_by_code: dict[tuple[str, str], dict[str, float]] = defaultdict(dict)   # (month, code) -> group -> actual
+    for (month, code, group), v in group_actual.items():
+        actual_by_code[(month, code)][group] = v
+
     out = []
     for (code, month), t in sorted(targets.items()):
         groups = dict(t["groups"])
         out.append(VisitorMonth(
             code=code, name=t["name"], branch=t["branch"], month=month,
             rial_targets={**groups, ALL: sum(groups.values())},
-            # a sale in one of the month's categories that this visitor has no target for still counts in the
-            # total, so it is keyed by __all__ only
-            rial_actuals={g: group_actual.get((month, code, g), 0.0) for g in groups}
-                         | {ALL: month_actual.get((month, code), 0.0)},
+            # every targeted group keeps a line (0.0 when nothing sold), and so does every group the
+            # visitor sold without holding a target for it, so the lines add up to __all__ and a sale
+            # the visitor made stays visible to a group-level KPI instead of only moving the total
+            rial_actuals={**{g: 0.0 for g in groups}, **actual_by_code[(month, code)],
+                          ALL: month_actual.get((month, code), 0.0)},
             coverage_target=t["coverage"],
             coverage_actual=coverage.get((month, code), 0),
         ))
