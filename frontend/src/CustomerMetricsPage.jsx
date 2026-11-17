@@ -152,28 +152,17 @@ export default function CustomerMetricsPage({ p, core, setCore, openCustomer }) 
   return (
     <div className="w-full max-w-[1600px] mx-auto space-y-4 sm:space-y-5 pb-12" dir="rtl">
       {/* ─────────────────────────────────────────────────────────────
-          1. Header & Hero Title
+          1. Subheader: Cohort Badge, Calculation Period & Core Quick Toggle
       ───────────────────────────────────────────────────────────── */}
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-3 pt-1">
-        <div>
-          <div className="flex items-center gap-2 mb-1">
-            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold tracking-tight bg-[#0071E3]/10 text-[#0071E3] border border-[#0071E3]/20">
-              <Sparkles className="w-3 h-3" />
-              آنالیز رفتاری و کوهورت مشتریان
-            </span>
-            <span className="text-xs font-semibold text-[#86868B] dark:text-[#98989D]">
-              {data?.target_month_label ? `دوره محاسباتی: ${data.target_month_label}` : 'در حال بارگذاری…'}
-            </span>
-          </div>
-          <h1 className="text-xl sm:text-2xl font-black text-[#1D1D1F] dark:text-[#F5F5F7] tracking-tight">
-            آنالیز شاخصهای خرید مشتریان
-            <span className="text-xs sm:text-sm font-medium text-[#86868B] dark:text-[#98989D] mr-2 font-mono opacity-80">
-              Customer Purchase & Churn Analytics
-            </span>
-          </h1>
-          <p className="text-xs text-[#86868B] dark:text-[#98989D] mt-0.5">
-            سنجش ریزش، بازگشت، ارزش دوره عمر (CLV) و رفتار سبد فاکتورها
-          </p>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-0.5 pb-1">
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold tracking-tight bg-[#0071E3]/10 text-[#0071E3] border border-[#0071E3]/20">
+            <Sparkles className="w-3.5 h-3.5" />
+            آنالیز رفتاری و کوهورت مشتریان (Cohort Analytics)
+          </span>
+          <span className="text-xs font-semibold text-[#86868B] dark:text-[#98989D]">
+            {data?.target_month_label ? `دوره محاسباتی: ${data.target_month_label}` : 'در حال بارگذاری…'}
+          </span>
         </div>
 
         {/* Core Quick Toggle */}
