@@ -472,7 +472,72 @@ tbody tr:hover, tbody tr.sel { background: #fbf3e0; }
   --exec-bg: #0B0C10;
   --exec-card: #1C1C1E;
 }
-[data-appearance="dark"] .exec-root, .dark .exec-root { background: #0B0C10; color: #F5F5F7; }
+[data-appearance="dark"] .exec-root, .dark .exec-root {
+  --exec-ink: #F5F5F7 !important;
+  --exec-muted: #98989D !important;
+  --exec-line: rgba(255, 255, 255, 0.1) !important;
+  --exec-bg: #0B0C10 !important;
+  --exec-card: #1C1C1E !important;
+  background: #0B0C10 !important;
+  color: #F5F5F7 !important;
+}
+
+/* Dark Mode overrides for legacy .exec-page and panels */
+[data-appearance="dark"] .exec-page, .dark .exec-page {
+  --ink: #F5F5F7 !important;
+  --line: rgba(255, 255, 255, 0.1) !important;
+  --muted: #98989D !important;
+  --card: #1C1C1E !important;
+  color: #F5F5F7 !important;
+}
+[data-appearance="dark"] .exec-page .kpi, .dark .exec-page .kpi,
+[data-appearance="dark"] .exec-page .panel, .dark .exec-page .panel,
+[data-appearance="dark"] .exec-page .toolbar, .dark .exec-page .toolbar,
+[data-appearance="dark"] .exec-page .empty, .dark .exec-page .empty {
+  background: rgba(28, 28, 30, 0.85) !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
+  color: #F5F5F7 !important;
+  backdrop-filter: blur(20px);
+}
+[data-appearance="dark"] .exec-page .panel-head h2, .dark .exec-page .panel-head h2 {
+  color: #F5F5F7 !important;
+}
+[data-appearance="dark"] .exec-page .panel-head span, .dark .exec-page .panel-head span,
+[data-appearance="dark"] .exec-page .kpi-label, .dark .exec-page .kpi-label {
+  color: #98989D !important;
+}
+[data-appearance="dark"] .exec-page .kpi-value, .dark .exec-page .kpi-value {
+  color: #F5F5F7 !important;
+}
+[data-appearance="dark"] .exec-page .seg, .dark .exec-page .seg {
+  background: rgba(255, 255, 255, 0.08) !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
+}
+[data-appearance="dark"] .exec-page .seg button, .dark .exec-page .seg button {
+  color: #98989D !important;
+}
+[data-appearance="dark"] .exec-page .seg button.on, .dark .exec-page .seg button.on {
+  background: #0071E3 !important;
+  color: #ffffff !important;
+}
+[data-appearance="dark"] .exec-page th, .dark .exec-page th {
+  background: rgba(36, 36, 39, 0.95) !important;
+  color: #98989D !important;
+}
+[data-appearance="dark"] .exec-page td, .dark .exec-page td {
+  color: #E5E5EA !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06) !important;
+}
+[data-appearance="dark"] .exec-page tbody tr:hover, .dark .exec-page tbody tr:hover,
+[data-appearance="dark"] .exec-page tbody tr.sel, .dark .exec-page tbody tr.sel {
+  background: rgba(255, 255, 255, 0.05) !important;
+}
+[data-appearance="dark"] .exec-card-head h2, .dark .exec-card-head h2 {
+  color: #F5F5F7 !important;
+}
+[data-appearance="dark"] .exec-card-head p, .dark .exec-card-head p {
+  color: #98989D !important;
+}
 [data-appearance="dark"] .exec-header h1, .dark .exec-header h1 { color: #F5F5F7; }
 [data-appearance="dark"] .exec-header p, .dark .exec-header p { color: #98989D; }
 [data-appearance="dark"] .exec-eyebrow, .dark .exec-eyebrow { color: #60A5FA; }
@@ -1533,6 +1598,43 @@ button.spot { padding: 0; text-align: right; }
   border-color: rgba(255, 255, 255, 0.1) !important;
   color: #F5F5F7 !important;
 }
+
+/* Universal Dark Glass Fallback for Unmigrated Light Elements */
+[data-appearance="dark"] .bg-slate-50,
+.dark .bg-slate-50 {
+  background-color: rgba(255, 255, 255, 0.04) !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+}
+[data-appearance="dark"] .bg-slate-100,
+.dark .bg-slate-100 {
+  background-color: rgba(255, 255, 255, 0.06) !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
+}
+[data-appearance="dark"] .border-slate-200,
+.dark .border-slate-200,
+[data-appearance="dark"] .border-slate-200\/80,
+.dark .border-slate-200\/80,
+[data-appearance="dark"] .border-slate-200\/90,
+.dark .border-slate-200\/90 {
+  border-color: rgba(255, 255, 255, 0.1) !important;
+}
+[data-appearance="dark"] .text-\[\#1D1D1F\],
+.dark .text-\[\#1D1D1F\],
+[data-appearance="dark"] .text-slate-800,
+.dark .text-slate-800,
+[data-appearance="dark"] .text-slate-900,
+.dark .text-slate-900 {
+  color: #F5F5F7 !important;
+}
+[data-appearance="dark"] .text-\[\#86868B\],
+.dark .text-\[\#86868B\],
+[data-appearance="dark"] .text-slate-500,
+.dark .text-slate-500,
+[data-appearance="dark"] .text-slate-600,
+.dark .text-slate-600 {
+  color: #98989D !important;
+}
+
 
 
 

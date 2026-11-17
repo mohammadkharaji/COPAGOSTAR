@@ -1929,4 +1929,20 @@ def chat(body: ChatBody):
 DIST = ROOT / "frontend" / "dist"
 if DIST.is_dir():
     from fastapi.staticfiles import StaticFiles
+    from fastapi.responses import FileResponse
+
+    index_html = DIST / "index.html"
+
+    @app.get("/")
+    @app.get("/index.html")
+    async def serve_index():
+        return FileResponse(
+            index_html,
+            headers={
+                "Cache-Control": "no-cache, no-store, must-revalidate",
+                "Pragma": "no-cache",
+                "Expires": "0",
+            },
+        )
+
     app.mount("/", StaticFiles(directory=DIST, html=True), name="frontend")

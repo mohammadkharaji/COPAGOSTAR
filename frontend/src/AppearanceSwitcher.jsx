@@ -30,10 +30,58 @@ const APPEARANCE_OPTIONS = [
 export default function AppearanceSwitcher({ compact = false }) {
   const { mode, setMode, isDark, isSolid } = useAppearance()
   const [open, setOpen] = useState(false)
+  const [coords, setCoords] = useState(null)
   const containerRef = useRef(null)
   const popoverRef = useRef(null)
 
-  // Close on outside click
+  const updateCoords = () => {
+    if (!containerRef.current) return
+    const rect = containerRef.current.getBoundingClientRect()
+
+    if (compact) {
+      // In collapsed mode (w-20 on right in desktop RTL), popover floats cleanly to the left of the sidebar:
+      const right = window.innerWidth - rect.left + 12
+      const bottom = Math.max(16, window.innerHeight - rect.bottom)
+      setCoords({
+        position: 'fixed',
+        bottom: `${bottom}px`,
+        right: `${right}px`,
+        width: '275px',
+        zIndex: 99999,
+      })
+    } else {
+      // In expanded sidebar mode:
+      // Anchor directly to the profile card or sidebar bottom container
+      const footerEl = containerRef.current.closest('.exec-sidebar-bottom, .exec-profile')
+      const anchor = footerEl ? footerEl.getBoundingClientRect() : rect
+
+      const rightEdge = window.innerWidth - anchor.right
+      const width = Math.min(270, Math.max(235, anchor.width))
+      const bottom = Math.max(16, window.innerHeight - anchor.top + 8)
+
+      setCoords({
+        position: 'fixed',
+        bottom: `${bottom}px`,
+        right: `${Math.max(12, rightEdge)}px`,
+        width: `${width}px`,
+        zIndex: 99999,
+      })
+    }
+  }
+
+  // Calculate coords whenever opened or on resize/scroll
+  useEffect(() => {
+    if (!open) return
+    updateCoords()
+    window.addEventListener('resize', updateCoords)
+    window.addEventListener('scroll', updateCoords, true)
+    return () => {
+      window.removeEventListener('resize', updateCoords)
+      window.removeEventListener('scroll', updateCoords, true)
+    }
+  }, [open, compact])
+
+  // Close on outside click or Escape
   useEffect(() => {
     if (!open) return
     const handleClick = (e) => {
@@ -62,16 +110,13 @@ export default function AppearanceSwitcher({ compact = false }) {
       dir="rtl"
       role="menu"
       aria-label="انتخاب پوسته و ظاهر"
-      className={`${
-        compact
-          ? 'fixed bottom-[1.5rem] right-[5.5rem] z-[9999] w-72'
-          : 'absolute bottom-full right-0 left-0 mb-2 z-50'
-      } rounded-2xl p-2 transition-all select-none ${
+      style={coords || { position: 'fixed', bottom: '5rem', right: '1rem', width: '270px', zIndex: 99999 }}
+      className={`rounded-2xl p-2 transition-all select-none shadow-[0_16px_40px_rgba(0,0,0,0.35)] ${
         isDark
-          ? 'bg-[#1C1C1E]/95 backdrop-blur-2xl border border-white/15 text-[#F5F5F7] shadow-[0_12px_40px_rgba(0,0,0,0.6)]'
+          ? 'bg-[#1C1C1E]/95 backdrop-blur-2xl border border-white/15 text-[#F5F5F7]'
           : isSolid
-          ? 'bg-white border border-slate-200 text-[#1D1D1F] shadow-xl'
-          : 'bg-white/95 backdrop-blur-2xl border border-slate-200/90 text-[#1D1D1F] shadow-[0_12px_35px_rgba(15,23,42,0.12)]'
+          ? 'bg-white border border-slate-200 text-[#1D1D1F]'
+          : 'bg-white/95 backdrop-blur-2xl border border-slate-200/90 text-[#1D1D1F]'
       }`}
     >
       <div className="px-2.5 py-1.5 mb-1 border-b border-black/[0.06] dark:border-white/10 flex items-center justify-between">
@@ -130,10 +175,16 @@ export default function AppearanceSwitcher({ compact = false }) {
   )
 
   return (
-    <div className={compact ? 'relative inline-block shrink-0' : 'static flex shrink-0'} ref={containerRef}>
+    <div className={compact ? 'relative inline-block shrink-0' : 'relative flex shrink-0'} ref={containerRef}>
       <button
         type="button"
-        onClick={() => setOpen((v) => !v)}
+        onClick={() => {
+          setOpen((v) => {
+            const next = !v
+            if (next) updateCoords()
+            return next
+          })
+        }}
         className={`rounded-xl flex items-center justify-center transition-all select-none ${
           compact
             ? 'w-9 h-9 mx-auto'
@@ -153,7 +204,7 @@ export default function AppearanceSwitcher({ compact = false }) {
         <Settings size={compact ? 17 : 16} className={open ? 'rotate-45 transition-transform' : 'transition-transform'} />
       </button>
 
-      {open && (compact ? createPortal(popoverContent, document.body) : popoverContent)}
+      {open && typeof document !== 'undefined' && createPortal(popoverContent, document.body)}
     </div>
   )
 }
