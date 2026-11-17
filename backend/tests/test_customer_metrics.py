@@ -12,6 +12,8 @@ def test_customer_metrics_calculation():
         assert res["target_month"] in [m["value"] for m in res["available_months"]]
         assert res["lookback"] == "prev_1m"
         m = res["metrics"]
+        assert m["total_customers"] > 0
+        assert m["total_customers"] >= m["active_customers"]
         assert m["active_customers"] > 0
         assert m["prev_active_customers"] > 0
         assert m["new_customers"] + m["returning_customers"] == m["active_customers"]

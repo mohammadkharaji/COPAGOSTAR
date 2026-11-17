@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { Check, Moon, Settings, Sun, Zap } from 'lucide-react'
 import { useAppearance } from './AppearanceContext'
 
@@ -30,12 +31,17 @@ export default function AppearanceSwitcher({ compact = false }) {
   const { mode, setMode, isDark, isSolid } = useAppearance()
   const [open, setOpen] = useState(false)
   const containerRef = useRef(null)
+  const popoverRef = useRef(null)
 
   // Close on outside click
   useEffect(() => {
     if (!open) return
     const handleClick = (e) => {
-      if (containerRef.current && !containerRef.current.contains(e.target)) {
+      if (
+        containerRef.current &&
+        !containerRef.current.contains(e.target) &&
+        (!popoverRef.current || !popoverRef.current.contains(e.target))
+      ) {
         setOpen(false)
       }
     }
@@ -50,8 +56,81 @@ export default function AppearanceSwitcher({ compact = false }) {
     }
   }, [open])
 
+  const popoverContent = (
+    <div
+      ref={popoverRef}
+      dir="rtl"
+      role="menu"
+      aria-label="انتخاب پوسته و ظاهر"
+      className={`${
+        compact
+          ? 'fixed bottom-[1.5rem] right-[5.5rem] z-[9999] w-72'
+          : 'absolute bottom-full right-0 left-0 mb-2 z-50'
+      } rounded-2xl p-2 transition-all select-none ${
+        isDark
+          ? 'bg-[#1C1C1E]/95 backdrop-blur-2xl border border-white/15 text-[#F5F5F7] shadow-[0_12px_40px_rgba(0,0,0,0.6)]'
+          : isSolid
+          ? 'bg-white border border-slate-200 text-[#1D1D1F] shadow-xl'
+          : 'bg-white/95 backdrop-blur-2xl border border-slate-200/90 text-[#1D1D1F] shadow-[0_12px_35px_rgba(15,23,42,0.12)]'
+      }`}
+    >
+      <div className="px-2.5 py-1.5 mb-1 border-b border-black/[0.06] dark:border-white/10 flex items-center justify-between">
+        <span className="text-xs font-bold tracking-tight">تنظیمات ظاهر سامانه</span>
+        <span className="text-[10px] text-[#86868B] dark:text-[#98989D]">Apple Glass</span>
+      </div>
+
+      <div className="space-y-1">
+        {APPEARANCE_OPTIONS.map((opt) => {
+          const active = mode === opt.id
+          const Icon = opt.icon
+          return (
+            <button
+              key={opt.id}
+              type="button"
+              role="menuitemradio"
+              aria-checked={active}
+              onClick={() => {
+                setMode(opt.id)
+                setOpen(false)
+              }}
+              className={`w-full text-right p-2 rounded-xl flex items-center gap-2.5 transition-colors select-none ${
+                active
+                  ? isDark
+                    ? 'bg-white/10 border border-white/10'
+                    : 'bg-black/[0.05] border border-black/[0.04]'
+                  : isDark
+                  ? 'hover:bg-white/5 border border-transparent'
+                  : 'hover:bg-black/[0.03] border border-transparent'
+              }`}
+            >
+              <span
+                className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${opt.tone}`}
+                aria-hidden="true"
+              >
+                <Icon size={16} />
+              </span>
+              <div className="flex-1 min-w-0">
+                <div className="text-xs font-bold leading-tight truncate">
+                  {opt.label}
+                </div>
+                <div className="text-[10px] text-[#86868B] dark:text-[#98989D] leading-tight truncate mt-0.5">
+                  {opt.description}
+                </div>
+              </div>
+              {active && (
+                <span className="w-5 h-5 rounded-full bg-[#0071E3] text-white flex items-center justify-center shrink-0 shadow-xs">
+                  <Check size={12} strokeWidth={3} />
+                </span>
+              )}
+            </button>
+          )
+        })}
+      </div>
+    </div>
+  )
+
   return (
-    <div className="relative inline-block" ref={containerRef}>
+    <div className={compact ? 'relative inline-block shrink-0' : 'static flex shrink-0'} ref={containerRef}>
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
@@ -74,73 +153,7 @@ export default function AppearanceSwitcher({ compact = false }) {
         <Settings size={compact ? 17 : 16} className={open ? 'rotate-45 transition-transform' : 'transition-transform'} />
       </button>
 
-      {open && (
-        <div
-          dir="rtl"
-          role="menu"
-          aria-label="انتخاب پوسته و ظاهر"
-          className={`absolute bottom-full right-0 mb-2 w-72 rounded-2xl p-2 z-50 transition-all select-none ${
-            isDark
-              ? 'bg-[#1C1C1E]/95 backdrop-blur-2xl border border-white/15 text-[#F5F5F7] shadow-[0_12px_40px_rgba(0,0,0,0.6)]'
-              : isSolid
-              ? 'bg-white border border-slate-200 text-[#1D1D1F] shadow-xl'
-              : 'bg-white/95 backdrop-blur-2xl border border-slate-200/90 text-[#1D1D1F] shadow-[0_12px_35px_rgba(15,23,42,0.12)]'
-          }`}
-        >
-          <div className="px-2.5 py-1.5 mb-1 border-b border-black/[0.06] dark:border-white/10 flex items-center justify-between">
-            <span className="text-xs font-bold tracking-tight">تنظیمات ظاهر سامانه</span>
-            <span className="text-[10px] text-[#86868B] dark:text-[#98989D]">Apple Glass</span>
-          </div>
-
-          <div className="space-y-1">
-            {APPEARANCE_OPTIONS.map((opt) => {
-              const active = mode === opt.id
-              const Icon = opt.icon
-              return (
-                <button
-                  key={opt.id}
-                  type="button"
-                  role="menuitemradio"
-                  aria-checked={active}
-                  onClick={() => {
-                    setMode(opt.id)
-                    setOpen(false)
-                  }}
-                  className={`w-full text-right p-2 rounded-xl flex items-center gap-2.5 transition-colors select-none ${
-                    active
-                      ? isDark
-                        ? 'bg-white/10 border border-white/10'
-                        : 'bg-black/[0.05] border border-black/[0.04]'
-                      : isDark
-                      ? 'hover:bg-white/5 border border-transparent'
-                      : 'hover:bg-black/[0.03] border border-transparent'
-                  }`}
-                >
-                  <span
-                    className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${opt.tone}`}
-                    aria-hidden="true"
-                  >
-                    <Icon size={16} />
-                  </span>
-                  <div className="flex-1 min-w-0">
-                    <div className="text-xs font-bold leading-tight truncate">
-                      {opt.label}
-                    </div>
-                    <div className="text-[10px] text-[#86868B] dark:text-[#98989D] leading-tight truncate mt-0.5">
-                      {opt.description}
-                    </div>
-                  </div>
-                  {active && (
-                    <span className="w-5 h-5 rounded-full bg-[#0071E3] text-white flex items-center justify-center shrink-0 shadow-xs">
-                      <Check size={12} strokeWidth={3} />
-                    </span>
-                  )}
-                </button>
-              )
-            })}
-          </div>
-        </div>
-      )}
+      {open && (compact ? createPortal(popoverContent, document.body) : popoverContent)}
     </div>
   )
 }

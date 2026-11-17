@@ -647,7 +647,7 @@ export function ExecShell({
             </div>
           ) : (
             <div
-              className={`exec-profile flex items-center gap-2.5 p-2.5 mx-1 mb-2 rounded-2xl transition-all ${
+              className={`exec-profile relative flex items-center gap-2.5 p-2.5 mx-1 mb-2 rounded-2xl transition-all ${
                 isDark
                   ? 'bg-white/5 border border-white/10'
                   : isSolid
@@ -1034,7 +1034,7 @@ export function ExecShell({
               </div>
 
               {/* User Profile & Appearance Settings at Bottom */}
-              <div className={`mt-2 pt-3 border-t flex items-center justify-between p-3 rounded-2xl shrink-0 ${
+              <div className={`relative mt-2 pt-3 border-t flex items-center justify-between p-3 rounded-2xl shrink-0 ${
                 isDark ? 'border-white/10 bg-white/5' : 'border-slate-200/80 bg-black/[0.02]'
               }`}>
                 <div className="flex items-center gap-2.5 min-w-0">

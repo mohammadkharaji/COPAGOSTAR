@@ -323,6 +323,12 @@ export default function CustomerMetricsPage({ p, core, setCore, openCustomer }) 
         </div>
         <div className="flex items-center gap-3 text-[11px] tabular-nums">
           <span>
+            کل مشتریان:{' '}
+            <strong className="text-[#1D1D1F] dark:text-[#F5F5F7]">
+              {fa(metrics.total_customers || 0)}
+            </strong>
+          </span>
+          <span>
             کل فاکتورها:{' '}
             <strong className="text-[#1D1D1F] dark:text-[#F5F5F7]">
               {fa(metrics.total_invoices || 0)}
@@ -344,7 +350,7 @@ export default function CustomerMetricsPage({ p, core, setCore, openCustomer }) 
       </div>
 
       {/* ─────────────────────────────────────────────────────────────
-          3. Row 1 — Cohort & Churn Metrics (7 KPI Cards - Sleek & Compact)
+          3. Row 1 — Cohort & Churn Metrics (8 KPI Cards - Sleek & Compact)
       ───────────────────────────────────────────────────────────── */}
       <div>
         <div className="flex items-center justify-between mb-2 px-1">
@@ -359,14 +365,40 @@ export default function CustomerMetricsPage({ p, core, setCore, openCustomer }) 
           </span>
         </div>
 
-        {/* Compact, dense, responsive 7-card grid */}
+        {/* Compact, dense, responsive 8-card grid */}
         <div className="customer-metrics-kpi-grid">
-          {/* 1. Active Customers */}
+          {/* 1. Total Customers */}
+          <div className={`rounded-xl p-2.5 flex flex-col justify-between transition-all hover:scale-[1.01] ${glassCard}`}>
+            <div className="flex items-center justify-between text-[#4F46E5]">
+              <span className="text-[11px] font-bold text-[#86868B] dark:text-[#98989D] truncate">تعداد کل مشتریان</span>
+              <div className="w-5 h-5 rounded-md bg-[#4F46E5]/10 flex items-center justify-center shrink-0">
+                <Users className="w-3 h-3" />
+              </div>
+            </div>
+            <div className="my-1">
+              <span className="text-lg font-black text-[#1D1D1F] dark:text-[#F5F5F7] tabular-nums tracking-tight">
+                {fa(metrics.total_customers || 0)}
+              </span>
+              <p className="text-[10px] text-[#86868B] dark:text-[#98989D] font-medium truncate">
+                پایگاه کل مشتریان
+              </p>
+            </div>
+            <div className="pt-1 border-t border-black/[0.04] dark:border-white/[0.05] flex items-center justify-between text-[9px]">
+              <span className="text-[#86868B]">پوشش ماه جاری</span>
+              <span className="font-bold text-[#4F46E5] tabular-nums">
+                {metrics.total_customers && metrics.active_customers
+                  ? `${fa2((metrics.active_customers / metrics.total_customers) * 100)}٪`
+                  : '—'}
+              </span>
+            </div>
+          </div>
+
+          {/* 2. Active Customers */}
           <div className={`rounded-xl p-2.5 flex flex-col justify-between transition-all hover:scale-[1.01] ${glassCard}`}>
             <div className="flex items-center justify-between text-[#059669]">
               <span className="text-[11px] font-bold text-[#86868B] dark:text-[#98989D] truncate">مشتریان خرید کرده</span>
               <div className="w-5 h-5 rounded-md bg-[#059669]/10 flex items-center justify-center shrink-0">
-                <Users className="w-3 h-3" />
+                <UserCheck className="w-3 h-3" />
               </div>
             </div>
             <div className="my-1">

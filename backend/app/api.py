@@ -1150,6 +1150,15 @@ def customer_metrics(request: Request, core: str = DEFAULT_CORE, target_month: s
             lookback_months = earlier[-1:] if earlier else []
             lookback_label = f"ماه قبل ({_format_month_label(lookback_months[0])})" if lookback_months else "ماه قبل"
 
+        # 0. Total registered / purchasing customer base
+        total_cust_row = con.execute(
+            f"""SELECT COUNT(DISTINCT customer_code)
+                FROM fact_sales
+                WHERE core=? AND {SALES_ONLY} AND rial_vat > 0 AND customer_code IS NOT NULL{dim}""",
+            [name, *dargs],
+        ).fetchone()
+        total_customers = total_cust_row[0] if total_cust_row and total_cust_row[0] else 0
+
         # 1. Target month customer set and stats
         curr_cust_rows = con.execute(
             f"""SELECT customer_code,
@@ -1450,6 +1459,7 @@ def customer_metrics(request: Request, core: str = DEFAULT_CORE, target_month: s
             "available_months": available_months_list,
             "available_branches": available_branches,
             "metrics": {
+                "total_customers": total_customers,
                 "active_customers": active_customers,
                 "prev_active_customers": prev_active_customers,
                 "new_customers": new_customers,

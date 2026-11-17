@@ -1302,7 +1302,7 @@ button.spot { padding: 0; text-align: right; }
   }
 }
 
-/* Customer Metrics KPI Grid: strictly 7 compact columns on desktop */
+/* Customer Metrics KPI Grid: strictly 8 compact columns on desktop */
 .customer-metrics-kpi-grid {
   display: grid !important;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1315,7 +1315,7 @@ button.spot { padding: 0; text-align: right; }
 }
 @media (min-width: 1080px) {
   .customer-metrics-kpi-grid {
-    grid-template-columns: repeat(7, minmax(0, 1fr)) !important;
+    grid-template-columns: repeat(8, minmax(0, 1fr)) !important;
   }
 }
 
