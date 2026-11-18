@@ -11,9 +11,20 @@ def month_sales(con, core_name: str, ym: str, scope: str = "", scope_args: list 
 
     `scope` must be a fragment produced by `rbac.scope_clause`, never user input."""
     return con.execute(
-        f"""SELECT s.branch, s.group_name, s.visitor_code, d.target_category, COALESCE(s.jdate_key, 0) % 100, SUM(s.rial_vat)
-           FROM fact_sales s LEFT JOIN dim_product d ON d.unique_product_code = s.unique_product_code
-           WHERE s.core=? AND s.year_month=?{scope} GROUP BY 1, 2, 3, 4, 5""", [core_name, ym, *(scope_args or [])]).fetchall()
+        f"""SELECT s.branch, s.group_name, s.visitor_code,
+                   COALESCE(d_u.target_category, d_p.target_category),
+                   COALESCE(s.jdate_key, 0) % 100, SUM(s.rial_vat)
+           FROM fact_sales s
+           LEFT JOIN dim_product d_u ON s.unique_product_code IS NOT NULL AND d_u.unique_product_code = s.unique_product_code
+           LEFT JOIN (
+               SELECT product_code, FIRST(target_category) AS target_category
+               FROM dim_product
+               WHERE product_code IS NOT NULL AND target_category IS NOT NULL
+               GROUP BY product_code
+           ) d_p ON (s.unique_product_code IS NULL OR d_u.target_category IS NULL)
+                AND s.product_code IS NOT NULL AND d_p.product_code = s.product_code
+           WHERE s.core=? AND s.year_month=?{scope}
+           GROUP BY 1, 2, 3, 4, 5""", [core_name, ym, *(scope_args or [])]).fetchall()
 
 
 def visitor_codes_by_name(con, core_name: str) -> dict[str, tuple[str, int]]:

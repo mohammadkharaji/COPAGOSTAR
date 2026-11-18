@@ -435,10 +435,14 @@ export default function TargetPage({ core, onUnavailable }) {
             }`}>
               {bn(s.target_rial)} <span className={`text-[10px] font-bold ${isDark ? 'text-emerald-400' : 'text-emerald-700'}`}>م. ریال</span>
             </div>
-            <div className={`text-[10px] font-mono tabular-nums truncate ${
-              isDark ? 'text-slate-400' : 'text-slate-500'
-            }`}>
-              {fa(s.target_rial)} ریال
+            <div
+              title={`${fa(s.target_rial)} ریال`}
+              dir="rtl"
+              className={`text-[11px] font-sans font-semibold tabular-nums truncate ${
+                isDark ? 'text-slate-300' : 'text-slate-600'
+              }`}
+            >
+              <span>{fa(s.target_rial)}</span> <span className="text-[10px] font-normal opacity-75">ریال</span>
             </div>
           </div>
           <div className="flex items-center gap-1 text-[10px] text-emerald-400 font-medium pt-1.5 border-t border-white/[0.06] truncate">
@@ -467,8 +471,8 @@ export default function TargetPage({ core, onUnavailable }) {
             }`}>
               {bn(s.actual_rial)} <span className={`text-[10px] font-bold ${isDark ? 'text-teal-400' : 'text-teal-700'}`}>م. ریال</span>
             </div>
-            <div className={`text-[10px] font-medium truncate ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-              {d.as_of ? `تا ${dayLabel(d.as_of)}` : 'در جریان'}
+            <div className={`text-[11px] font-sans font-medium truncate ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
+              {d.as_of ? `تا تاریخ ${dayLabel(d.as_of)}` : 'در جریان'}
             </div>
           </div>
           <div className="flex items-center gap-1 text-[10px] text-teal-400 font-medium pt-1.5 border-t border-white/[0.06] truncate">
@@ -505,7 +509,7 @@ export default function TargetPage({ core, onUnavailable }) {
             }`}>
               {pct(s.achieved_pct)}
             </div>
-            <div className={`text-[10px] font-medium truncate ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+            <div className={`text-[11px] font-sans font-medium truncate ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
               انتظار: <b>{pct(exp)}</b> ({fa(d.elapsed_working_days)}/{fa(d.working_days)} روز)
             </div>
           </div>
@@ -536,7 +540,7 @@ export default function TargetPage({ core, onUnavailable }) {
             }`}>
               {bn(s.needed_per_day_rial)} <span className={`text-[10px] font-bold ${isDark ? 'text-cyan-400' : 'text-cyan-700'}`}>م. ریال</span>
             </div>
-            <div className={`text-[10px] font-medium truncate ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+            <div className={`text-[11px] font-sans font-medium truncate ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
               {fa(d.remaining_working_days)} روز کاری مانده
             </div>
           </div>
@@ -566,8 +570,8 @@ export default function TargetPage({ core, onUnavailable }) {
             }`}>
               {pct(s.projected_pct)}
             </div>
-            <div className={`text-[10px] font-bold tabular-nums font-sans truncate ${
-              isDark ? 'text-slate-200' : 'text-slate-800'
+            <div className={`text-[11px] font-sans font-medium tabular-nums truncate ${
+              isDark ? 'text-slate-300' : 'text-slate-600'
             }`}>
               تخمین: {bn(s.projected_rial)} م. ریال
             </div>
