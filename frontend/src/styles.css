@@ -2,6 +2,46 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* Executive Dark SaaS Emerald Theme Tokens */
+:root {
+  --executive-bg: #090C0B;
+  --executive-card: #0F1412;
+  --executive-border: rgba(255, 255, 255, 0.06);
+  --executive-border-hover: rgba(255, 255, 255, 0.12);
+  --executive-emerald: #10B981;
+  --executive-emerald-light: #34D399;
+  --executive-emerald-glow: rgba(16, 185, 129, 0.35);
+  --executive-text-main: #F1F5F9;
+  --executive-text-muted: #94A3B8;
+  --executive-divider: rgba(255, 255, 255, 0.08);
+}
+
+@keyframes spinSlow {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes pulseGlow {
+  0%, 100% { opacity: 0.4; transform: scale(1); }
+  50% { opacity: 0.8; transform: scale(1.08); }
+}
+
+.animate-spin-slow {
+  animation: spinSlow 16s linear infinite;
+}
+
+.animate-pulse-glow {
+  animation: pulseGlow 3s ease-in-out infinite;
+}
+
+.glow-emerald {
+  box-shadow: 0 0 25px rgba(16, 185, 129, 0.3);
+}
+
+.glow-emerald-lg {
+  box-shadow: 0 0 40px rgba(16, 185, 129, 0.4);
+}
+
 :root {
   --ink: #10253f; --ink-dim: #9fb0c3; --petrol: #174c5a; --saffron: #e4a53a; --saffron-deep: #b87a12;
   --teal: #2f9a88; --neg: #b4443a; --paper: #f4f7f5; --card: #ffffff; --line: #dfe6e2; --muted: #5d6f7f;
@@ -470,17 +510,17 @@ tbody tr:hover, tbody tr.sel { background: #fbf3e0; }
   --exec-ink: #F5F5F7;
   --exec-muted: #98989D;
   --exec-line: rgba(255, 255, 255, 0.1);
-  --exec-bg: #0B0C10;
-  --exec-card: #1C1C1E;
+  --exec-bg: #090C0B;
+  --exec-card: #0F1412;
 }
 [data-appearance="dark"] .exec-root, .dark .exec-root {
   --exec-ink: #F5F5F7 !important;
   --exec-muted: #98989D !important;
   --exec-line: rgba(255, 255, 255, 0.1) !important;
-  --exec-bg: #0B0C10 !important;
-  --exec-card: #1C1C1E !important;
-  background: #0B0C10 !important;
-  color: #F5F5F7 !important;
+  --exec-bg: #090C0B !important;
+  --exec-card: #0F1412 !important;
+  background: #090C0B !important;
+  color: #F1F5F9 !important;
 }
 
 /* Dark Mode overrides for legacy .exec-page and panels */
@@ -543,13 +583,13 @@ tbody tr:hover, tbody tr.sel { background: #fbf3e0; }
 [data-appearance="dark"] .exec-header p, .dark .exec-header p { color: #98989D; }
 [data-appearance="dark"] .exec-eyebrow, .dark .exec-eyebrow { color: #60A5FA; }
 [data-appearance="dark"] .exec-live, .dark .exec-live { background: rgba(28, 28, 30, 0.9); border-color: rgba(255, 255, 255, 0.1); color: #F5F5F7; }
-[data-appearance="dark"] .exec-filterbar, .dark .exec-filterbar { background: rgba(28, 28, 30, 0.85); border-color: rgba(255, 255, 255, 0.1); color: #F5F5F7; }
+[data-appearance="dark"] .exec-filterbar, .dark .exec-filterbar { background: #0F1412 !important; border-color: rgba(255, 255, 255, 0.08) !important; color: #F5F5F7; }
 [data-appearance="dark"] .exec-filter-title, .dark .exec-filter-title { color: #F5F5F7 !important; }
-[data-appearance="dark"] .exec-select select, .dark .exec-select select { background: rgba(255, 255, 255, 0.08); border-color: rgba(255, 255, 255, 0.12); color: #F5F5F7; }
+[data-appearance="dark"] .exec-select select, .dark .exec-select select { background: rgba(255, 255, 255, 0.06); border-color: rgba(255, 255, 255, 0.12); color: #F5F5F7; }
 [data-appearance="dark"] .exec-select span, .dark .exec-select span { color: #98989D; }
 [data-appearance="dark"] .exec-reset, .dark .exec-reset { background: rgba(255, 255, 255, 0.08); border-color: rgba(255, 255, 255, 0.12); color: #F5F5F7; }
-[data-appearance="dark"] .exec-advanced-toggle, .dark .exec-advanced-toggle { background: rgba(255, 255, 255, 0.08); color: #60A5FA; }
-[data-appearance="dark"] .exec-advanced, .dark .exec-advanced { background: rgba(28, 28, 30, 0.85); border-color: rgba(255, 255, 255, 0.1); color: #F5F5F7; }
+[data-appearance="dark"] .exec-advanced-toggle, .dark .exec-advanced-toggle { background: rgba(16, 185, 129, 0.15) !important; color: #34D399 !important; border: 1px solid rgba(16, 185, 129, 0.3) !important; }
+[data-appearance="dark"] .exec-advanced, .dark .exec-advanced { background: #0F1412 !important; border-color: rgba(255, 255, 255, 0.08) !important; color: #F5F5F7; }
 [data-appearance="dark"] .exec-advanced-head, .dark .exec-advanced-head { color: #F5F5F7; }
 [data-appearance="dark"] .exec-advanced-head span, .dark .exec-advanced-head span { color: #98989D; }
 [data-appearance="dark"] .exec-refresh-mini, .dark .exec-refresh-mini { background: rgba(28, 28, 30, 0.85); border-color: rgba(255, 255, 255, 0.1); color: #F5F5F7; }
@@ -717,48 +757,54 @@ tbody tr:hover, tbody tr.sel { background: #fbf3e0; }
 .exec-nav button:not(.active):not([aria-current="page"]):hover { color: var(--exec-ink); background: rgba(0, 0, 0, 0.04); }
 .exec-nav-icon { display: grid; place-items: center; width: 28px; height: 28px; border-radius: 8px; background: transparent; flex: none; font-style: normal; }
 
-/* Active Menu Item Rules with Explicit Module Accents */
+/* Active Menu Item Rules with Sleek Modern Accents */
+.exec-sidebar button:focus,
+.exec-sidebar button:focus-visible,
+.exec-nav button:focus,
+.exec-nav button:focus-visible {
+  outline: none !important;
+}
+
 .exec-nav button.active-sales,
 .exec-nav button.active-sales:hover,
 [data-mobile-dock] button.active-sales,
 [data-mobile-sheet] button.active-sales {
-  background-color: #0071E3 !important;
-  color: #ffffff !important;
-  box-shadow: 0 4px 14px rgba(0, 113, 227, 0.3) !important;
+  background-color: rgba(16, 185, 129, 0.14) !important;
+  color: #34D399 !important;
+  border-color: rgba(16, 185, 129, 0.3) !important;
+  box-shadow: 0 0 15px rgba(16, 185, 129, 0.15) !important;
 }
 
 .exec-nav button.active-club,
 .exec-nav button.active-club:hover,
 [data-mobile-dock] button.active-club,
 [data-mobile-sheet] button.active-club {
-  background-color: #D97706 !important;
-  color: #ffffff !important;
-  box-shadow: 0 4px 14px rgba(217, 119, 6, 0.35) !important;
+  background-color: rgba(245, 158, 11, 0.14) !important;
+  color: #FBBF24 !important;
+  border-color: rgba(245, 158, 11, 0.3) !important;
+  box-shadow: 0 0 15px rgba(245, 158, 11, 0.15) !important;
 }
 
 .exec-nav button.active-visitor,
 .exec-nav button.active-visitor:hover,
 [data-mobile-dock] button.active-visitor,
 [data-mobile-sheet] button.active-visitor {
-  background-color: #059669 !important;
-  color: #ffffff !important;
-  box-shadow: 0 4px 14px rgba(5, 150, 105, 0.35) !important;
+  background-color: rgba(20, 184, 166, 0.14) !important;
+  color: #2DD4BF !important;
+  border-color: rgba(20, 184, 166, 0.3) !important;
+  box-shadow: 0 0 15px rgba(20, 184, 166, 0.15) !important;
 }
 
-.exec-nav button.active *,
-.exec-nav button.active:hover *,
-.exec-nav button[aria-current="page"] *,
-.exec-nav button[aria-current="page"]:hover *,
-[data-mobile-dock] button.active *,
-[data-mobile-dock] button.active:hover *,
-[data-mobile-dock] button[aria-current="page"] *,
-[data-mobile-dock] button[aria-current="page"]:hover *,
-[data-mobile-sheet] button.active *,
-[data-mobile-sheet] button.active:hover *,
-[data-mobile-sheet] button[aria-current="page"] *,
-[data-mobile-sheet] button[aria-current="page"]:hover * {
-  color: #ffffff !important;
+.exec-nav button.active-utility,
+.exec-nav button.active-utility:hover,
+[data-mobile-dock] button.active-utility,
+[data-mobile-sheet] button.active-utility {
+  background-color: rgba(6, 182, 212, 0.14) !important;
+  color: #22D3EE !important;
+  border-color: rgba(6, 182, 212, 0.3) !important;
+  box-shadow: 0 0 15px rgba(6, 182, 212, 0.15) !important;
 }
+
 .exec-nav button.active::after,
 .exec-nav button[aria-current="page"]::after { display: none !important; }
 .exec-system { border: 1px solid rgba(0, 0, 0, 0.06); border-radius: 14px; background: rgba(0, 0, 0, 0.02); padding: 12px; }
@@ -1461,6 +1507,65 @@ button.spot { padding: 0; text-align: right; }
 .no-scrollbar {
   -ms-overflow-style: none;
   scrollbar-width: none;
+}
+
+/* Global: Remove clunky Windows scrollbar arrow buttons */
+::-webkit-scrollbar-button {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+
+/* Sleek Executive Hover Scrollbar - hidden by default, visible on hover */
+.exec-hover-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+  transition: scrollbar-color 0.2s ease;
+}
+
+.exec-hover-scrollbar:hover {
+  scrollbar-color: rgba(255, 255, 255, 0.25) transparent;
+}
+
+html:not(.dark) .exec-hover-scrollbar:hover {
+  scrollbar-color: rgba(15, 23, 42, 0.25) transparent;
+}
+
+.exec-hover-scrollbar::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+
+.exec-hover-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.exec-hover-scrollbar::-webkit-scrollbar-thumb {
+  background: transparent;
+  border-radius: 9999px;
+  transition: background-color 0.2s ease;
+}
+
+.exec-hover-scrollbar:hover::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.22);
+}
+
+.exec-hover-scrollbar:hover::-webkit-scrollbar-thumb:hover {
+  background: rgba(16, 185, 129, 0.6);
+}
+
+html:not(.dark) .exec-hover-scrollbar:hover::-webkit-scrollbar-thumb {
+  background: rgba(15, 23, 42, 0.22);
+}
+
+html:not(.dark) .exec-hover-scrollbar:hover::-webkit-scrollbar-thumb:hover {
+  background: rgba(16, 185, 129, 0.7);
+}
+
+.exec-hover-scrollbar::-webkit-scrollbar-button {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
 }
 
 @media (max-width: 640px) {

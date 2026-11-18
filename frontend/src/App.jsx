@@ -213,7 +213,21 @@ export default function App({ onLogout }) {
         : CLUB_KIND[page] === 'visitor' ? <MyVisitorClub arg={arg} /> : <MyClub arg={arg} />)}
       {page && page !== 'admin' && !allowedCores.length && <div className="empty">برای این حساب هسته‌ای فعال نشده است.</div>}
       {reports && page !== 'admin' && <>
-      {page === 'overview' && <ExecutiveDashboard p={p} cal={cal} month={month} setMonth={setMonth} onOpenReturns={() => go('returns')} />}
+      {page === 'overview' && (
+        <ExecutiveDashboard
+          p={p}
+          cal={cal}
+          month={month}
+          setMonth={setMonth}
+          dims={dims}
+          onFilterChange={setDim}
+          filters={options.data ?? {}}
+          onReset={() => { setMonth(''); setDims({}) }}
+          onOpenReturns={() => go('returns')}
+          onOpenTickets={() => go('tickets')}
+          onNavigate={go}
+        />
+      )}
       {page === 'trend' && <TrendPage p={p} />}
       {page === 'monthly' && <MonthlyTrendPage p={p} />}
       {page === 'target' && <TargetPage key={core} core={core} />}

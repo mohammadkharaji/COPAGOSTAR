@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { Check, Moon, Settings, Sun, Zap } from 'lucide-react'
+import { Check, Moon, Settings, Sun, Monitor } from 'lucide-react'
 import { useAppearance } from './AppearanceContext'
 
 const APPEARANCE_OPTIONS = [
@@ -14,21 +14,21 @@ const APPEARANCE_OPTIONS = [
   {
     id: 'dark',
     label: 'تیره شیشه‌ای (Dark Glass)',
-    description: 'شیشه تاریک عمیق macOS با کنتراست بالا',
+    description: 'شیشه تاریک عمیق با کنتراست بالا',
     icon: Moon,
-    tone: 'text-indigo-400 bg-indigo-500/10',
+    tone: 'text-emerald-400 bg-emerald-500/10',
   },
   {
-    id: 'solid',
-    label: 'ساده و سریع (کاهش شفافیت)',
-    description: 'حذف افکت‌های شفافیت جهت کارایی بالا',
-    icon: Zap,
-    tone: 'text-emerald-500 bg-emerald-500/10',
+    id: 'system',
+    label: 'هماهنگ با سیستم (System / Auto)',
+    description: 'تشخیص خودکار بر اساس تم سیستم‌عامل کاربر',
+    icon: Monitor,
+    tone: 'text-sky-400 bg-sky-500/10',
   },
 ]
 
 export default function AppearanceSwitcher({ compact = false }) {
-  const { mode, setMode, isDark, isSolid } = useAppearance()
+  const { mode, setMode, isDark } = useAppearance()
   const [open, setOpen] = useState(false)
   const [coords, setCoords] = useState(null)
   const containerRef = useRef(null)
@@ -114,8 +114,6 @@ export default function AppearanceSwitcher({ compact = false }) {
       className={`rounded-2xl p-2 transition-all select-none shadow-[0_16px_40px_rgba(0,0,0,0.35)] ${
         isDark
           ? 'bg-[#1C1C1E]/95 backdrop-blur-2xl border border-white/15 text-[#F5F5F7]'
-          : isSolid
-          ? 'bg-white border border-slate-200 text-[#1D1D1F]'
           : 'bg-white/95 backdrop-blur-2xl border border-slate-200/90 text-[#1D1D1F]'
       }`}
     >

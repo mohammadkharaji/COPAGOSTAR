@@ -46,6 +46,7 @@ import { billions1, dayLabel, fa, fa2, faDigits, monthLabel, monthName } from '.
 import { Table } from './ui'
 import { motion, AnimatePresence } from 'motion/react'
 import { HeroMetricCard, ForecastRings, CalendarGlass, KpiSpotlight, ShareTabsCard, CompareBento } from './overview/kokonut-overview'
+import SalesOverview from './overview/SalesOverview'
 import { useAppearance } from './AppearanceContext'
 import AmbientCanvas from './AmbientCanvas'
 import AppearanceSwitcher from './AppearanceSwitcher'
@@ -84,7 +85,7 @@ export const MODULAR_PILLARS = [
     id: 'sales',
     label: 'آنالیز و فروش',
     badge: 'تحلیلی',
-    accentColor: '#0071E3',
+    accentColor: '#10B981',
     activeClass: 'active-sales',
     icon: BarChart3,
     subgroups: [
@@ -132,7 +133,7 @@ export const MODULAR_PILLARS = [
     id: 'club_b2b',
     label: 'باشگاه مشتریان (B2B)',
     badge: 'طلایی',
-    accentColor: '#D97706',
+    accentColor: '#F59E0B',
     activeClass: 'active-club',
     icon: Store,
     items: [
@@ -145,7 +146,7 @@ export const MODULAR_PILLARS = [
     id: 'club_visitor',
     label: 'باشگاه ویزیتورها',
     badge: 'تیم فروش',
-    accentColor: '#059669',
+    accentColor: '#14B8A6',
     activeClass: 'active-visitor',
     icon: Medal,
     items: [
@@ -159,8 +160,8 @@ export const MODULAR_PILLARS = [
 export const UTILITY_PILLAR = {
   id: 'utility',
   label: 'امکانات و سامانه',
-  accentColor: '#0071E3',
-  activeClass: 'active-sales',
+  accentColor: '#06B6D4',
+  activeClass: 'active-utility',
   icon: Sparkles,
   items: [
     { id: 'chat', label: 'دستیار هوشمند', icon: Sparkles, adminOnly: true },
@@ -308,14 +309,43 @@ export function ExecShell({
   ]
   const isMoreActive = mobileMenuOpen || !DOCK_TABS.some((t) => t.id === page)
 
-  // Render individual navigation menu item with strict inline style for active state
+  // Color & active token themes per pillar
+  const PILLAR_THEMES = {
+    sales: {
+      activeClassDark: 'bg-emerald-500/15 border-emerald-500/30 text-emerald-300 font-bold shadow-[0_0_15px_rgba(16,185,129,0.12)]',
+      activeClassLight: 'bg-emerald-50/90 border-emerald-300/80 text-emerald-950 font-bold shadow-xs',
+      indicator: 'bg-emerald-400 shadow-[0_0_8px_#10B981]',
+      iconActiveDark: 'bg-emerald-500/25 text-emerald-300 shadow-[0_0_8px_rgba(16,185,129,0.3)]',
+      iconActiveLight: 'bg-emerald-100 text-emerald-800',
+    },
+    club_b2b: {
+      activeClassDark: 'bg-amber-500/15 border-amber-500/30 text-amber-300 font-bold shadow-[0_0_15px_rgba(245,158,11,0.12)]',
+      activeClassLight: 'bg-amber-50/90 border-amber-300/80 text-amber-950 font-bold shadow-xs',
+      indicator: 'bg-amber-400 shadow-[0_0_8px_#F59E0B]',
+      iconActiveDark: 'bg-amber-500/25 text-amber-300 shadow-[0_0_8px_rgba(245,158,11,0.3)]',
+      iconActiveLight: 'bg-amber-100 text-amber-800',
+    },
+    club_visitor: {
+      activeClassDark: 'bg-teal-500/15 border-teal-500/30 text-teal-300 font-bold shadow-[0_0_15px_rgba(20,184,166,0.12)]',
+      activeClassLight: 'bg-teal-50/90 border-teal-300/80 text-teal-950 font-bold shadow-xs',
+      indicator: 'bg-teal-400 shadow-[0_0_8px_#14B8A6]',
+      iconActiveDark: 'bg-teal-500/25 text-teal-300 shadow-[0_0_8px_rgba(20,184,166,0.3)]',
+      iconActiveLight: 'bg-teal-100 text-teal-800',
+    },
+    utility: {
+      activeClassDark: 'bg-cyan-500/15 border-cyan-500/30 text-cyan-300 font-bold shadow-[0_0_15px_rgba(6,182,212,0.12)]',
+      activeClassLight: 'bg-cyan-50/90 border-cyan-300/80 text-cyan-950 font-bold shadow-xs',
+      indicator: 'bg-cyan-400 shadow-[0_0_8px_#06B6D4]',
+      iconActiveDark: 'bg-cyan-500/25 text-cyan-300 shadow-[0_0_8px_rgba(6,182,212,0.3)]',
+      iconActiveLight: 'bg-cyan-100 text-cyan-800',
+    },
+  }
+
+  // Render individual navigation menu item with sleek modern active state
   const renderMenuItem = (item, pillar, isCollapsed) => {
     const active = isItemActive(item, page, arg)
     const Icon = item.icon
-    const activeStyle = {
-      backgroundColor: pillar.accentColor,
-      color: '#FFFFFF',
-    }
+    const theme = PILLAR_THEMES[pillar.id] || PILLAR_THEMES.sales
 
     const handleClick = () => {
       if (item.arg) {
@@ -330,20 +360,22 @@ export function ExecShell({
         <button
           type="button"
           key={`${item.id}-${item.arg || ''}`}
-          style={active ? activeStyle : undefined}
-          className={`w-10 h-10 mx-auto rounded-[14px] flex items-center justify-center transition-all select-none ${
+          className={`relative w-10 h-10 mx-auto rounded-xl flex items-center justify-center transition-all select-none border outline-none focus:outline-none ${
             active
-              ? `active ${pillar.activeClass} !text-white shadow-md`
-              : isDark
-              ? 'text-slate-300 hover:text-white hover:bg-white/10'
-              : 'text-[#86868B] hover:text-[#1D1D1F] hover:bg-black/[0.04]'
+              ? (isDark ? theme.activeClassDark : theme.activeClassLight)
+              : (isDark
+                  ? 'border-transparent text-slate-400 hover:text-slate-100 hover:bg-white/[0.05]'
+                  : 'border-transparent text-slate-500 hover:text-slate-900 hover:bg-slate-100')
           }`}
           onClick={handleClick}
           title={item.label}
           aria-label={item.label}
           aria-current={active ? 'page' : undefined}
         >
-          <Icon size={18} style={active ? { color: '#FFFFFF' } : {}} className={active ? '!text-white' : undefined} />
+          {active && (
+            <span className={`absolute right-0 top-2 bottom-2 w-1 rounded-l-full ${theme.indicator}`} />
+          )}
+          <Icon size={17} />
         </button>
       )
     }
@@ -352,37 +384,33 @@ export function ExecShell({
       <button
         type="button"
         key={`${item.id}-${item.arg || ''}`}
-        style={active ? activeStyle : undefined}
-        className={`relative flex items-center gap-2.5 w-full px-3 py-2 rounded-xl text-xs font-medium transition-all text-right select-none ${
+        className={`group relative flex items-center gap-2.5 w-full px-2.5 py-1.5 rounded-xl text-xs transition-all text-right select-none border outline-none focus:outline-none ${
           active
-            ? `active ${pillar.activeClass} !text-white font-bold shadow-md`
-            : isDark
-            ? 'text-slate-300 hover:text-white hover:bg-white/10'
-            : isSolid
-            ? 'text-[#1D1D1F] hover:bg-slate-100'
-            : 'text-[#1D1D1F] hover:bg-black/[0.04]'
+            ? (isDark ? theme.activeClassDark : theme.activeClassLight)
+            : (isDark
+                ? 'border-transparent text-slate-400 hover:text-slate-100 hover:bg-white/[0.04] font-medium'
+                : 'border-transparent text-slate-600 hover:text-slate-900 hover:bg-slate-100/70 font-medium')
         }`}
         onClick={handleClick}
         title={item.label}
         aria-current={active ? 'page' : undefined}
       >
-        <i
-          className={`relative z-10 w-7 h-7 rounded-lg flex items-center justify-center transition-colors shrink-0 ${
+        {active && (
+          <span className={`absolute right-0 top-1.5 bottom-1.5 w-1 rounded-l-full ${theme.indicator}`} />
+        )}
+        <div
+          className={`w-7 h-7 rounded-lg flex items-center justify-center transition-colors shrink-0 ${
             active
-              ? 'bg-white/20 !text-white'
-              : isDark
-              ? 'bg-white/5 text-slate-400'
-              : 'bg-black/[0.03] text-[#86868B]'
+              ? (isDark ? theme.iconActiveDark : theme.iconActiveLight)
+              : (isDark
+                  ? 'bg-white/[0.03] text-slate-400 group-hover:bg-white/[0.06] group-hover:text-slate-200'
+                  : 'bg-slate-100 text-slate-500 group-hover:bg-slate-200/80 group-hover:text-slate-800')
           }`}
-          style={active ? { color: '#FFFFFF' } : {}}
           aria-hidden="true"
         >
-          <Icon size={15} style={active ? { color: '#FFFFFF' } : {}} className={active ? '!text-white' : undefined} />
-        </i>
-        <span
-          className={`relative z-10 truncate ${active ? '!text-white font-bold' : ''}`}
-          style={active ? { color: '#FFFFFF' } : {}}
-        >
+          <Icon size={14} />
+        </div>
+        <span className="truncate flex-1 text-[12px] font-sans">
           {item.label}
         </span>
       </button>
@@ -452,42 +480,48 @@ export function ExecShell({
           data-desktop-sidebar
           className={`exec-sidebar hidden lg:flex flex-col fixed top-3 right-3 h-[calc(100vh-24px)] rounded-3xl select-none transition-all duration-300 z-30 ${
             isDark
-              ? 'bg-[#1C1C1E]/85 backdrop-blur-2xl border border-white/10 text-[#F5F5F7] shadow-[0_10px_35px_rgba(0,0,0,0.5)]'
+              ? 'bg-[#0A0E0C]/95 backdrop-blur-2xl border border-white/[0.07] text-slate-100 shadow-[0_12px_45px_rgba(0,0,0,0.65)]'
               : isSolid
-              ? 'bg-white border border-slate-200 text-[#1D1D1F] shadow-[0_4px_20px_rgba(0,0,0,0.06)]'
-              : 'bg-white/85 backdrop-blur-2xl border border-slate-200/80 text-[#1D1D1F] shadow-[0_10px_35px_rgba(15,23,42,0.06)]'
+              ? 'bg-white border border-slate-200 text-slate-900 shadow-[0_4px_20px_rgba(0,0,0,0.06)]'
+              : 'bg-white/95 backdrop-blur-2xl border border-slate-200/90 text-slate-900 shadow-[0_10px_35px_rgba(15,23,42,0.06)]'
           } ${
             collapsed
               ? 'w-20 min-w-20 max-w-20 overflow-hidden overflow-y-hidden [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]'
-              : 'w-72 min-w-72 max-w-72 overflow-hidden overflow-y-auto'
+              : 'w-72 min-w-72 max-w-72 overflow-hidden overflow-y-auto px-2'
           }`}
         >
         {/* Brand Header */}
-        <div className={`exec-brand flex items-center gap-3 px-2 py-3 border-b mb-2 shrink-0 ${
-          isDark ? 'border-white/10' : 'border-slate-200/80'
+        <div className={`exec-brand flex items-center gap-2.5 px-3 py-3 border-b mb-2 shrink-0 ${
+          isDark ? 'border-white/[0.07]' : 'border-slate-200/80'
         }`}>
-          <span className="w-10 h-10 rounded-2xl bg-white flex items-center justify-center shadow-sm border border-slate-200/80 overflow-hidden shrink-0">
-            <img src="/logo.jpg" alt="لوگوی کوپا گستر" className="w-full h-full object-cover" />
-          </span>
+          <div className="relative">
+            <span className="w-9 h-9 rounded-xl bg-white flex items-center justify-center shadow-xs border border-slate-200/80 overflow-hidden shrink-0">
+              <img src="/logo.jpg" alt="لوگوی کوپا گستر" className="w-full h-full object-cover" />
+            </span>
+            <span className="absolute -bottom-0.5 -left-0.5 w-2.5 h-2.5 rounded-full bg-emerald-500 border-2 border-[#0A0E0C] dark:border-[#0A0E0C] light:border-white shadow-xs" />
+          </div>
           {!collapsed && (
             <div className="exec-brand-copy flex-1 min-w-0">
-              <b className={`text-sm font-bold tracking-tight block ${isDark ? 'text-[#F5F5F7]' : 'text-[#1D1D1F]'}`}>
-                نبض فروش
-              </b>
-              <small className="text-[11px] text-[#86868B] dark:text-[#98989D] truncate block">
-                {cores[core] ?? ''}
+              <div className="flex items-center gap-1.5">
+                <b className={`text-sm font-black tracking-tight block ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>
+                  نبض فروش
+                </b>
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shadow-[0_0_6px_#10B981] animate-pulse" />
+              </div>
+              <small className={`text-[10.5px] truncate block font-medium ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                {cores[core] || 'کوپا گستر · سال ۱۴۰۵'}
               </small>
             </div>
           )}
           <button
             type="button"
-            className={`exec-collapse w-7 h-7 rounded-lg flex items-center justify-center transition-colors ${
-              isDark ? 'text-[#98989D] hover:text-[#F5F5F7] hover:bg-white/10' : 'text-[#86868B] hover:text-[#1D1D1F] hover:bg-black/[0.04]'
+            className={`exec-collapse w-7 h-7 rounded-lg flex items-center justify-center transition-colors outline-none focus:outline-none ${
+              isDark ? 'text-slate-400 hover:text-slate-100 hover:bg-white/[0.06]' : 'text-slate-500 hover:text-slate-900 hover:bg-slate-100'
             }`}
             aria-label={collapsed ? 'باز کردن منو' : 'جمع کردن منو'}
             onClick={() => setCollapsed((v) => !v)}
           >
-            {collapsed ? <ChevronLeft size={16} /> : <ChevronRight size={16} />}
+            {collapsed ? <ChevronLeft size={15} /> : <ChevronRight size={15} />}
           </button>
         </div>
 
@@ -504,7 +538,7 @@ export function ExecShell({
             /* Collapsed view: compact icon pills grouped by pillar */
             <div className="space-y-3 py-1">
               {filteredPillars.map((pillar, pi) => (
-                <div key={pillar.id} className={pi > 0 ? 'pt-2 border-t border-black/[0.06] dark:border-white/10' : ''}>
+                <div key={pillar.id} className={pi > 0 ? 'pt-2 border-t border-white/[0.06] dark:border-white/[0.06] light:border-slate-200/80' : ''}>
                   <div className="space-y-1.5 flex flex-col items-center">
                     {pillar.id === 'sales'
                       ? pillar.subgroups.flatMap((sg) => sg.items).map((item) => renderMenuItem(item, pillar, true))
@@ -513,7 +547,7 @@ export function ExecShell({
                 </div>
               ))}
               {filteredUtility.items.length > 0 && (
-                <div className="pt-2 border-t border-black/[0.06] dark:border-white/10">
+                <div className="pt-2 border-t border-white/[0.06] dark:border-white/[0.06] light:border-slate-200/80">
                   <div className="space-y-1.5 flex flex-col items-center">
                     {filteredUtility.items.map((item) => renderMenuItem(item, filteredUtility, true))}
                   </div>
@@ -536,25 +570,29 @@ export function ExecShell({
                     <button
                       type="button"
                       onClick={() => setOpenPillars((s) => ({ ...s, [pillar.id]: !isOpen }))}
-                      className={`w-full flex items-center justify-between px-2.5 py-2 rounded-2xl text-xs font-bold transition-all select-none ${
+                      className={`w-full flex items-center justify-between px-2.5 py-2 rounded-xl text-xs font-bold transition-all select-none outline-none focus:outline-none ${
                         isDark
-                          ? 'text-[#F5F5F7] hover:bg-white/[0.06]'
-                          : 'text-[#1D1D1F] hover:bg-black/[0.04]'
+                          ? 'text-slate-200 hover:bg-white/[0.04]'
+                          : 'text-slate-800 hover:bg-slate-100/70'
                       }`}
                       aria-expanded={isOpen}
                     >
                       <div className="flex items-center gap-2 min-w-0">
                         <span
                           className="w-6 h-6 rounded-lg flex items-center justify-center shrink-0 shadow-xs"
-                          style={{ backgroundColor: `${pillar.accentColor}20`, color: pillar.accentColor }}
+                          style={{ backgroundColor: `${pillar.accentColor}18`, color: pillar.accentColor }}
                         >
-                          <PillarIcon size={14} />
+                          <PillarIcon size={13} />
                         </span>
-                        <span className="font-extrabold tracking-tight truncate">{pillar.label}</span>
+                        <span className="font-extrabold tracking-tight truncate text-[12px]">{pillar.label}</span>
                         {pillar.badge && (
                           <span
-                            className="text-[10px] px-2 py-0.5 rounded-full font-semibold shrink-0"
-                            style={{ backgroundColor: `${pillar.accentColor}18`, color: pillar.accentColor }}
+                            className="text-[9.5px] px-2 py-0.5 rounded-full font-bold shrink-0 border"
+                            style={{
+                              backgroundColor: `${pillar.accentColor}14`,
+                              color: pillar.accentColor,
+                              borderColor: `${pillar.accentColor}25`,
+                            }}
                           >
                             {pillar.badge}
                           </span>
@@ -569,8 +607,8 @@ export function ExecShell({
                           />
                         )}
                         <ChevronDown
-                          size={14}
-                          className={`transition-transform duration-200 text-[#86868B] dark:text-[#98989D] ${
+                          size={13}
+                          className={`transition-transform duration-200 text-slate-400 ${
                             isOpen ? 'rotate-180' : ''
                           }`}
                         />
@@ -588,47 +626,48 @@ export function ExecShell({
                               const hasActive = sg.items.some((item) => isItemActive(item, page, arg))
 
                               return (
-                                <div key={sg.id} className="rounded-2xl transition-all">
+                                <div key={sg.id} className="rounded-xl transition-all">
                                   {/* Subgroup Accordion Header */}
                                   <button
                                     type="button"
                                     onClick={() => setOpenSubgroups((prev) => ({ ...prev, [sg.id]: !isSubOpen }))}
-                                    className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-xl text-xs font-bold transition-all select-none ${
+                                    className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all select-none outline-none focus:outline-none ${
                                       isDark
-                                        ? 'text-[#F5F5F7] hover:bg-white/[0.06]'
-                                        : 'text-[#1D1D1F] hover:bg-black/[0.04]'
+                                        ? 'text-slate-300 hover:bg-white/[0.03]'
+                                        : 'text-slate-700 hover:bg-slate-100/60'
                                     }`}
                                     aria-expanded={isSubOpen}
                                   >
                                     <div className="flex items-center gap-2 min-w-0">
                                       <span
-                                        className="w-6 h-6 rounded-lg flex items-center justify-center shrink-0 shadow-xs"
-                                        style={{ backgroundColor: `${pillar.accentColor}20`, color: pillar.accentColor }}
+                                        className="w-5 h-5 rounded-md flex items-center justify-center shrink-0"
+                                        style={{ backgroundColor: `${pillar.accentColor}14`, color: pillar.accentColor }}
                                       >
-                                        <SgIcon size={13} />
+                                        <SgIcon size={12} />
                                       </span>
-                                      <span className="font-extrabold tracking-tight truncate text-[11.5px]">{sg.label}</span>
+                                      <span className="font-bold tracking-tight truncate text-[11px]">
+                                        {sg.label}
+                                      </span>
                                     </div>
                                     <div className="flex items-center gap-1.5 shrink-0">
                                       {!isSubOpen && hasActive && (
                                         <span
-                                          className="w-2 h-2 rounded-full animate-pulse shadow-xs"
+                                          className="w-1.5 h-1.5 rounded-full animate-pulse shadow-xs"
                                           style={{ backgroundColor: pillar.accentColor }}
-                                          aria-label="آیتم فعال در این بخش است"
                                         />
                                       )}
                                       <ChevronDown
-                                        size={13}
-                                        className={`transition-transform duration-200 text-[#86868B] dark:text-[#98989D] ${
+                                        size={12}
+                                        className={`transition-transform duration-200 text-slate-400 ${
                                           isSubOpen ? 'rotate-180' : ''
                                         }`}
                                       />
                                     </div>
                                   </button>
 
-                                  {/* Subgroup Accordion Content */}
+                                  {/* Subgroup Accordion Content with vertical tree connector */}
                                   {isSubOpen && (
-                                    <div className="mt-1 space-y-0.5 pr-2">
+                                    <div className="mr-3.5 pr-2 border-r border-white/[0.06] dark:border-white/[0.06] light:border-slate-200/90 space-y-0.5 mt-0.5">
                                       {sg.items.map((item) => renderMenuItem(item, pillar, false))}
                                     </div>
                                   )}
@@ -649,25 +688,25 @@ export function ExecShell({
 
               {/* Utility / System Pillar (Neatly positioned above footer) */}
               {filteredUtility.items.length > 0 && (
-                <div className="mt-3 pt-2 border-t border-black/[0.06] dark:border-white/10 mb-2">
+                <div className="mt-3 pt-2 border-t border-white/[0.06] dark:border-white/[0.06] light:border-slate-200/80 mb-2">
                   <button
                     type="button"
                     onClick={() => setOpenPillars((s) => ({ ...s, utility: !openPillars.utility }))}
-                    className={`w-full flex items-center justify-between px-2.5 py-2 rounded-2xl text-xs font-bold transition-all select-none ${
+                    className={`w-full flex items-center justify-between px-2.5 py-2 rounded-xl text-xs font-bold transition-all select-none outline-none focus:outline-none ${
                       isDark
-                        ? 'text-[#F5F5F7] hover:bg-white/[0.06]'
-                        : 'text-[#1D1D1F] hover:bg-black/[0.04]'
+                        ? 'text-slate-200 hover:bg-white/[0.04]'
+                        : 'text-slate-800 hover:bg-slate-100/70'
                     }`}
                     aria-expanded={openPillars.utility}
                   >
                     <div className="flex items-center gap-2 min-w-0">
                       <span
                         className="w-6 h-6 rounded-lg flex items-center justify-center shrink-0 shadow-xs"
-                        style={{ backgroundColor: `${filteredUtility.accentColor}20`, color: filteredUtility.accentColor }}
+                        style={{ backgroundColor: `${filteredUtility.accentColor}18`, color: filteredUtility.accentColor }}
                       >
-                        <Sparkles size={14} />
+                        <Sparkles size={13} />
                       </span>
-                      <span className="font-extrabold tracking-tight truncate">{filteredUtility.label}</span>
+                      <span className="font-extrabold tracking-tight truncate text-[12px]">{filteredUtility.label}</span>
                     </div>
                     <div className="flex items-center gap-1.5 shrink-0">
                       {!openPillars.utility && filteredUtility.items.some((item) => isItemActive(item, page, arg)) && (
@@ -678,8 +717,8 @@ export function ExecShell({
                         />
                       )}
                       <ChevronDown
-                        size={14}
-                        className={`transition-transform duration-200 text-[#86868B] dark:text-[#98989D] ${
+                        size={13}
+                        className={`transition-transform duration-200 text-slate-400 ${
                           openPillars.utility ? 'rotate-180' : ''
                         }`}
                       />
@@ -698,75 +737,75 @@ export function ExecShell({
         </nav>
 
         {/* ── Sidebar Footer: User Profile + Appearance Switcher Popover ── */}
-        <div className={`exec-sidebar-bottom mt-auto pt-3 border-t shrink-0 ${
-          isDark ? 'border-white/10' : 'border-slate-200/80'
+        <div className={`exec-sidebar-bottom mt-auto pt-2.5 border-t shrink-0 ${
+          isDark ? 'border-white/[0.07]' : 'border-slate-200/80'
         } ${collapsed ? 'px-0 flex flex-col items-center gap-2' : ''}`}>
           {collapsed ? (
             <div className="flex flex-col items-center gap-2 mb-2 w-full">
               <AppearanceSwitcher compact={true} />
               <span
-                className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-[#FF9500] to-[#FFB340] text-white flex items-center justify-center shadow-md shadow-orange-500/25 shrink-0 cursor-pointer"
+                className="w-9 h-9 rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-500 text-white flex items-center justify-center shadow-xs shrink-0 cursor-pointer"
                 aria-hidden="true"
                 onClick={() => setPwOpen(true)}
                 title="تغییر رمز"
               >
-                <UserRound size={18} />
+                <UserRound size={16} />
               </span>
               {onLogout && (
                 <button
                   type="button"
-                  className="w-8 h-8 rounded-lg flex items-center justify-center text-[#86868B] hover:text-red-500 hover:bg-red-500/10 transition-colors"
+                  className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 transition-colors outline-none"
                   onClick={onLogout}
                   aria-label="خروج از حساب"
                   title="خروج از حساب"
                 >
-                  <LogOut size={16} />
+                  <LogOut size={15} />
                 </button>
               )}
             </div>
           ) : (
             <div
-              className={`exec-profile relative flex items-center gap-2.5 p-2.5 mx-1 mb-2 rounded-2xl transition-all ${
+              className={`exec-profile relative flex items-center gap-2 p-2 mb-2 rounded-2xl transition-all border ${
                 isDark
-                  ? 'bg-white/5 border border-white/10'
-                  : isSolid
-                  ? 'bg-slate-50 border border-slate-200'
-                  : 'bg-black/[0.03] border border-black/[0.06]'
+                  ? 'bg-white/[0.03] border-white/[0.06]'
+                  : 'bg-slate-50 border-slate-200/90'
               }`}
             >
               <span
-                className="w-9 h-9 rounded-xl bg-gradient-to-tr from-[#FF9500] to-[#FFB340] text-white flex items-center justify-center shadow-md shadow-orange-500/25 shrink-0 cursor-pointer"
+                className="w-8 h-8 rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-500 text-white flex items-center justify-center shadow-xs shrink-0 cursor-pointer"
                 aria-hidden="true"
                 onClick={() => setPwOpen(true)}
                 title="تغییر رمز"
               >
-                <UserRound size={17} />
+                <UserRound size={15} />
               </span>
               <div className="exec-profile-copy min-w-0 flex-1 px-1">
                 <button
                   type="button"
-                  className={`exec-user-btn text-right font-bold text-xs truncate block w-full hover:text-[#0071E3] ${
-                    isDark ? 'text-[#F5F5F7]' : 'text-[#1D1D1F]'
+                  className={`exec-user-btn text-right font-bold text-xs truncate block w-full outline-none focus:outline-none hover:text-emerald-400 ${
+                    isDark ? 'text-slate-200' : 'text-slate-800'
                   }`}
                   onClick={() => setPwOpen(true)}
                   title="تغییر رمز"
                 >
                   <b dir="ltr">{user || 'کاربر'}</b>
                 </button>
-                <small className={`text-[10px] block ${isDark ? 'text-slate-400' : 'text-[#86868B]'}`}>حساب کاربری</small>
+                <small className={`text-[10px] block font-medium ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                  {isAdmin ? 'مدیر سیستم' : 'حساب کاربری'}
+                </small>
               </div>
               <AppearanceSwitcher compact={false} />
               {onLogout && (
                 <button
                   type="button"
-                  className={`exec-logout w-8 h-8 rounded-lg flex items-center justify-center transition-colors shrink-0 ${
-                    isDark ? 'text-slate-400 hover:text-red-400 hover:bg-red-500/10' : 'text-[#86868B] hover:text-red-500 hover:bg-red-500/10'
+                  className={`exec-logout w-7 h-7 rounded-lg flex items-center justify-center transition-colors shrink-0 outline-none ${
+                    isDark ? 'text-slate-400 hover:text-rose-400 hover:bg-rose-500/10' : 'text-slate-500 hover:text-rose-600 hover:bg-rose-50'
                   }`}
                   onClick={onLogout}
                   aria-label="خروج از حساب"
                   title="خروج از حساب"
                 >
-                  <LogOut size={16} />
+                  <LogOut size={15} />
                 </button>
               )}
             </div>
@@ -807,7 +846,7 @@ export function ExecShell({
           </div>
         )}
 
-        {showFilters && (
+        {showFilters && page !== 'overview' && (
           <>
             <section className="exec-filterbar" aria-label="فیلترها">
               <div className="exec-filter-title"><Filter size={17} /><b>فیلترهای سریع</b></div>
@@ -869,10 +908,10 @@ export function ExecShell({
                 setMobileMenuOpen(false)
                 onNavigate(tab.id)
               }}
-              style={active ? { backgroundColor: '#0071E3', color: '#FFFFFF' } : {}}
-              className={`flex items-center gap-1.5 transition-all duration-200 ${
+              style={active ? { backgroundColor: '#10B981', color: '#FFFFFF' } : {}}
+              className={`flex items-center gap-1.5 transition-all duration-200 outline-none ${
                 active
-                  ? 'active !bg-[#0071E3] !text-white rounded-2xl px-3 py-1.5 shadow-[0_4px_14px_rgba(0,113,227,0.35)]'
+                  ? 'active !bg-[#10B981] !text-white rounded-2xl px-3 py-1.5 shadow-[0_4px_14px_rgba(16,185,129,0.35)]'
                   : 'flex-col justify-center text-[#86868B] hover:text-[#1D1D1F] py-1 px-2'
               }`}
             >
@@ -891,10 +930,10 @@ export function ExecShell({
         <button
           type="button"
           onClick={() => setMobileMenuOpen((v) => !v)}
-          style={isMoreActive ? { backgroundColor: '#0071E3', color: '#FFFFFF' } : {}}
-          className={`flex items-center gap-1.5 transition-all duration-200 ${
+          style={isMoreActive ? { backgroundColor: '#10B981', color: '#FFFFFF' } : {}}
+          className={`flex items-center gap-1.5 transition-all duration-200 outline-none ${
             isMoreActive
-              ? 'active !bg-[#0071E3] !text-white rounded-2xl px-3 py-1.5 shadow-[0_4px_14px_rgba(0,113,227,0.35)]'
+              ? 'active !bg-[#10B981] !text-white rounded-2xl px-3 py-1.5 shadow-[0_4px_14px_rgba(16,185,129,0.35)]'
               : 'flex-col justify-center text-[#86868B] hover:text-[#1D1D1F] py-1 px-2'
           }`}
           aria-expanded={mobileMenuOpen}
@@ -1004,16 +1043,14 @@ export function ExecShell({
                           </span>
                         )}
                       </div>
-                      <div className={`rounded-2xl p-1.5 grid grid-cols-2 gap-1.5 shadow-xs ${
-                        isDark ? 'bg-white/5 border border-white/10' : 'bg-white border border-slate-200/80'
+                      <div className={`rounded-2xl p-1.5 grid grid-cols-2 gap-1.5 shadow-xs border ${
+                        isDark ? 'bg-white/[0.03] border-white/[0.06]' : 'bg-white border-slate-200/80'
                       }`}>
                         {items.map((item) => {
                           const active = isItemActive(item, page, arg)
                           const Icon = item.icon
-                          const activeStyle = {
-                            backgroundColor: pillar.accentColor,
-                            color: '#FFFFFF',
-                          }
+                          const theme = PILLAR_THEMES[pillar.id] || PILLAR_THEMES.sales
+
                           return (
                             <button
                               key={`${item.id}-${item.arg || ''}`}
@@ -1026,31 +1063,26 @@ export function ExecShell({
                                 }
                                 setMobileMenuOpen(false)
                               }}
-                              style={active ? activeStyle : undefined}
-                              className={`flex items-center gap-2 p-2 rounded-xl text-xs transition-all text-right select-none ${
+                              className={`flex items-center gap-2 p-2 rounded-xl text-xs transition-all text-right select-none border outline-none focus:outline-none ${
                                 active
-                                  ? `active ${pillar.activeClass} !text-white font-bold shadow-md`
-                                  : isDark
-                                  ? 'text-[#E5E5EA] font-semibold hover:bg-white/10'
-                                  : 'text-[#1D1D1F] font-semibold hover:bg-black/[0.04]'
+                                  ? (isDark ? theme.activeClassDark : theme.activeClassLight)
+                                  : (isDark
+                                      ? 'border-transparent text-slate-300 hover:bg-white/10'
+                                      : 'border-transparent text-slate-700 hover:bg-slate-100')
                               }`}
                             >
                               <div
                                 className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${
                                   active
-                                    ? 'bg-white/20 !text-white'
-                                    : isDark
-                                    ? 'bg-white/5 text-[#98989D]'
-                                    : 'bg-black/[0.04] text-[#86868B]'
+                                    ? (isDark ? theme.iconActiveDark : theme.iconActiveLight)
+                                    : (isDark
+                                        ? 'bg-white/5 text-slate-400'
+                                        : 'bg-black/[0.04] text-slate-500')
                                 }`}
-                                style={active ? { color: '#FFFFFF' } : {}}
                               >
-                                <Icon size={14} style={active ? { color: '#FFFFFF' } : {}} className={active ? '!text-white' : undefined} />
+                                <Icon size={14} />
                               </div>
-                              <span
-                                className={`truncate flex-1 font-medium ${active ? '!text-white font-bold' : ''}`}
-                                style={active ? { color: '#FFFFFF' } : {}}
-                              >
+                              <span className="truncate flex-1 font-medium text-[11.5px]">
                                 {item.label}
                               </span>
                             </button>
@@ -1064,19 +1096,17 @@ export function ExecShell({
                 {/* Utility Pillar for Mobile Sheet */}
                 {filteredUtility.items.length > 0 && (
                   <div className="space-y-1.5">
-                    <span className="text-[11px] font-bold text-[#86868B] dark:text-[#98989D] px-2 tracking-wider block">
+                    <span className="text-[11px] font-bold text-slate-400 px-2 tracking-wider block">
                       {filteredUtility.label}
                     </span>
-                    <div className={`rounded-2xl p-1.5 grid grid-cols-2 gap-1.5 shadow-xs ${
-                      isDark ? 'bg-white/5 border border-white/10' : 'bg-white border border-slate-200/80'
+                    <div className={`rounded-2xl p-1.5 grid grid-cols-2 gap-1.5 shadow-xs border ${
+                      isDark ? 'bg-white/[0.03] border-white/[0.06]' : 'bg-white border-slate-200/80'
                     }`}>
                       {filteredUtility.items.map((item) => {
                         const active = isItemActive(item, page, arg)
                         const Icon = item.icon
-                        const activeStyle = {
-                          backgroundColor: filteredUtility.accentColor,
-                          color: '#FFFFFF',
-                        }
+                        const theme = PILLAR_THEMES.utility
+
                         return (
                           <button
                             key={item.id}
@@ -1085,31 +1115,26 @@ export function ExecShell({
                               onNavigate(item.id)
                               setMobileMenuOpen(false)
                             }}
-                            style={active ? activeStyle : undefined}
-                            className={`flex items-center gap-2 p-2 rounded-xl text-xs transition-all text-right select-none ${
+                            className={`flex items-center gap-2 p-2 rounded-xl text-xs transition-all text-right select-none border outline-none focus:outline-none ${
                               active
-                                ? `active ${filteredUtility.activeClass} !text-white font-bold shadow-md`
-                                : isDark
-                                ? 'text-[#E5E5EA] font-semibold hover:bg-white/10'
-                                : 'text-[#1D1D1F] font-semibold hover:bg-black/[0.04]'
+                                ? (isDark ? theme.activeClassDark : theme.activeClassLight)
+                                : (isDark
+                                    ? 'border-transparent text-slate-300 hover:bg-white/10'
+                                    : 'border-transparent text-slate-700 hover:bg-slate-100')
                             }`}
                           >
                             <div
                               className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${
                                 active
-                                  ? 'bg-white/20 !text-white'
-                                  : isDark
-                                  ? 'bg-white/5 text-[#98989D]'
-                                  : 'bg-black/[0.04] text-[#86868B]'
+                                  ? (isDark ? theme.iconActiveDark : theme.iconActiveLight)
+                                  : (isDark
+                                      ? 'bg-white/5 text-slate-400'
+                                      : 'bg-black/[0.04] text-slate-500')
                               }`}
-                              style={active ? { color: '#FFFFFF' } : {}}
                             >
-                              <Icon size={14} style={active ? { color: '#FFFFFF' } : {}} className={active ? '!text-white' : undefined} />
+                              <Icon size={14} />
                             </div>
-                            <span
-                              className={`truncate flex-1 font-medium ${active ? '!text-white font-bold' : ''}`}
-                              style={active ? { color: '#FFFFFF' } : {}}
-                            >
+                            <span className="truncate flex-1 font-medium text-[11.5px]">
                               {item.label}
                             </span>
                           </button>
@@ -1352,114 +1377,32 @@ function PasswordDialog({ onClose }) {
   )
 }
 
-export default function ExecutiveDashboard({ p, cal, month, setMonth, onOpenReturns }) {
-  const { isDark, isSolid } = useAppearance()
-  const { month: _m, start: _s, end: _e, ...dims } = p
-  const ov = useApi('/overview', p)
-  const invoiceLines = useApi('/invoice-lines', p)
-  const growth = useApi('/growth', { ...dims, kind: 'month' })
-  const monthly = useApi('/monthly', { ...dims })
-  const trend = useApi('/trend', p)
-  const pace = useApi('/pace', dims)
-  const target = useApi('/target', { core: p.core, ...(month ? { month } : {}) })
-  const ret = useApi('/returns/summary', p) // dispatch-order returns; separate from SR sales metrics
-  const retTotal = ret.data?.available ? ret.data.total : null
-  const retNote = ret.error ? 'دریافت داده ناموفق بود' : ret.data?.available === false ? 'داده حواله بارگذاری نشده' : ret.loading && !ret.data ? 'در حال بارگذاری…' : null
-  const o = ov.data
-  const rows = monthly.data ?? []
-  const lastPeriod = growth.data?.periods?.at(-1)
-  const selectedPeriod = growth.data?.periods?.find((r) => r.key === month)
-  const invoiceGrowth = (month ? selectedPeriod : lastPeriod)?.compare?.growth?.invoice_count
-  const netGrowth = (month ? selectedPeriod : lastPeriod)?.compare?.growth?.net_rial
-  const growthLabel = (month ? selectedPeriod : lastPeriod)?.label
-  const days = trend.data ?? []
-  const toggle = (ym) => setMonth(ym === month ? '' : ym)
-
-  // Executive KPI calculations (reconciled with DuckDB)
-  const returnsRial = o ? Math.abs(o.returns_rial ?? 0) : 0
-  const aov = (o && o.invoice_count) ? Math.round(o.net_rial / o.invoice_count) : null
-  const arpu = (o && o.active_customers) ? Math.round(o.net_rial / o.active_customers) : null
-  const targetAchieved = target.data?.summary?.achieved_pct ?? null
-  const targetTotal = target.data?.summary?.target_rial ?? null
-
-  const surfaceClass = isDark
-    ? 'bg-[#1C1C1E]/85 backdrop-blur-2xl border border-white/10 text-[#F5F5F7] shadow-[0_8px_30px_rgba(0,0,0,0.5)]'
-    : isSolid
-    ? 'bg-white border border-slate-200 text-[#1D1D1F] shadow-sm'
-    : 'bg-white/85 backdrop-blur-2xl border border-slate-200/80 text-[#1D1D1F] shadow-[0_8px_30px_rgb(0,0,0,0.04)]'
-
+export default function ExecutiveDashboard({
+  p,
+  cal,
+  month,
+  setMonth,
+  dims = {},
+  onFilterChange,
+  filters = {},
+  onReset,
+  onOpenReturns,
+  onOpenTickets,
+  onNavigate,
+}) {
   return (
-    <div className="w-full max-w-[1600px] mx-auto space-y-3 sm:space-y-5 px-1 sm:px-0">
-
-      {/* ── Calendar status bar ──────────────────────────────── */}
-      <CalendarGlass cal={cal} />
-
-      {/* ── Hero Bento Row (Equal Height 8 Cols + 4 Cols) ──── */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-stretch w-full">
-        <HeroMetricCard rows={rows} o={o} growth={netGrowth} growthLabel={growthLabel} period={month ? monthLabel(month) : 'همه ماه‌ها'} />
-        <ForecastRings pace={pace} />
-      </div>
-
-      {/* ── 6×2 KPI widget grid (Executive, non-duplicate, no digit truncation) ─────────────────────────────── */}
-      <KpiSpotlight items={[
-        { icon: UserCheck, label: 'میانگین خرید هر مشتری', value: arpu ? fa(arpu) : '—', unit: 'ریال · میانگین هر مشتری یکتا', tooltip: arpu ? `${fa(arpu)} ریال میانگین خرید هر مشتری یکتا` : undefined, tone: 'indigo' },
-        { icon: PackageSearch, label: 'تعداد کالا', value: o ? fa(o.sum_qty) : '—', unit: 'عدد', tone: 'violet' },
-        { icon: PackageSearch, label: 'تعداد کالا خالص', value: o ? fa(o.sum_qty_net) : '—', unit: 'عدد · منهای مرجوعی', tone: 'violet' },
-        { icon: FileText, label: 'تعداد فاکتور', value: o ? fa(o.invoice_count) : '—', unit: 'فقره', tone: 'amber' },
-        { icon: TrendingUp, label: 'درصد رشد فاکتور', value: pct(invoiceGrowth), unit: growthLabel ? `${growthLabel} نسبت به ماه قبل` : 'مقایسه با ماه قبل', tone: 'teal' },
-        { icon: ListOrdered, label: 'میانگین سطر فاکتور', value: invoiceLines.data ? fa2(invoiceLines.data.avg_lines_per_invoice) : '—', unit: 'سطر در هر فاکتور', tone: 'sky' },
-        { icon: Users, label: 'مشتری فعال', value: o ? fa(o.active_customers) : '—', unit: 'مشتری یکتا', tone: 'pink' },
-        { icon: Receipt, label: 'میانگین مبلغ فاکتور', value: aov ? fa(aov) : '—', unit: 'ریال · ارزش سفارش', tooltip: aov ? `${fa(aov)} ریال میانگین مبلغ فاکتور (AOV)` : undefined, tone: 'teal' },
-        { icon: Target, label: 'درصد تحقق تارگت', value: targetAchieved != null ? pct(targetAchieved) : (target.loading ? '…' : '—'), unit: targetTotal ? `از تارگت ${billions1(targetTotal)} م.ر` : 'از هدف فروش دوره', tooltip: target.data?.summary ? `تحقق: ${fa(target.data.summary.actual_rial)} از هدف ${fa(target.data.summary.target_rial)} ریال` : undefined, tone: targetAchieved >= 1 ? 'teal' : targetAchieved >= 0.9 ? 'amber' : 'red' },
-        { icon: Undo2, label: 'حواله‌های برگشتی', value: retTotal ? fa(retTotal.returned_orders) : '—', unit: retNote ?? `${pct(retTotal.returned_order_percent)} از ${fa(retTotal.orders)} حواله`, tone: 'amber', onClick: onOpenReturns },
-        { icon: PackageX, label: 'درصد برگشتی حواله', value: retTotal ? pct(retTotal.return_percent) : '—', unit: retNote ?? (retTotal?.return_rial ? `${billions1(retTotal.return_rial)} م.ر برگشتی` : '—'), tooltip: retTotal?.return_rial ? `${fa(retTotal.return_rial)} ریال برگشتی` : undefined, tone: 'red', onClick: onOpenReturns },
-        { icon: PackageX, label: 'تعداد فاکتور تحویلی', value: retTotal ? fa(retTotal.invoiced_orders) : '—', unit: retNote ?? `${pct(retTotal.invoiced_order_percent)} درصد تحویل`, tone: 'blue', onClick: onOpenReturns },
-      ]} />
-
-      {/* ── Bottom content grid ──────────────────────────────── */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 w-full">
-
-        {/* Monthly sales chart */}
-        <div className={`lg:col-span-8 rounded-[24px] sm:rounded-[28px] ${surfaceClass} p-4 sm:p-6 overflow-hidden w-full max-w-full flex flex-col transition-colors`}>
-          <CardHead title="روند فروش ماهانه" note="ریال خالص و فروش ناخالص · میلیارد ریال"
-            chip={<span className={`exec-legend-inline ${isDark ? 'text-slate-300' : ''}`}><i style={{ background: '#2563eb' }} />خالص<i style={{ background: '#14b8a6' }} />ناخالص</span>} />
-          <SalesChart rows={rows} />
-        </div>
-
-        {/* Sales share */}
-        <div className="lg:col-span-4">
-          <ShareCardBento p={p} />
-        </div>
-
-        {/* Month comparison */}
-        <div className="lg:col-span-7">
-          <CompareCard dims={dims} month={month} pace={pace} months={rows.map((r) => r.year_month)} />
-        </div>
-
-        {/* Daily trend chart */}
-        <div className={`lg:col-span-5 rounded-[24px] sm:rounded-[28px] ${surfaceClass} p-4 sm:p-6 overflow-hidden w-full max-w-full flex flex-col exec-daily transition-colors`}>
-          <CardHead title="روند فروش روزانه" note={month ? `روزهای ${monthLabel(month)} · میلیارد ریال` : 'روزهای دورهٔ انتخاب‌شده · میلیارد ریال'}
-            chip={<span className="exec-chip blue">Rial+Vat</span>} />
-          <DailyChart rows={days} />
-        </div>
-
-        {/* Monthly summary table */}
-        <div className={`lg:col-span-12 rounded-[24px] sm:rounded-[28px] ${surfaceClass} p-4 sm:p-6 overflow-hidden w-full max-w-full transition-colors`}>
-          <CardHead title="خلاصهٔ ماهانه" note="برای تمرکز روی یک ماه، ردیف آن را انتخاب کنید"
-            chip={<span className="exec-chip blue">مدل Power Pivot</span>} />
-          <div className="w-full overflow-x-auto -mx-2 px-2">
-            <Table name="خلاصه-ماهانه" rows={rows} onRow={(r) => toggle(r.year_month)} highlight={(r) => month === r.year_month}
-              columns={[
-                { label: 'ماه', render: (r) => monthName(r.year_month), value: (r) => r.year_month },
-                { label: 'فروش ناخالص', render: (r) => fa(r.sum_rial_vat), value: (r) => r.sum_rial_vat },
-                { label: 'ریال خالص', render: (r) => fa(r.net_rial), value: (r) => r.net_rial },
-                { label: 'فاکتور', render: (r) => fa(r.invoice_count), value: (r) => r.invoice_count },
-                { label: 'پروموشن', render: (r) => pct(r.promo_percent), value: (r) => r.promo_percent * 100, unit: '٪' },
-              ]} />
-          </div>
-        </div>
-
-      </div>
-    </div>
+    <SalesOverview
+      p={p}
+      cal={cal}
+      month={month}
+      setMonth={setMonth}
+      dims={dims}
+      onFilterChange={onFilterChange}
+      filters={filters}
+      onReset={onReset}
+      onOpenReturns={onOpenReturns}
+      onOpenTickets={onOpenTickets}
+      onNavigate={onNavigate}
+    />
   )
 }
