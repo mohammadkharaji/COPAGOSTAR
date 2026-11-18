@@ -278,9 +278,23 @@ def authenticate(username: str, password: str) -> Principal | None:
     try:
         with write_lock, closing(connect(create=True)) as con:
             con.execute("UPDATE users SET last_login_at=? WHERE id=?", (now_iso(), found[0]["id"]))
+            if auth.needs_rehash(found[0]["password_hash"]):   # upgrade old scrypt parameters; sessions stay valid
+                con.execute("UPDATE users SET password_hash=? WHERE id=?",
+                            (auth.hash_password(password), found[0]["id"]))
     except (sqlite3.Error, OSError):
         pass
     return principal
+
+
+def revoke_sessions(username: str) -> None:
+    """Sign a database user out everywhere by bumping token_version. The env superadmin has no row to bump."""
+    if _is_env_user(username):
+        return
+    try:
+        with write_lock, closing(connect(create=True)) as con:
+            con.execute("UPDATE users SET token_version=token_version+1 WHERE username=?", (username,))
+    except (sqlite3.Error, OSError):
+        pass
 
 
 def principal_from_token(token: str | None) -> Principal | None:

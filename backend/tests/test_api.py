@@ -61,7 +61,7 @@ def build_client(tmp_path, monkeypatch, chunks, product=None):
     for m in (config, db, ingest, rbac, admin, club_store, club, api):
         importlib.reload(m)
     assert sum(r["rows"] for r in ingest.ingest_all(raw)) == sum(len(r) for r in chunks.values())
-    c = TestClient(api.app)
+    c = TestClient(api.app, base_url="https://testserver")
     assert c.post("/api/auth/login", json={"username": "admin", "password": TEST_PASSWORD}).status_code == 200
     return c
 
@@ -396,7 +396,7 @@ def test_sync_status_states_and_conflict(client):
 def fresh(client):
     from fastapi.testclient import TestClient
     from app import api
-    return TestClient(api.app)
+    return TestClient(api.app, base_url="https://testserver")
 
 
 def test_every_api_route_requires_login(client):
@@ -583,3 +583,43 @@ def test_inactive_report_needs_login_and_its_own_page(inactive_client):
     assert anon.get("/api/inactive-customers/export").status_code == 401
     assert rbac.access_for("GET", "/api/inactive-customers/export") == ("pages", ("inactive",))
     assert rbac.access_for("GET", "/api/inactive-customers") == ("pages", ("inactive",))
+
+
+def test_login_limiter_not_reset_by_other_successful_logins():
+    from app import auth
+    lim = auth.LoginLimiter()
+    for _ in range(200):
+        for _ in range(4):
+            lim.fail("1.2.3.4")
+        lim.ok("1.2.3.4|valid-user")
+    assert lim.blocked("1.2.3.4") is False or len(lim.failures["1.2.3.4"]) >= 5
+    lim.fail("1.2.3.4")
+    assert lim.blocked("1.2.3.4")
+
+
+def test_login_limiter_storage_is_capped():
+    from app import auth
+    lim = auth.LoginLimiter()
+    for i in range(auth.LoginLimiter.MAX_KEYS + 2000):
+        lim.fail(f"k{i}")
+    assert len(lim.failures) <= auth.LoginLimiter.MAX_KEYS
+    assert lim.blocked("never-seen") is False and "never-seen" not in lim.failures
+
+
+def test_old_scrypt_hash_still_verifies_and_is_flagged_for_rehash():
+    import base64
+    import hashlib
+    from app import auth
+    salt = b"s" * 16
+    digest = hashlib.scrypt(b"pw", salt=salt, n=2**14, r=8, p=1, dklen=32)
+    b = lambda x: base64.urlsafe_b64encode(x).rstrip(b"=").decode()
+    old = f"scrypt:16384:8:1:{b(salt)}:{b(digest)}"
+    assert auth.verify_password("pw", old) and auth.needs_rehash(old)
+    new = auth.hash_password("pw")
+    assert auth.verify_password("pw", new) and not auth.needs_rehash(new)
+
+
+def test_audit_name_escapes_control_characters_and_truncates():
+    from app.api import _audit_name
+    out = _audit_name("a\nb\x00" + "x" * 200)
+    assert "\n" not in out and "\x00" not in out and len(out) <= 64

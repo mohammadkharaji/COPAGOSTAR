@@ -42,7 +42,7 @@ def _mkuser(c, username, role_id, branches=None, supervisors=None):
 
 
 def _login(app, username) -> TestClient:
-    c2 = TestClient(app)
+    c2 = TestClient(app, base_url="https://testserver")
     r = c2.post("/api/auth/login", json={"username": username, "password": TEST_PASSWORD})
     assert r.status_code == 200, r.text
     return c2

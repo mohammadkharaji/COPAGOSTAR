@@ -202,6 +202,9 @@ def _routes(kind: str) -> None:
 
     @router.post(f"{base}/plans", status_code=201)
     def create_plan(body: PlanBody):
+        principal = rbac.require()
+        if not principal.is_admin:
+            raise HTTPException(403, "فقط مدیر می‌تواند طرح بسازد")
         if body.end_key < body.start_key:
             raise HTTPException(400, "تاریخ پایان باید بعد از تاریخ شروع باشد")
         _core(body.core)
@@ -238,19 +241,50 @@ def _routes(kind: str) -> None:
                      body.plan_type, config_json])
             finally:
                 con.close()
+        rbac.audit(principal.user, "club.plan.create", "club_plan", str(new_id), {"kind": kind, "name": body.name})
         return {"id": new_id}
+
+    @router.delete(f"{base}/plans/{{plan_id}}")
+    def delete_plan(plan_id: int):
+        principal = rbac.require()
+        if not principal.is_admin:
+            raise HTTPException(403, "فقط مدیر می‌تواند طرح را حذف کند")
+        with club_store.write_lock:
+            con = club_store.connect()
+            try:
+                found = con.execute("SELECT COUNT(*) FROM plans WHERE id=? AND kind=?", [plan_id, kind]).fetchone()[0]
+                if not found:
+                    raise HTTPException(404, "طرح پیدا نشد")
+                con.execute("DELETE FROM points WHERE plan_id=? AND kind=?", [plan_id, kind])
+                con.execute("DELETE FROM plans WHERE id=? AND kind=?", [plan_id, kind])
+            finally:
+                con.close()
+        rbac.audit(principal.user, "club.plan.delete", "club_plan", str(plan_id), {"kind": kind})
+        return {"ok": True}
 
     @router.get(f"{base}/points")
     def points(plan_id: int):
-        plan = next((p for p in _plans(kind) if p["id"] == plan_id), None)
+        principal = rbac.require()
+        own_code = None
+        if not principal.is_admin:
+            link = _link_for(principal.user)
+            if link is None or link[0] != kind:
+                raise HTTPException(403, "فقط داده خودتان")
+            own_code = link[1]
+        plan = next((x for x in _plans(kind) if x["id"] == plan_id), None)
         if plan is None:
             raise HTTPException(404, "طرح پیدا نشد")
         if plan.get("plan_type") == "ladder":
             unavailable = _ladder_unavailable(plan)
             if unavailable:
                 return unavailable
-            return club_ladder_report.leaderboard(plan)
+            board = club_ladder_report.leaderboard(plan)
+            if own_code is not None:
+                board = {**board, "rows": [r for r in board["rows"] if r["code"] == own_code]}
+            return board
         rows = _compute(plan, kind)
+        if own_code is not None:
+            rows = [r for r in rows if r["code"] == own_code]
         return {"plan": plan, "rows": rows}
 
 

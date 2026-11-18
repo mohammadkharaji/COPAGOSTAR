@@ -56,7 +56,7 @@ def test_club_account_sees_only_its_own_code(tmp_path, monkeypatch):
     # Log in as the club user with a fresh client (cookies are per client).
     from fastapi.testclient import TestClient
     from app.api import app
-    u = TestClient(app)
+    u = TestClient(app, base_url="https://testserver")
     assert u.post("/api/auth/login", json={"username": "cust1", "password": "password-123"}).status_code == 200
     me = u.get("/api/club/me")
     assert me.status_code == 200
@@ -91,7 +91,7 @@ def test_visitor_team_is_own_portfolio_and_months_add_up(tmp_path, monkeypatch):
     from fastapi.testclient import TestClient
     from app.api import app
     _visitor_client(tmp_path, monkeypatch)
-    u = TestClient(app)
+    u = TestClient(app, base_url="https://testserver")
     assert u.post("/api/auth/login", json={"username": "visitor1", "password": "password-123"}).status_code == 200
     t = u.get("/api/club/visitor/team").json()
     # Sections check:
@@ -146,7 +146,7 @@ def test_non_visitor_cannot_read_team(tmp_path, monkeypatch):
     role = next(x for x in c.get("/api/admin/roles").json() if x["name"] == "CustomerClub")
     c.post("/api/admin/users", json={"username": "cust2", "password": "password-123", "role_id": role["id"]})
     c.put("/api/club/link", json={"username": "cust2", "kind": "b2b", "code": "C1"})
-    u = TestClient(app)
+    u = TestClient(app, base_url="https://testserver")
     assert u.post("/api/auth/login", json={"username": "cust2", "password": "password-123"}).status_code == 200
     assert u.get("/api/club/visitor/team").status_code == 403
 
@@ -169,3 +169,70 @@ def test_multi_rule_scoring_matches_gamification_workbook(tmp_path, monkeypatch)
     # C1 1,500,000 Rial: base 15 + focus 45 = 60. C2 300,000: base 3 only.
     assert got["C1"]["points"] == 60 and got["C2"]["points"] == 3
     assert [b["points"] for b in got["C1"]["breakdown"]] == [15, 45]
+
+
+def _member(tmp_path, monkeypatch):
+    from fastapi.testclient import TestClient
+    from app.api import app
+    c = seeded(tmp_path, monkeypatch)
+    c.post("/api/club/b2b/plans", json={"name": "تیر", "core": "kg", "start_key": 14050701,
+                                         "end_key": 14050731, "rial_per_point": 500000})
+    c.post("/api/admin/roles/defaults")
+    role = next(x for x in c.get("/api/admin/roles").json() if x["name"] == "CustomerClub")
+    c.post("/api/admin/users", json={"username": "cust1", "password": "password-123", "role_id": role["id"]})
+    c.put("/api/club/link", json={"username": "cust1", "kind": "b2b", "code": "C1"})
+    u = TestClient(app, base_url="https://testserver")
+    assert u.post("/api/auth/login", json={"username": "cust1", "password": "password-123"}).status_code == 200
+    return c, u
+
+
+def test_club_member_cannot_create_or_delete_plans(tmp_path, monkeypatch):
+    c, u = _member(tmp_path, monkeypatch)
+    body = {"name": "طرح تست", "core": "kg", "start_key": 14050701, "end_key": 14050731, "rial_per_point": 1}
+    assert u.post("/api/club/b2b/plans", json=body).status_code == 403
+    plan_id = c.get("/api/club/b2b/plans").json()["plans"][0]["id"]
+    assert u.delete(f"/api/club/b2b/plans/{plan_id}").status_code == 403
+    assert c.delete(f"/api/club/b2b/plans/{plan_id}").status_code == 200
+    assert c.get("/api/club/b2b/plans").json()["plans"] == []
+    assert c.delete(f"/api/club/b2b/plans/{plan_id}").status_code == 404
+
+
+def test_club_member_points_are_filtered_to_own_record(tmp_path, monkeypatch):
+    c, u = _member(tmp_path, monkeypatch)
+    plan_id = c.get("/api/club/b2b/plans").json()["plans"][0]["id"]
+    assert {r["code"] for r in c.get("/api/club/b2b/points", params={"plan_id": plan_id}).json()["rows"]} == {"C1", "C2"}
+    mine = u.get("/api/club/b2b/points", params={"plan_id": plan_id}).json()["rows"]
+    assert [r["code"] for r in mine] == ["C1"]
+
+
+def test_unprivileged_user_gets_trimmed_status_and_health(tmp_path, monkeypatch):
+    c, u = _member(tmp_path, monkeypatch)
+    assert "consolidation" in c.get("/api/health").json()
+    h = u.get("/api/health").json()
+    assert "consolidation" not in h and "missing_kg_chunks" not in h
+    s = u.get("/api/bi-sync/status").json()
+    assert "recent_logs" not in s and "total_net_rial" not in s
+
+
+def test_logout_revokes_a_copied_session(tmp_path, monkeypatch):
+    c, u = _member(tmp_path, monkeypatch)
+    token = u.cookies.get("sr_session")
+    assert u.post("/api/auth/logout").status_code == 200
+    from fastapi.testclient import TestClient
+    from app.api import app
+    thief = TestClient(app, base_url="https://testserver", cookies={"sr_session": token})
+    assert thief.get("/api/auth/me").status_code == 401
+
+
+def test_breakdown_by_customer_needs_the_customer_page(tmp_path, monkeypatch):
+    from fastapi.testclient import TestClient
+    from app.api import app
+    c = seeded(tmp_path, monkeypatch)
+    role = c.post("/api/admin/roles", json={"name": "ov", "description": "", "pages": ["overview"], "cores": ["kg"],
+                                             "scope_mode": "all", "is_admin": False})
+    assert role.status_code in (200, 201), role.text
+    c.post("/api/admin/users", json={"username": "ov1", "password": "password-123", "role_id": role.json()["id"]})
+    u = TestClient(app, base_url="https://testserver")
+    assert u.post("/api/auth/login", json={"username": "ov1", "password": "password-123"}).status_code == 200
+    assert u.get("/api/breakdown", params={"by": "customer"}).status_code == 403
+    assert u.get("/api/breakdown", params={"by": "branch"}).status_code == 200

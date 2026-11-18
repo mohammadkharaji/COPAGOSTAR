@@ -19,7 +19,7 @@ import time
 
 COOKIE = "sr_session"
 SESSION_SECONDS = 12 * 3600
-SCRYPT_N, SCRYPT_R, SCRYPT_P = 2**14, 8, 1
+SCRYPT_N, SCRYPT_R, SCRYPT_P = 2**15, 8, 3
 MIN_SECRET = 32
 
 
@@ -31,10 +31,24 @@ def _unb64(text: str) -> bytes:
     return base64.urlsafe_b64decode(text + "=" * (-len(text) % 4))
 
 
+def _scrypt(password: str, salt: bytes, n: int, r: int, p: int) -> bytes:
+    # hashlib's default maxmem is 32 MiB, which N=2**15, r=8 would exceed; allow twice the memory the parameters need.
+    return hashlib.scrypt(password.encode(), salt=salt, n=n, r=r, p=p, dklen=32, maxmem=2 * 128 * n * r + (1 << 20))
+
+
 def hash_password(password: str) -> str:
     salt = secrets.token_bytes(16)
-    digest = hashlib.scrypt(password.encode(), salt=salt, n=SCRYPT_N, r=SCRYPT_R, p=SCRYPT_P, dklen=32)
+    digest = _scrypt(password, salt, SCRYPT_N, SCRYPT_R, SCRYPT_P)
     return f"scrypt:{SCRYPT_N}:{SCRYPT_R}:{SCRYPT_P}:{_b64(salt)}:{_b64(digest)}"
+
+
+def needs_rehash(stored: str) -> bool:
+    """True when a stored hash was made with weaker scrypt parameters than the current ones."""
+    try:
+        _, n, r, p, _, _ = stored.split(":")
+        return (int(n), int(r), int(p)) < (SCRYPT_N, SCRYPT_R, SCRYPT_P)
+    except ValueError:
+        return False
 
 
 def verify_password(password: str, stored: str) -> bool:
@@ -42,7 +56,7 @@ def verify_password(password: str, stored: str) -> bool:
         scheme, n, r, p, salt, want = stored.split(":")
         if scheme != "scrypt":
             return False
-        got = hashlib.scrypt(password.encode(), salt=_unb64(salt), n=int(n), r=int(r), p=int(p), dklen=32)
+        got = _scrypt(password, _unb64(salt), int(n), int(r), int(p))
         return hmac.compare_digest(got, _unb64(want))
     except (ValueError, TypeError):
         return False
@@ -110,7 +124,9 @@ def verify_token(token: str | None, now: float | None = None) -> str | None:
 
 
 class LoginLimiter:
-    """Blocks an address for `lock` seconds after `limit` failed logins within that window."""
+    """Blocks a key for `lock` seconds after `limit` failed logins within that window. Storage is capped."""
+
+    MAX_KEYS = 50_000
 
     def __init__(self, limit: int = 5, lock: int = 900):
         self.limit, self.lock = limit, lock
@@ -118,15 +134,30 @@ class LoginLimiter:
 
     def _recent(self, key: str, now: float) -> list[float]:
         recent = [t for t in self.failures.get(key, []) if now - t < self.lock]
-        self.failures[key] = recent
+        if recent:
+            self.failures[key] = recent
+        else:
+            self.failures.pop(key, None)
         return recent
+
+    def _prune(self, now: float) -> None:
+        if len(self.failures) <= self.MAX_KEYS:
+            return
+        for k in [k for k, v in self.failures.items() if all(now - t >= self.lock for t in v)]:
+            del self.failures[k]
+        if len(self.failures) > self.MAX_KEYS:   # still full of live keys: drop the oldest tenth in one pass
+            for k in list(self.failures)[: self.MAX_KEYS // 10]:
+                del self.failures[k]
 
     def blocked(self, key: str, now: float | None = None) -> bool:
         return len(self._recent(key, now or time.time())) >= self.limit
 
     def fail(self, key: str, now: float | None = None) -> None:
         now = now or time.time()
-        self._recent(key, now).append(now)
+        recent = self._recent(key, now)
+        recent.append(now)
+        self.failures[key] = recent
+        self._prune(now)
 
     def ok(self, key: str) -> None:
         self.failures.pop(key, None)

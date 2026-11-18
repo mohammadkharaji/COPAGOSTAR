@@ -93,25 +93,32 @@ def _client_key(request: Request) -> str:
     return request.client.host if request.client else "unknown"
 
 
+def _audit_name(raw: str) -> str:
+    """Attacker-controlled login name, safe for the audit log: control characters escaped, 64 chars at most."""
+    return "".join(c if c.isprintable() else f"\\x{ord(c):02x}" for c in raw)[:64]
+
+
 @app.post("/api/auth/login")
 def login(body: LoginBody, request: Request, response: Response):
     if not auth.configured():
         raise HTTPException(503, "ورود پیکربندی نشده است")
     key = _client_key(request)
-    if limiter.blocked(key):
+    pair = f"{key}|{_audit_name(body.username.strip().casefold())}"
+    if limiter.blocked(key) or limiter.blocked(pair):
         raise HTTPException(429, "تلاش ناموفق زیاد بود؛ چند دقیقه بعد دوباره امتحان کنید")
     principal = rbac.authenticate(body.username, body.password)
     if principal is None:
         limiter.fail(key)
-        rbac.audit(body.username[:100], "login.failed", ip=key)
+        limiter.fail(pair)
+        rbac.audit(_audit_name(body.username), "login.failed", ip=key)
         time.sleep(0.4)
         raise HTTPException(401, "نام کاربری یا رمز عبور درست نیست")
-    limiter.ok(key)
+    limiter.ok(pair)   # the per-address counter is never cleared by a success, so alternating with a valid login cannot reset it
     rbac.audit(principal.user, "login", ip=key)
     response.set_cookie(
         auth.COOKIE, auth.make_token(principal.user, version=principal.token_version), max_age=auth.SESSION_SECONDS,
         httponly=True, samesite="strict",
-        secure=request.url.scheme == "https" or os.environ.get("SR_COOKIE_SECURE") == "1", path="/")
+        secure=os.environ.get("SR_COOKIE_SECURE", "1") != "0", path="/")
     return {"ok": True, **principal.me()}
 
 
@@ -122,6 +129,7 @@ def me():
 
 @app.post("/api/auth/logout")
 def logout(response: Response):
+    rbac.revoke_sessions(rbac.require().user)   # a copied cookie dies too; this also signs the user out of other devices
     response.delete_cookie(auth.COOKIE, path="/")
     return {"ok": True}
 
@@ -231,8 +239,12 @@ def _range(start: str | None, end: str | None) -> tuple[str, list]:
 
 @app.get("/api/health")
 def health():
+    is_admin = rbac.require().is_admin
     if not DB_PATH.exists():
-        return {"status": "not_ready", "chunks_loaded": 0, "missing_kg_chunks": EXPECTED_KG_MONTHS, "consolidation": CONSOLIDATION_STATUS}
+        out = {"status": "not_ready", "chunks_loaded": 0}
+        if is_admin:
+            out.update(missing_kg_chunks=EXPECTED_KG_MONTHS, consolidation=CONSOLIDATION_STATUS)
+        return out
     con = connect(read_only=True)
     try:
         loaded = {r[0] for r in con.execute("SELECT DISTINCT chunk_id FROM fact_sales").fetchall()}
@@ -240,9 +252,11 @@ def health():
     finally:
         con.close()
     missing = [c for c in EXPECTED_KG_MONTHS if c not in loaded]
-    return {"status": "ready" if not missing else "partial", "chunks_loaded": len(loaded), "missing_kg_chunks": missing,
-            "last_data_date": f"{last // 10000}/{last // 100 % 100:02d}/{last % 100:02d}" if last else None,
-            "consolidation": CONSOLIDATION_STATUS}
+    out = {"status": "ready" if not missing else "partial", "chunks_loaded": len(loaded),
+           "last_data_date": f"{last // 10000}/{last // 100 % 100:02d}/{last % 100:02d}" if last else None}
+    if is_admin:   # company-wide verified totals and chunk names are not scoped to a core or branch
+        out.update(missing_kg_chunks=missing, consolidation=CONSOLIDATION_STATUS)
+    return out
 
 
 SYNC_STALE_SECONDS = 3600
@@ -278,6 +292,9 @@ def sync_status():
     if out["state"] == "running" and not _sync_running():
         out["state"] = "failed"
         out["error"] = "فرایند به‌روزرسانی ناتمام مانده است"
+    if not rbac.require().is_admin:   # raw driver/path text and row counts stay admin-only
+        out["error"] = "failed" if out.get("error") else None
+        out.pop("rows_loaded", None)
     return out
 
 
@@ -316,6 +333,9 @@ def trigger_bi_sync():
 def bi_sync_status():
     """Returns live BI sync progress, last successful sync timestamp, max invoice date, and total synced Rials/invoices."""
     status = bi_sync_service.read_status()
+    if not rbac.require().is_admin:   # company-wide totals, history and raw errors are admin-only
+        keep = ("state", "progress", "step", "total_steps", "message", "last_successful_sync", "max_invoice_date")
+        return {k: status.get(k) for k in keep if k in status}
     logs = bi_sync_service.get_sync_history(limit=5)
     return {**status, "recent_logs": logs}
 
@@ -452,6 +472,10 @@ def breakdown(request: Request, by: str, core: str = DEFAULT_CORE, start: str | 
               limit: int = Query(60, ge=1, le=500)):
     if by not in BREAKDOWN_BY:
         raise HTTPException(400, "بعد گزارش نامعتبر است")
+    need = by if by in ("customer", "visitor") else None
+    principal = rbac.require()
+    if need and not principal.is_admin and need not in principal.pages:
+        raise HTTPException(403, "دسترسی به این بخش مجاز نیست")
     col = BREAKDOWN_BY[by]
     name = _core(core)
     rng, args = _range(start, end)

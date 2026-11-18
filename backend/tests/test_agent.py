@@ -67,6 +67,6 @@ def test_llm_reads_backend_env(monkeypatch, tmp_path):
 
 
 def test_chat_requires_login():
-    client = TestClient(api.app)
+    client = TestClient(api.app, base_url="https://testserver")
     r = client.post("/api/chat", json={"question": "فروش"})
     assert r.status_code == 401

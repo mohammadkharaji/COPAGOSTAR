@@ -117,8 +117,9 @@ def connect():
     port = env.get("BI_DB_PORT", "1433")
     server = f"{host},{port}" if ("," not in host and ":" not in host and port) else host
 
+    trust_cert = "yes" if env.get("BI_DB_TRUST_CERT", "no").strip().lower() in ("1", "yes", "true") else "no"
     conn_str = (f"DRIVER={{{driver}}};SERVER={server};DATABASE={env['BI_DB_NAME']};UID={env['BI_DB_USER']};"
-                f"PWD={pwd};Encrypt=no;TrustServerCertificate=yes;ApplicationIntent=ReadOnly;Connection Timeout=15")
+                f"PWD={pwd};Encrypt=yes;TrustServerCertificate={trust_cert};ApplicationIntent=ReadOnly;Connection Timeout=15")
     return pyodbc.connect(conn_str, readonly=True)
 
 

@@ -193,7 +193,7 @@ def test_club_account_reads_only_its_own_scorecard(client):
     assert client.put("/api/club/link", json={"username": "vis11", "kind": "visitor", "code": "11"}).status_code == 200
     from fastapi.testclient import TestClient
     from app.api import app
-    u = TestClient(app)
+    u = TestClient(app, base_url="https://testserver")
     assert u.post("/api/auth/login", json={"username": "vis11", "password": "password-123"}).status_code == 200
     assert u.get("/api/club/visitor/scorecard", params={"plan_id": pid, "code": "11"}).status_code == 200
     assert u.get("/api/club/visitor/scorecard", params={"plan_id": pid, "code": "12"}).status_code == 403
@@ -297,7 +297,7 @@ def test_member_routes_survive_a_ladder_plan(client):
     client.put("/api/club/link", json={"username": "vis11", "kind": "visitor", "code": "11"})
     from fastapi.testclient import TestClient
     from app.api import app
-    u = TestClient(app)
+    u = TestClient(app, base_url="https://testserver")
     assert u.post("/api/auth/login", json={"username": "vis11", "password": "password-123"}).status_code == 200
     assert u.get("/api/club/me").status_code == 200
     assert u.get("/api/club/visitor/team").status_code == 200
@@ -311,7 +311,7 @@ def test_member_team_endpoint_carries_ladder_summary(client):
     client.put("/api/club/link", json={"username": "vis11", "kind": "visitor", "code": "11"})
     from fastapi.testclient import TestClient
     from app.api import app
-    u = TestClient(app)
+    u = TestClient(app, base_url="https://testserver")
     u.post("/api/auth/login", json={"username": "vis11", "password": "password-123"})
     body = u.get("/api/club/visitor/team", params={"plan_id": pid}).json()
     s = body["visitor_summary"]

@@ -128,7 +128,7 @@ def _read_env() -> Dict[str, str]:
         except Exception as e:
             logger.debug("Skipping env file %s: %s", p, e)
 
-    for k in ("BI_DB_HOST", "BI_DB_PORT", "BI_DB_NAME", "BI_DB_USER", "BI_DB_PASSWORD", "BI_DB_PASS",
+    for k in ("BI_DB_HOST", "BI_DB_PORT", "BI_DB_NAME", "BI_DB_USER", "BI_DB_PASSWORD", "BI_DB_PASS", "BI_DB_TRUST_CERT",
               "SR_AUTH_USER", "SR_AUTH_PASS_HASH", "SR_AUTH_SECRET"):
         if k in os.environ:
             env[k] = os.environ[k]
@@ -139,11 +139,16 @@ def get_bi_engine():
     """Create a SQLAlchemy engine connected to the BI SQL Server database."""
     import urllib.parse
     env = _read_env()
-    host = env.get("BI_DB_HOST", "185.119.242.128")
+    host = env.get("BI_DB_HOST", "")
     port = env.get("BI_DB_PORT", "1433")
-    db_name = env.get("BI_DB_NAME", "BI-WebDashboard")
-    user = env.get("BI_DB_USER", "coopa")
+    db_name = env.get("BI_DB_NAME", "")
+    user = env.get("BI_DB_USER", "")
     password = env.get("BI_DB_PASSWORD") or env.get("BI_DB_PASS", "")
+    missing = [k for k, v in (("BI_DB_HOST", host), ("BI_DB_NAME", db_name), ("BI_DB_USER", user),
+                              ("BI_DB_PASSWORD", password)) if not v]
+    if missing:
+        raise RuntimeError("BI database is not configured: set " + ", ".join(missing))
+    trust_cert = "yes" if env.get("BI_DB_TRUST_CERT", "no").strip().lower() in ("1", "yes", "true") else "no"
 
     server = f"{host},{port}" if ("," not in host and ":" not in host and port) else host
 
@@ -171,7 +176,7 @@ def get_bi_engine():
         safe_pwd = password.replace("}", "}}")
         odbc_conn = (
             f"DRIVER={{{driver}}};SERVER={server};DATABASE={db_name};UID={user};PWD={{{safe_pwd}}};"
-            "Encrypt=no;TrustServerCertificate=yes;ApplicationIntent=ReadOnly;Connection Timeout=20;"
+            f"Encrypt=yes;TrustServerCertificate={trust_cert};ApplicationIntent=ReadOnly;Connection Timeout=20;"
         )
     url = f"mssql+pyodbc:///?odbc_connect={urllib.parse.quote_plus(odbc_conn)}"
     return create_engine(url, pool_pre_ping=True)
@@ -271,20 +276,21 @@ def read_status(skip_stale_check: bool = False) -> Dict[str, Any]:
     if not skip_stale_check:
         _check_and_recover_stale_lock()
 
+    defaults = {
+        "state": "idle",
+        "last_successful_sync": None,
+        "max_invoice_date": "1405/08/24",
+        "total_invoices": 20589,
+        "total_net_rial": 2402321437420,
+        "accuracy": "100.00%",
+        "formula": "SRSalesProcedure1405 (+) + SRPromotionsProcedure1405 (+) - SRDatedSalesReturnProcedurewithVAT1405 (-)",
+    }
     if not STATUS_FILE.is_file():
-        return {
-            "state": "idle",
-            "last_successful_sync": None,
-            "max_invoice_date": "1405/08/24",
-            "total_invoices": 20589,
-            "total_net_rial": 2402321437420,
-            "accuracy": "100.00%",
-            "formula": "SRSalesProcedure1405 (+) + SRPromotionsProcedure1405 (+) - SRDatedSalesReturnProcedurewithVAT1405 (-)",
-        }
+        return defaults
     try:
-        return json.loads(STATUS_FILE.read_text(encoding="utf-8"))
+        return {**defaults, **json.loads(STATUS_FILE.read_text(encoding="utf-8"))}
     except Exception:
-        return {"state": "idle"}
+        return defaults
 
 
 def _safe_replace(src: Path, dst: Path) -> None:
