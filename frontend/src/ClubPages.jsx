@@ -144,7 +144,7 @@ function PointsChart({ history, name }) {
   )
 }
 
-export function PlanForm({ kind, core, onCreated }) {
+function PlanForm({ kind, core, onCreated }) {
   const [name, setName] = useState('')
   const [start, setStart] = useState('')
   const [end, setEnd] = useState('')

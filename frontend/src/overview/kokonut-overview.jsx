@@ -366,7 +366,7 @@ export function KpiSpotlight({ items }) {
     : 'bg-white/85 backdrop-blur-xl border border-black/[0.04] shadow-[0_4px_20px_rgb(0,0,0,0.03)] hover:shadow-[0_12px_30px_rgb(0,0,0,0.07)] text-[#1D1D1F]'
 
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-2.5 sm:gap-4 w-full">
+    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 2xl:grid-cols-6 gap-2.5 sm:gap-4 w-full">
       {items.map((m, i) => {
         const Tag = m.onClick ? 'button' : 'div'
         return (
@@ -385,13 +385,13 @@ export function KpiSpotlight({ items }) {
               className={`w-full h-full rounded-2xl sm:rounded-3xl ${cardSurface} p-3 sm:p-4 flex flex-col justify-between transition-all text-right min-w-0${m.onClick ? ' cursor-pointer' : ''}`}
             >
               <div className="flex items-center justify-between mb-2 sm:mb-3">
-                <span className={`text-[11px] sm:text-xs font-semibold leading-tight truncate ${isDark ? 'text-slate-400' : 'text-[#86868B]'}`}>{m.label}</span>
+                <span className={`text-[11px] sm:text-xs font-semibold leading-tight ${isDark ? 'text-slate-400' : 'text-[#86868B]'}`}>{m.label}</span>
                 <div className={`w-7 h-7 sm:w-8 sm:h-8 rounded-xl sm:rounded-2xl flex items-center justify-center shrink-0 ${TONE_COLORS[m.tone] ?? 'bg-blue-500/10 text-blue-600'}`}>
                   {m.icon ? <m.icon size={15} /> : null}
                 </div>
               </div>
               <div className="min-w-0">
-                <div className={`text-base sm:text-lg xl:text-xl font-black tracking-tight tabular-nums whitespace-nowrap overflow-x-auto no-scrollbar ${isDark ? 'text-[#F5F5F7]' : 'text-[#1D1D1F]'}`}>
+                <div className={`text-base sm:text-lg xl:text-xl font-black tracking-tight tabular-nums whitespace-nowrap overflow-x-auto no-scrollbar ${isDark ? 'text-[#F5F5F7]' : 'text-[#1D1D1F]'}`} title={typeof m.value === 'string' ? m.value : undefined}>
                   {m.value}
                 </div>
                 <div className={`text-[10px] sm:text-[11px] mt-0.5 sm:mt-1 truncate font-medium ${isDark ? 'text-slate-400' : 'text-[#86868B]'}`}>

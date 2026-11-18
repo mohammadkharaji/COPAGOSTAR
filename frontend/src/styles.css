@@ -331,6 +331,7 @@ tbody tr:hover, tbody tr.sel { background: #fbf3e0; }
 .exec-profile-copy { flex: 1; min-width: 0; display: grid; line-height: 1.35; }
 .exec-profile-copy b { color: #1D1D1F; font-size: 13px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: right; }
 .exec-profile-copy small { color: #86868B; font-size: 10.5px; }
+[data-appearance="dark"] .exec-profile-copy b, .dark .exec-profile-copy b { color: #F5F5F7; }
 .exec-logout { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 9px; background: transparent; color: #86868B; flex: none; transition: all .15s; }
 .exec-logout:hover { color: #dc2626; background: rgba(239, 68, 68, 0.1); }
 .exec-logout-mini:hover { color: #dc2626; border-color: #fecaca; }
