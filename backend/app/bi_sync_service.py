@@ -159,9 +159,9 @@ def get_bi_engine():
         available = []
 
     if "FreeTDS" in available:
-        # A DSN entry silently ignores TLS, so require it here; TrustServerCertificate only relaxes the check.
-        tls = "Encryption=require;" if trust_cert == "no" else ""
-        odbc_conn = f"DSN=BI_SQL;UID={user};PWD={password};{tls}Connection Timeout=20;"
+        # A DSN entry from odbc.ini sets no TLS option, so require encryption here. BI_DB_TRUST_CERT only relaxes
+        # certificate validation, never the encryption itself.
+        odbc_conn = f"DSN=BI_SQL;UID={user};PWD={password};Encryption=require;Connection Timeout=20;"
     else:
         preferred = [
             "ODBC Driver 18 for SQL Server",
