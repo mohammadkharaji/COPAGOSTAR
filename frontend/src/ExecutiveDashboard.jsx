@@ -46,7 +46,7 @@ import { billions1, dayLabel, fa, fa2, faDigits, monthLabel, monthName } from '.
 import { Table } from './ui'
 import { motion, AnimatePresence } from 'motion/react'
 import { HeroMetricCard, ForecastRings, CalendarGlass, KpiSpotlight, ShareTabsCard, CompareBento } from './overview/kokonut-overview'
-import SalesOverview from './overview/SalesOverview'
+import SalesOverview, { OverviewHeader } from './overview/SalesOverview'
 import { useAppearance } from './AppearanceContext'
 import AmbientCanvas from './AmbientCanvas'
 import AppearanceSwitcher from './AppearanceSwitcher'
@@ -65,6 +65,18 @@ const FILTER_LABELS = {
   group: 'لاین فروشگاهی',
 }
 const PRODUCT_GROUP_KEYS = []
+const TEHRAN_EXCLUDED_GEO = new Set([
+  'استان مرکزی',
+  'استان البرز',
+  'شهرستان اصفهان',
+  'شهرستان بویر احمد',
+  'شهرستان خفر',
+  'شهرستان نظرآباد',
+  'شهرستان ساوه',
+  'کرج',
+  'یاسوج',
+  'نظر آباد',
+])
 
 export const NAV = [
   ['overview', 'نمای کلی', LayoutDashboard], ['trend', 'روند روزانه', Activity], ['monthly', 'روند ماهانه', BarChart3],
@@ -829,13 +841,27 @@ export function ExecShell({
           page={page}
         />
 
-        <header className="exec-header">
-          <div>
-            <div className="exec-eyebrow">داشبورد اجرایی · سال مالی ۱۴۰۵</div>
-            <h1>{title}</h1>
-            <p>{subtitle}</p>
+        {/* Unified Apple-style header with filters for all pages */}
+        {page !== 'overview' && (
+          <div className="w-full max-w-[1600px] mx-auto px-2 sm:px-6">
+            <OverviewHeader
+              title={title}
+              subtitle={subtitle}
+              branch={dims.branch}
+              branches={filters.branch ?? []}
+              onBranchChange={(b) => onFilterChange?.('branch', b)}
+              month={month}
+              setMonth={setMonth}
+              months={filters.month ?? []}
+              dims={dims}
+              filters={filters}
+              onFilterChange={onFilterChange}
+              onReset={onReset}
+              showFilters={showFilters}
+              hideMonth={hideMonth}
+            />
           </div>
-        </header>
+        )}
 
         {error && <div className="exec-alert err" role="alert">{error}</div>}
         {partial && !error && <div className="exec-alert warn">بخشی از ماه‌ها هنوز بارگذاری نشده است.</div>}
@@ -844,42 +870,6 @@ export function ExecShell({
             <span><Sparkles size={16} />{syncNotice}</span>
             <button type="button" onClick={onDismissNotice} aria-label="بستن"><X size={16} /></button>
           </div>
-        )}
-
-        {showFilters && page !== 'overview' && (
-          <>
-            <section className="exec-filterbar" aria-label="فیلترها">
-              <div className="exec-filter-title"><Filter size={17} /><b>فیلترهای سریع</b></div>
-              {!hideMonth && <QuickSelect label="ماه" value={month} options={filters.month ?? []} onChange={setMonth} format={monthLabel} />}
-              <QuickSelect label="شعبه" value={dims.branch ?? ''} options={filters.branch ?? []} onChange={(v) => onFilterChange('branch', v)} />
-              <div className="exec-filter-actions">
-                {hasFilters && <button type="button" className="exec-reset" onClick={onReset}>پاک کردن فیلترها</button>}
-                <button type="button" className={`exec-advanced-toggle ${advanced ? 'open' : ''}`} aria-expanded={advanced} onClick={() => setAdvanced((v) => !v)}>
-                  {advanced ? 'بستن فیلترهای پیشرفته' : 'فیلترهای پیشرفته'}<ChevronDown size={15} />
-                </button>
-              </div>
-            </section>
-            {advanced && (
-              <section className="exec-advanced">
-                <div className="exec-advanced-head"><b>فیلترهای تحلیلی</b><span>روی همهٔ نمودارها و جدول‌های این صفحه اعمال می‌شود</span></div>
-                <div className="exec-advanced-grid">
-                  {Object.entries(FILTER_LABELS).filter(([k]) => !PRODUCT_GROUP_KEYS.includes(k) || filters[k]?.length || dims[k]).map(([k, label]) => {
-                    const rawOptions = filters[k] ?? []
-                    const options = k === 'city'
-                      ? rawOptions.filter((c) => typeof c === 'string' && !c.includes('منطقه'))
-                      : k === 'state'
-                      ? (rawOptions.some((c) => typeof c === 'string' && c.includes('منطقه'))
-                          ? rawOptions.filter((c) => typeof c === 'string' && !c.includes('استان'))
-                          : (filters.region ?? []).filter((c) => typeof c === 'string' && c.includes('منطقه')))
-                      : rawOptions
-                    return (
-                      <QuickSelect key={k} label={label} value={dims[k] ?? ''} options={options} onChange={(v) => onFilterChange(k, v)} format={k === 'state' ? cleanDistrictLabel : (x) => x} />
-                    )
-                  })}
-                </div>
-              </section>
-            )}
-          </>
         )}
 
         <div className="exec-page w-full max-w-[1600px] mx-auto px-2 sm:px-6 pb-24 lg:pb-6">{children}</div>

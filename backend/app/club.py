@@ -463,7 +463,7 @@ def _ladder_member_view(plan: dict, code: str) -> dict:
                         "points": round(sc["provisional_month"]["score"], 2), "provisional": True})
     return {"points": round(sc["total"], 2), "sales_rial": 0.0,
             "breakdown": [{"label": k["label"], "points": round(k["weighted"], 2)} for k in sc["kpis"]],
-            "history": history, "scorecard": sc,
+            "history": history, "scorecard": {**sc, "history": history},
             "tier": {"level": sc["grade"], "step": 0, "rank_national": sc["rank_national"],
                      "rank_branch": sc["rank_branch"], "prize": sc["prize"],
                      "points_needed_label": f"رتبه کشوری {sc['rank_national']}"}}
@@ -490,6 +490,26 @@ def my_club():
     name = _sales_by_code(kind, plans[0]["plan"]["core"], plans[0]["plan"]["start_key"],
                           plans[0]["plan"]["end_key"]).get(code, (code, 0))[0] if plans else code
     return {"kind": kind, "code": code, "name": name, "plans": plans}
+
+
+def _prev_customers(plan: dict, visitor_code: str) -> int:
+    """Distinct buyers this visitor had in the whole month before the plan's current month."""
+    windows = _month_windows(plan["start_key"], plan["end_key"])
+    if not windows:
+        return 0
+    month = windows[-1][0]
+    y, m = int(month[:4]), int(month[4:])
+    y, m = (y, m - 1) if m > 1 else (y - 1, 12)
+    from .jalali import days_in_jalali_month
+    first, last = y * 10000 + m * 100 + 1, y * 10000 + m * 100 + days_in_jalali_month(y, m)
+    con = _con()
+    try:
+        return con.execute(
+            f"SELECT COUNT(DISTINCT customer_code) FROM fact_sales WHERE core=? AND visitor_code=? "
+            f"AND customer_code IS NOT NULL AND {ACTIVE_SALES} AND jdate_key>=? AND jdate_key<=?",
+            [_core(plan["core"]), visitor_code, first, last]).fetchone()[0] or 0
+    finally:
+        con.close()
 
 
 def _team(plan: dict, visitor_code: str) -> list[dict]:
@@ -572,6 +592,7 @@ def my_team(plan_id: int | None = None):
         "tier": v_tier,
         "history": v_history,
         "customers_count": len(portfolio),
+        "prev_customers_count": _prev_customers(plan, code),
     }
 
     return {

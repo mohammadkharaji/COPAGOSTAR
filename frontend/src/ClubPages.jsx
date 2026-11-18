@@ -9,6 +9,8 @@ import { Table } from './ui'
 import ActivityRingsWidget from './ActivityRingsWidget'
 import LadderPlanForm from './club/LadderPlanForm'
 import { DEFAULT_KPIS, validateConfig } from './club/ladder'
+import LadderLeaderboard from './club/LadderLeaderboard'
+import ReportCard, { linearRings, ringsFromScorecard } from './club/ReportCard'
 
 // One page per club, both backed by the same /api/club/<kind>/... routes. `kind` is 'b2b' or 'visitor'.
 const CLUBS = {
@@ -284,12 +286,45 @@ function PlanDefinition({ kind, core }) {
   )
 }
 
+function ScorecardPanel({ planId, code, month, onMonth, months }) {
+  const q = { plan_id: planId, code, ...(month ? { month } : {}) }
+  const sc = useApi('/club/visitor/scorecard', q, planId != null)
+  return (
+    <div className="mt-5 pt-5 border-t border-black/[0.06]">
+      {sc.error ? <p className="text-xs font-semibold text-rose-600" role="alert">{sc.error}</p>
+        : sc.loading ? <p className="text-xs text-[#86868B]">در حال بارگذاری کارنامه…</p>
+        : <ReportCard scorecard={sc.data} months={months} month={month} onMonth={onMonth} />}
+    </div>
+  )
+}
+
 function PointsView({ kind, core }) {
   const plans = useApi(`/club/${kind}/plans`, { core })
   const [planId, setPlanId] = useState(null)
   const chosen = planId ?? plans.data?.plans?.[0]?.id ?? null
   const points = useApi(`/club/${kind}/points`, { plan_id: chosen ?? 0 }, chosen != null)
   const rows = points.data?.rows ?? []
+  const isLadder = points.data?.plan?.plan_type === 'ladder'
+  const [code, setCode] = useState(null)
+  const [month, setMonth] = useState(null)
+  if (isLadder) {
+    return (
+      <AppleCard
+        title="جدول رتبه‌بندی نردبان تحقق"
+        subtitle="امتیاز هر ویزیتور در هر ماه؛ ماه در جریان جدا مشخص شده است"
+        badge={`${rows.length} ویزیتور`}
+        action={
+          <select value={chosen ?? ''} onChange={(e) => { setPlanId(Number(e.target.value)); setCode(null); setMonth(null) }}
+            className="bg-[#F5F5F7] border border-black/[0.06] rounded-xl px-3 py-1.5 text-xs text-[#1D1D1F]">
+            {(plans.data?.plans ?? []).map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+          </select>
+        }
+      >
+        <LadderLeaderboard data={points.data} onSelect={setCode} />
+        {code && <ScorecardPanel planId={chosen} code={code} month={month} onMonth={setMonth} months={points.data?.months ?? []} />}
+      </AppleCard>
+    )
+  }
   return (
     <AppleCard
       title="امتیازات اعضا"
@@ -498,6 +533,12 @@ export function MyVisitorClub({ arg }) {
   if (team.loading) return <div className="w-full max-w-[1600px] mx-auto px-6 p-6 text-center text-xs text-[#86868B]" dir="rtl">در حال بارگذاری…</div>
 
   const { plan } = team.data
+  const [month, setMonth] = useState(null)
+  const isLadder = plan?.plan_type === 'ladder'
+  const target = useApi('/target', { by: 'visitor', month: '' }, !isLadder)
+  const visTarget = (target.data?.rows ?? []).find((r) => r.code === team.data?.code)
+  const scQ = { plan_id: plan?.id, code: team.data?.code, ...(month ? { month } : {}) }
+  const sc = useApi('/club/visitor/scorecard', scQ, isLadder && plan?.id != null)
   // Requirement 2: Two clear sections (visitor_summary & portfolio_customers)
   const summary = team.data?.visitor_summary || {
     code: team.data?.code,
@@ -553,18 +594,21 @@ export function MyVisitorClub({ arg }) {
       {/* Activity Rings for Visitor Club */}
       <ActivityRingsWidget
         type="visitor"
-        data={{
-          sales_rial: summary.sales_rial,
-          target_rial: plan ? summary.sales_rial * 1.15 : 500000000,
-          customers_count: summary.customers_count,
-          target_visits: Math.max(summary.customers_count + 5, 25),
-          collection_rate: 0.94,
-        }}
+        customRings={isLadder ? ringsFromScorecard(sc.data) : linearRings(summary, visTarget)}
         title="حلقه‌های فعالیت ویزیتور (Apple Activity Rings)"
-        subtitle="تحقق تارگت ریالی، تعداد فاکتور / ویزیت موفق و وصول مطالبات / سلامت فاکتور"
+        subtitle={isLadder ? 'تحقق هر شاخص کارنامه نسبت به هدف همان ماه' : 'تحقق تارگت ریالی از صفحه تارگت و مشتریان خریدار نسبت به ماه قبل'}
       />
 
       {/* Section 1: Visitor Progress Bento Card */}
+      {isLadder && sc.data ? (
+        <AppleCard
+          title={`کارنامه اختصاصی در طرح: ${plan.name}`}
+          subtitle="امتیاز هر شاخص از نردبان تحقق همین طرح"
+          badge={summary.tier ? `درجه ${summary.tier.level}` : ''}
+        >
+          <ReportCard scorecard={sc.data} months={team.data?.months ?? []} month={month} onMonth={setMonth} />
+        </AppleCard>
+      ) : (
       <AppleCard
         title={`کارنامه اختصاصی در طرح: ${plan.name}`}
         subtitle={`محاسبه مستقیم بر مبنای کل فروش خالص ویزیتور و قوانین گیمیفیکیشن طرح`}
@@ -608,6 +652,7 @@ export function MyVisitorClub({ arg }) {
           )}
         </div>
       </AppleCard>
+      )}
 
       {/* Section 2: Portfolio Customers Leaderboard */}
       <AppleCard

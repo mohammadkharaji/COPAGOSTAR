@@ -34,7 +34,7 @@ function Bars({ data, x, bars, tickFn, unit = 'میلیارد ریال', tall, o
   )
 }
 
-/* ---------- تحلیل تعداد کالا (خالص از مرجوعی - Apple Bento) ---------- */
+/* ---------- تحلیل تعداد کالا (خالص از مرجوعی - Dark Emerald Matte) ---------- */
 const pctChange = (v) => (v == null ? '—' : `${v > 0 ? '▲' : '▼'} ${fa(Math.abs(v * 100).toFixed(1))}٪`)
 
 function QuantityMonthCompare({ p }) {
@@ -44,23 +44,23 @@ function QuantityMonthCompare({ p }) {
   const prev = months[months.length - 2]
   const change = last?.change_percent
   const delta = last && prev ? last.net_qty - prev.net_qty : null
-  const tone = change == null ? 'blue' : change < 0 ? 'red' : 'teal'
+  const tone = change == null ? 'teal' : change < 0 ? 'red' : 'green'
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 w-full">
+    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 w-full">
       <AppleKpiCard
         label={last ? `ماه جاری (${monthLabel(last.month)})` : 'ماه جاری'}
         value={last ? fa(last.net_qty) : '—'}
         unit="تعداد خالص کالا"
         icon={ShoppingBag}
-        tone="blue"
+        tone="teal"
       />
       <AppleKpiCard
         label={prev ? `ماه قبل (${monthLabel(prev.month)})` : 'ماه قبل'}
         value={prev ? fa(prev.net_qty) : '—'}
         unit="تعداد خالص کالا"
         icon={Calendar}
-        tone="violet"
+        tone="blue"
       />
       <AppleKpiCard
         label="تغییر نسبت به ماه قبل"
@@ -74,11 +74,12 @@ function QuantityMonthCompare({ p }) {
 }
 
 function QuantityGrowth({ p }) {
+  const { isDark } = useAppearance()
   const m = useApi('/quantity-monthly', p)
   const data = (Array.isArray(m.data) ? m.data : []).map((x) => ({
     ...x,
     label: monthLabel(x.month),
-    growth: x.change_percent == null ? null : x.change_percent * 100,
+    growth: x.change_percent == null ? null : Number((x.change_percent * 100).toFixed(1)),
   }))
   return (
     <AppleCard
@@ -90,19 +91,19 @@ function QuantityGrowth({ p }) {
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={data} margin={{ top: 8, right: 24, left: 8, bottom: 0 }}>
             <defs>
-              <linearGradient id="appleQtyBar" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#8B5CF6" />
-                <stop offset="100%" stopColor="#A78BFA" />
+              <linearGradient id="emeraldQtyBar" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#10B981" stopOpacity={0.9} />
+                <stop offset="100%" stopColor="#059669" stopOpacity={0.7} />
               </linearGradient>
             </defs>
-            <CartesianGrid vertical={false} stroke="#E5E5EA" strokeDasharray="3 3" />
-            <XAxis dataKey="label" tickLine={false} axisLine={false} tick={{ fill: '#86868B', fontSize: 12 }} />
-            <YAxis yAxisId="qty" orientation="right" tickFormatter={(v) => fa(v)} tickLine={false} axisLine={false} width={80} tick={{ fill: '#86868B', fontSize: 12 }} />
-            <YAxis yAxisId="pct" orientation="left" tickFormatter={(v) => `${v}٪`} tickLine={false} axisLine={false} width={56} tick={{ fill: '#86868B', fontSize: 12 }} />
-            <Tooltip content={<ChartTip unit="عدد" />} cursor={{ fill: 'rgba(0,0,0,0.03)' }} />
-            <Legend />
-            <Bar yAxisId="qty" dataKey="net_qty" name="تعداد خالص" fill="url(#appleQtyBar)" radius={[8, 8, 0, 0]} maxBarSize={36} />
-            <Line yAxisId="pct" dataKey="growth" name="رشد ٪" stroke="#0071E3" strokeWidth={2.5} dot={{ r: 4, fill: '#0071E3' }} connectNulls={false} />
+            <CartesianGrid vertical={false} stroke={isDark ? 'rgba(255,255,255,0.06)' : '#E5E5EA'} strokeDasharray="3 3" />
+            <XAxis dataKey="label" tickLine={false} axisLine={false} tick={{ fill: isDark ? '#94A3B8' : '#86868B', fontSize: 12, fontFamily: 'Vazirmatn' }} />
+            <YAxis yAxisId="qty" orientation="right" tickFormatter={(v) => fa(v)} tickLine={false} axisLine={false} width={80} tick={{ fill: isDark ? '#94A3B8' : '#86868B', fontSize: 12, fontFamily: 'Vazirmatn' }} />
+            <YAxis yAxisId="pct" orientation="left" tickFormatter={(v) => `${v}٪`} tickLine={false} axisLine={false} width={56} tick={{ fill: isDark ? '#94A3B8' : '#86868B', fontSize: 12, fontFamily: 'Vazirmatn' }} />
+            <Tooltip content={<ChartTip unit="عدد" />} cursor={{ fill: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.03)' }} />
+            <Legend wrapperStyle={{ fontFamily: 'Vazirmatn', paddingTop: '10px' }} />
+            <Bar yAxisId="qty" dataKey="net_qty" name="تعداد خالص" fill="url(#emeraldQtyBar)" radius={[6, 6, 0, 0]} maxBarSize={36} />
+            <Line yAxisId="pct" dataKey="growth" name="رشد ٪" stroke="#38BDF8" strokeWidth={2.5} dot={{ r: 4, fill: '#38BDF8' }} connectNulls={false} />
           </BarChart>
         </ResponsiveContainer>
       </div>
@@ -111,10 +112,11 @@ function QuantityGrowth({ p }) {
 }
 
 export const QuantityPage = ({ p }) => {
+  const { isDark } = useAppearance()
   const r = useApi('/quantity', { ...p, limit: 20 })
   const data = (Array.isArray(r.data) ? r.data : []).map((x) => ({ ...x, short: x.product }))
   return (
-    <div className="w-full max-w-[1600px] mx-auto space-y-6">
+    <div className="w-full max-w-[1600px] mx-auto space-y-5">
       <QuantityMonthCompare p={p} />
       <QuantityGrowth p={p} />
 
@@ -127,16 +129,16 @@ export const QuantityPage = ({ p }) => {
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={data} layout="vertical" margin={{ top: 8, right: 24, left: 8, bottom: 0 }}>
               <defs>
-                <linearGradient id="appleQtyHBar" x1="1" y1="0" x2="0" y2="0">
-                  <stop offset="0%" stopColor="#0071E3" />
-                  <stop offset="100%" stopColor="#42A1EC" />
+                <linearGradient id="emeraldQtyHBar" x1="1" y1="0" x2="0" y2="0">
+                  <stop offset="0%" stopColor="#10B981" />
+                  <stop offset="100%" stopColor="#047857" />
                 </linearGradient>
               </defs>
-              <CartesianGrid horizontal={false} stroke="#E5E5EA" strokeDasharray="3 3" />
-              <XAxis type="number" tickFormatter={(v) => fa(v)} tickLine={false} axisLine={false} tick={{ fill: '#86868B', fontSize: 12 }} />
-              <YAxis type="category" dataKey="short" width={220} tickLine={false} axisLine={false} interval={0} tick={{ fill: '#1D1D1F', fontSize: 11 }} />
-              <Tooltip content={<ChartTip unit="عدد" />} cursor={{ fill: 'rgba(0,0,0,0.03)' }} />
-              <Bar dataKey="net_qty" name="تعداد خالص" fill="url(#appleQtyHBar)" radius={[0, 6, 6, 0]} maxBarSize={22} />
+              <CartesianGrid horizontal={false} stroke={isDark ? 'rgba(255,255,255,0.06)' : '#E5E5EA'} strokeDasharray="3 3" />
+              <XAxis type="number" tickFormatter={(v) => fa(v)} tickLine={false} axisLine={false} tick={{ fill: isDark ? '#94A3B8' : '#86868B', fontSize: 12, fontFamily: 'Vazirmatn' }} />
+              <YAxis type="category" dataKey="short" width={220} tickLine={false} axisLine={false} interval={0} tick={{ fill: isDark ? '#E2E8F0' : '#1D1D1F', fontSize: 11, fontFamily: 'Vazirmatn' }} />
+              <Tooltip content={<ChartTip unit="عدد" />} cursor={{ fill: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.03)' }} />
+              <Bar dataKey="net_qty" name="تعداد خالص" fill="url(#emeraldQtyHBar)" radius={[0, 6, 6, 0]} maxBarSize={22} />
             </BarChart>
           </ResponsiveContainer>
         </div>
@@ -148,76 +150,78 @@ export const QuantityPage = ({ p }) => {
         badge={`${data.length} ردیف`}
       >
         <Table name="تعداد-کالا" rows={data} columns={[
-          { label: 'کالا', render: (r) => <span className="font-semibold text-[#1D1D1F]">{r.product}</span>, value: (r) => r.product },
-          { label: 'تعداد خالص', render: (r) => <span className="tabular-nums font-bold text-violet-700">{fa(r.net_qty)}</span>, value: (r) => r.net_qty },
-          { label: 'فروش خالص (ریال)', render: (r) => <span className="tabular-nums font-medium text-[#1D1D1F]">{fa(r.net_rial)}</span>, value: (r) => r.net_rial },
+          { label: 'کالا', render: (r) => <span className={`font-semibold ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>{r.product}</span>, value: (r) => r.product },
+          { label: 'تعداد خالص', render: (r) => <span className={`tabular-nums font-bold ${isDark ? 'text-emerald-400' : 'text-emerald-600'}`}>{fa(r.net_qty)}</span>, value: (r) => r.net_qty },
+          { label: 'فروش خالص (ریال)', render: (r) => <span className={`tabular-nums font-medium ${isDark ? 'text-slate-200' : 'text-slate-800'}`}>{fa(r.net_rial)}</span>, value: (r) => r.net_rial },
           { label: 'فاکتور', render: (r) => <span className="tabular-nums">{fa(r.invoices)}</span>, value: (r) => r.invoices },
-          { label: 'ریال به ازای واحد', render: (r) => <span className="tabular-nums text-[#86868B]">{fa(r.rial_per_unit)}</span>, value: (r) => r.rial_per_unit },
+          { label: 'ریال به ازای واحد', render: (r) => <span className={`tabular-nums ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>{fa(r.rial_per_unit)}</span>, value: (r) => r.rial_per_unit },
         ]} />
       </AppleCard>
     </div>
   )
 }
 
-/* ---------- کامپوننت کارت کی‌پی‌آی اپل بنتو ---------- */
-function AppleKpiCard({ label, value, unit, icon: Icon, tone = 'blue' }) {
+/* ---------- کامپوننت کارت کی‌پی‌آی با استایل دارک امرالد ---------- */
+function AppleKpiCard({ label, value, unit, icon: Icon, tone = 'teal' }) {
   const { isDark, isSolid } = useAppearance()
   const tones = {
-    blue: 'bg-blue-500/10 text-blue-600',
-    teal: 'bg-teal-500/10 text-teal-600',
-    amber: 'bg-amber-500/10 text-amber-600',
-    violet: 'bg-violet-500/10 text-violet-600',
-    pink: 'bg-pink-500/10 text-pink-600',
-    green: 'bg-emerald-500/10 text-emerald-600',
-    red: 'bg-rose-500/10 text-rose-600',
+    blue: isDark ? 'bg-sky-500/15 text-sky-400 border border-sky-500/25' : 'bg-sky-50 text-sky-700',
+    teal: isDark ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/25' : 'bg-emerald-50 text-emerald-700',
+    amber: isDark ? 'bg-amber-500/15 text-amber-400 border border-amber-500/25' : 'bg-amber-50 text-amber-700',
+    violet: isDark ? 'bg-purple-500/15 text-purple-400 border border-purple-500/25' : 'bg-purple-50 text-purple-700',
+    pink: isDark ? 'bg-pink-500/15 text-pink-400 border border-pink-500/25' : 'bg-pink-50 text-pink-700',
+    green: isDark ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/25' : 'bg-emerald-50 text-emerald-700',
+    red: isDark ? 'bg-rose-500/15 text-rose-400 border border-rose-500/25' : 'bg-rose-50 text-rose-700',
   }
   return (
     <motion.div
-      whileHover={{ y: -3 }}
-      className={`apple-kpi-card rounded-2xl sm:rounded-3xl border transition-all p-3 sm:p-5 flex flex-col justify-between text-right ${
+      whileHover={{ y: -2 }}
+      className={`apple-kpi-card rounded-2xl border transition-all p-3 sm:p-4 flex flex-col justify-between text-right ${
         isDark
-          ? 'bg-[#1C1C1E]/85 backdrop-blur-2xl border-white/10 text-[#F5F5F7] shadow-[0_4px_20px_rgba(0,0,0,0.3)] hover:shadow-[0_12px_30px_rgba(0,0,0,0.5)]'
+          ? 'bg-[#0B100E]/80 backdrop-blur-xl border-emerald-500/15 text-[#F5F5F7] shadow-[0_4px_20px_rgba(0,0,0,0.35)] hover:border-emerald-500/30'
           : isSolid
           ? 'bg-white border-slate-200 text-[#1D1D1F] shadow-xs hover:shadow-md'
-          : 'bg-white/85 backdrop-blur-xl border-black/[0.04] text-[#1D1D1F] shadow-[0_4px_20px_rgb(0,0,0,0.03)] hover:shadow-[0_12px_30px_rgb(0,0,0,0.07)]'
+          : 'bg-white/90 backdrop-blur-xl border-slate-200/80 text-[#1D1D1F] shadow-[0_4px_20px_rgb(0,0,0,0.03)] hover:shadow-[0_8px_25px_rgb(0,0,0,0.06)]'
       }`}
     >
-      <div className="flex items-center justify-between mb-2 sm:mb-3">
-        <span className={`text-[11px] sm:text-xs font-medium truncate ${isDark ? 'text-slate-400' : 'text-[#86868B]'}`}>{label}</span>
-        <div className={`w-7 h-7 sm:w-8 sm:h-8 rounded-xl sm:rounded-2xl flex items-center justify-center shrink-0 ${tones[tone] || tones.blue}`}>
+      <div className="flex items-center justify-between mb-2">
+        <span className={`text-[11px] sm:text-xs font-medium truncate ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>{label}</span>
+        <div className={`w-7 h-7 sm:w-8 sm:h-8 rounded-xl flex items-center justify-center shrink-0 ${tones[tone] || tones.teal}`}>
           {Icon ? <Icon size={14} className="sm:w-4 sm:h-4" /> : null}
         </div>
       </div>
       <div>
-        <div className={`text-sm sm:text-xl font-extrabold tracking-tight tabular-nums truncate ${isDark ? 'text-[#F5F5F7]' : 'text-[#1D1D1F]'}`}>{value}</div>
-        <div className={`text-[10px] sm:text-[11px] mt-0.5 sm:mt-1 truncate ${isDark ? 'text-slate-400' : 'text-[#86868B]'}`}>{unit}</div>
+        <div className={`text-base sm:text-xl font-sans font-bold tracking-tight tabular-nums truncate ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>{value}</div>
+        <div className={`text-[10px] sm:text-[11px] mt-0.5 truncate ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>{unit}</div>
       </div>
     </motion.div>
   )
 }
 
-/* ---------- کامپوننت پوسته کارت اپل بنتو ---------- */
+/* ---------- کامپوننت پوسته کارت با استایل دارک امرالد ---------- */
 function AppleCard({ title, subtitle, badge, action, children, className = '' }) {
   const { isDark, isSolid } = useAppearance()
   return (
     <div
-      className={`apple-card rounded-[24px] sm:rounded-[28px] border transition-all p-4 sm:p-6 overflow-hidden w-full max-w-full ${
+      className={`apple-card rounded-2xl sm:rounded-3xl border transition-all p-4 sm:p-6 overflow-hidden w-full max-w-full ${
         isDark
-          ? 'bg-[#1C1C1E]/85 backdrop-blur-2xl border-white/10 text-[#F5F5F7] shadow-[0_8px_30px_rgba(0,0,0,0.4)]'
+          ? 'bg-[#0B100E]/75 backdrop-blur-2xl border-emerald-500/15 text-[#F5F5F7] shadow-[0_8px_30px_rgba(0,0,0,0.45)]'
           : isSolid
           ? 'bg-white border-slate-200 text-[#1D1D1F] shadow-xs'
-          : 'bg-white/85 backdrop-blur-xl border-black/[0.04] text-[#1D1D1F] shadow-[0_8px_30px_rgb(0,0,0,0.04)]'
+          : 'bg-white/90 backdrop-blur-xl border-slate-200/80 text-[#1D1D1F] shadow-[0_8px_30px_rgb(0,0,0,0.04)]'
       } ${className}`}
     >
       {(title || subtitle || badge || action) && (
         <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
           <div>
-            {title && <h2 className={`text-base font-bold ${isDark ? 'text-[#F5F5F7]' : 'text-[#1D1D1F]'}`}>{title}</h2>}
-            {subtitle && <p className={`text-xs mt-0.5 ${isDark ? 'text-slate-400' : 'text-[#86868B]'}`}>{subtitle}</p>}
+            {title && <h2 className={`text-sm sm:text-base font-bold ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>{title}</h2>}
+            {subtitle && <p className={`text-xs mt-0.5 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>{subtitle}</p>}
           </div>
           <div className="flex items-center gap-2">
             {badge && (
-              <span className="px-3 py-1 rounded-full text-xs font-medium bg-[#0071E3]/10 text-[#0071E3]">
+              <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${
+                isDark ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/25' : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+              }`}>
                 {badge}
               </span>
             )}
@@ -527,29 +531,36 @@ export { default as BranchRegionPage } from './branch/BranchRegionPage'
 
 export { default as ProductBrandPage } from './ProductBrandPage'
 
-/* ---------- پارتو (Apple Bento Design) ---------- */
+/* ---------- پارتو (Dark Emerald Matte Design) ---------- */
 const PARETO_NAMES = { customer: 'مشتری', product: 'کالا', visitor: 'ویزیتور', branch: 'شعبه', day: 'روز' }
 
 export function ParetoPage({ p, openCustomer, openVisitor, openProfile }) {
+  const { isDark } = useAppearance()
   const [by, setBy] = useState('customer')
   const [th, setTh] = useState('0.8')
   const r = useApi('/pareto', { ...p, by, threshold: th })
   const rowOpen = by === 'customer' ? (x) => openCustomer(x.code) : by === 'visitor' ? (x) => openVisitor(x.code)
     : by === 'branch' ? (x) => openProfile('branch', x.code) : by === 'product' ? (x) => openProfile('product', x.name) : undefined
   return (
-    <div className="w-full max-w-[1600px] mx-auto space-y-6">
-      {/* Apple Floating Filter Bar */}
-      <div className="rounded-[24px] bg-white/85 backdrop-blur-xl border border-black/[0.04] shadow-[0_4px_20px_rgb(0,0,0,0.03)] p-4 flex items-center justify-between gap-4 flex-wrap">
-        <div className="flex items-center gap-3 flex-wrap">
-          <span className="text-xs font-bold text-[#86868B]">بُعد پارتو:</span>
-          <div className="flex items-center gap-1 p-1 bg-[#E8E8ED]/80 rounded-2xl flex-wrap">
+    <div className="w-full max-w-[1600px] mx-auto space-y-5">
+      {/* Dark Emerald Floating Filter Bar */}
+      <div className={`rounded-2xl backdrop-blur-xl border p-3 sm:p-4 flex items-center justify-between gap-4 flex-wrap ${
+        isDark
+          ? 'bg-[#0B100E]/75 border-emerald-500/15 shadow-[0_4px_20px_rgba(0,0,0,0.35)]'
+          : 'bg-white/90 border-slate-200/80 shadow-xs'
+      }`}>
+        <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
+          <span className={`text-xs font-bold ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>بُعد پارتو:</span>
+          <div className={`flex items-center gap-1 p-1 rounded-xl flex-wrap ${isDark ? 'bg-black/30' : 'bg-slate-100'}`}>
             {Object.entries(PARETO_NAMES).map(([k, label]) => (
               <button
                 key={k}
                 type="button"
                 onClick={() => setBy(k)}
-                className={`px-4 py-1.5 rounded-xl text-xs font-semibold transition-all ${
-                  by === k ? 'bg-[#0071E3] text-white shadow-sm' : 'text-[#1D1D1F] hover:bg-black/[0.05]'
+                className={`px-3 sm:px-4 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                  by === k
+                    ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-xs'
+                    : isDark ? 'text-slate-300 hover:text-white hover:bg-white/5' : 'text-slate-700 hover:bg-white'
                 }`}
               >
                 {label}
@@ -559,15 +570,17 @@ export function ParetoPage({ p, openCustomer, openVisitor, openProfile }) {
         </div>
 
         <div className="flex items-center gap-2">
-          <span className="text-xs font-bold text-[#86868B]">آستانه پارتو:</span>
-          <div className="flex items-center gap-1 p-1 bg-[#E8E8ED]/80 rounded-2xl">
+          <span className={`text-xs font-bold ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>آستانه پارتو:</span>
+          <div className={`flex items-center gap-1 p-1 rounded-xl ${isDark ? 'bg-black/30' : 'bg-slate-100'}`}>
             {['0.5', '0.7', '0.8', '0.9'].map((v) => (
               <button
                 key={v}
                 type="button"
                 onClick={() => setTh(v)}
-                className={`px-3 py-1 rounded-xl text-xs font-bold transition-all ${
-                  th === v ? 'bg-[#0071E3] text-white shadow-sm' : 'text-[#1D1D1F] hover:bg-black/[0.05]'
+                className={`px-2.5 sm:px-3 py-1 rounded-lg text-xs font-bold transition-all ${
+                  th === v
+                    ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-xs'
+                    : isDark ? 'text-slate-300 hover:text-white hover:bg-white/5' : 'text-slate-700 hover:bg-white'
                 }`}
               >
                 {pct(Number(v), 0)}
@@ -579,28 +592,28 @@ export function ParetoPage({ p, openCustomer, openVisitor, openProfile }) {
 
       <Status state={r}>{(j) => (
         <>
-          {/* 4 Apple Bento KPI Cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 w-full">
+          {/* 4 Compact Dark Emerald KPI Cards */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3 w-full">
             <AppleKpiCard
               label="جمع فروش عادی"
               value={rial(j.total_rial)}
               unit="ریال · بدون پروموشن و مرجوعی"
               icon={CircleDollarSign}
-              tone="blue"
+              tone="teal"
             />
             <AppleKpiCard
               label={`تعداد کل (${PARETO_NAMES[by]})`}
               value={fa(j.count)}
               unit={`کل ردیف‌های ${PARETO_NAMES[by]}`}
               icon={Users}
-              tone="violet"
+              tone="blue"
             />
             <AppleKpiCard
               label={`تعداد پارتو (تا ${pct(j.threshold, 0)} فروش)`}
               value={fa(j.pareto_count)}
               unit={`${PARETO_NAMES[by]}‌های سازندهٔ هسته فروش`}
               icon={Award}
-              tone="teal"
+              tone="green"
             />
             <AppleKpiCard
               label="درصد تعداد پارتو"
@@ -614,7 +627,7 @@ export function ParetoPage({ p, openCustomer, openVisitor, openProfile }) {
           {/* Pareto Table Bento */}
           <AppleCard
             title={`جدول تحلیل پارتو ${PARETO_NAMES[by]}`}
-            subtitle={rowOpen ? `برای دیدن پروفایل، روی ${PARETO_NAMES[by]} کلیک کنید · ردیف‌های رنگی شامل قانون پارتو هستند` : 'فقط فروش عادی؛ پروموشن و مرجوعی حذف است'}
+            subtitle={rowOpen ? `برای دیدن پروفایل، روی ${PARETO_NAMES[by]} کلیک کنید · ردیف‌های دارای نشان سبز شامل قانون پارتو هستند` : 'فقط فروش عادی؛ پروموشن و مرجوعی حذف است'}
             badge={`${j.items?.length ?? 0} ردیف`}
           >
             <Table
@@ -625,10 +638,10 @@ export function ParetoPage({ p, openCustomer, openVisitor, openProfile }) {
               columns={[
                 { label: 'رتبه', render: (x) => fa(x.rank), value: (x) => x.rank },
                 ...(by === 'day' || by === 'branch' ? [] : [{ label: 'کد', render: (x) => x.code, value: (x) => String(x.code) }]),
-                { label: PARETO_NAMES[by], render: (x) => x.name, value: (x) => String(x.name ?? '') },
-                { label: 'فروش (ریال)', render: (x) => rial(x.sales_rial), value: (x) => x.sales_rial },
-                { label: 'سهم فروش', render: (x) => pct(x.share, 2), value: (x) => x.share * 100, unit: '٪' },
-                { label: 'سهم تجمعی', render: (x) => pct(x.cum_share, 1), value: (x) => x.cum_share * 100, unit: '٪' },
+                { label: PARETO_NAMES[by], render: (x) => <span className={`font-semibold ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>{x.name}</span>, value: (x) => String(x.name ?? '') },
+                { label: 'فروش (ریال)', render: (x) => <span className={`tabular-nums font-bold ${isDark ? 'text-emerald-400' : 'text-emerald-700'}`}>{rial(x.sales_rial)}</span>, value: (x) => x.sales_rial },
+                { label: 'سهم فروش', render: (x) => <span className="tabular-nums font-medium">{pct(x.share, 2)}</span>, value: (x) => x.share * 100, unit: '٪' },
+                { label: 'سهم تجمعی', render: (x) => <span className={`tabular-nums font-semibold ${x.rank <= j.pareto_count ? (isDark ? 'text-teal-400' : 'text-teal-700') : ''}`}>{pct(x.cum_share, 1)}</span>, value: (x) => x.cum_share * 100, unit: '٪' },
               ]}
             />
           </AppleCard>
@@ -638,15 +651,18 @@ export function ParetoPage({ p, openCustomer, openVisitor, openProfile }) {
   )
 }
 
-/* ---------- مشتریان غیرفعال و بالقوه (Apple Bento Design) ---------- */
+/* ---------- مشتریان غیرفعال و بالقوه (Dark Emerald Matte Design) ---------- */
 const INACTIVE_PAGE_SIZE = 50
 const INACTIVE_DAYS = [['30', '۳۰ روز'], ['45', '۴۵ روز'], ['60', '۶۰ روز'], ['90', '۹۰ روز']]
 
 function ProfileLink({ onClick, children }) {
+  const { isDark } = useAppearance()
   return (
     <button
       type="button"
-      className="text-[#0071E3] hover:underline font-semibold text-right transition-colors"
+      className={`font-semibold text-right transition-colors ${
+        isDark ? 'text-emerald-400 hover:text-emerald-300 hover:underline' : 'text-emerald-700 hover:text-emerald-800 hover:underline'
+      }`}
       onClick={(e) => { e.stopPropagation(); onClick() }}
     >
       {children}
@@ -655,23 +671,30 @@ function ProfileLink({ onClick, children }) {
 }
 
 export function PotentialCustomersPage({ p, openCustomer, openVisitor }) {
+  const { isDark } = useAppearance()
   const [days, setDays] = useState('60')
   const { month: _m, start: _s, end: _e, v: _v, ...query } = p
   const r = useApi('/potential-customers', { ...query, days, v: p.v })
   return (
-    <div className="w-full max-w-[1600px] mx-auto space-y-6">
-      {/* Apple Floating Filter Bar */}
-      <div className="rounded-[24px] bg-white/85 backdrop-blur-xl border border-black/[0.04] shadow-[0_4px_20px_rgb(0,0,0,0.03)] p-4 flex items-center justify-between gap-4 flex-wrap">
-        <div className="flex items-center gap-3 flex-wrap">
-          <span className="text-xs font-bold text-[#86868B]">بازهٔ بررسی:</span>
-          <div className="flex items-center gap-1 p-1 bg-[#E8E8ED]/80 rounded-2xl flex-wrap">
+    <div className="w-full max-w-[1600px] mx-auto space-y-5">
+      {/* Dark Emerald Floating Filter Bar */}
+      <div className={`rounded-2xl backdrop-blur-xl border p-3 sm:p-4 flex items-center justify-between gap-4 flex-wrap ${
+        isDark
+          ? 'bg-[#0B100E]/75 border-emerald-500/15 shadow-[0_4px_20px_rgba(0,0,0,0.35)]'
+          : 'bg-white/90 border-slate-200/80 shadow-xs'
+      }`}>
+        <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
+          <span className={`text-xs font-bold ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>بازهٔ بررسی:</span>
+          <div className={`flex items-center gap-1 p-1 rounded-xl flex-wrap ${isDark ? 'bg-black/30' : 'bg-slate-100'}`}>
             {INACTIVE_DAYS.map(([v, label]) => (
               <button
                 key={v}
                 type="button"
                 onClick={() => setDays(v)}
-                className={`px-4 py-1.5 rounded-xl text-xs font-semibold transition-all ${
-                  days === v ? 'bg-[#0071E3] text-white shadow-sm' : 'text-[#1D1D1F] hover:bg-black/[0.05]'
+                className={`px-3 sm:px-4 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                  days === v
+                    ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-xs'
+                    : isDark ? 'text-slate-300 hover:text-white hover:bg-white/5' : 'text-slate-700 hover:bg-white'
                 }`}
               >
                 {label}
@@ -682,27 +705,27 @@ export function PotentialCustomersPage({ p, openCustomer, openVisitor }) {
       </div>
 
       <Status state={r}>{(j) => {
-        if (!j.available) return <div className="rounded-2xl bg-amber-500/10 border border-amber-500/20 p-4 text-xs text-amber-800">{j.reason}</div>
+        if (!j.available) return <div className="rounded-2xl bg-amber-500/10 border border-amber-500/20 p-4 text-xs text-amber-700">{j.reason}</div>
         const low = j.low_frequency
         const lapsed = j.lapsed
         const rows = (items) => items.map((x) => ({ ...x }))
         return (
           <>
-            {/* 4 Apple Bento KPI Cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 w-full">
+            {/* 4 Compact Dark Emerald KPI Cards */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3 w-full">
               <AppleKpiCard
                 label="مشتری در حال بازگشت"
                 value={fa(lapsed.count)}
                 unit={`خرید بین ${faDate(j.lapse_start.replace(/\//g, ''))} تا قبل از بازه`}
                 icon={RotateCcw}
-                tone="blue"
+                tone="teal"
               />
               <AppleKpiCard
                 label="فروش قبلی بازگشتی‌ها"
                 value={rial(lapsed.sales_rial)}
                 unit="ریال · فروش عادی"
                 icon={CircleDollarSign}
-                tone="teal"
+                tone="green"
               />
               <AppleKpiCard
                 label="مشتری کم‌خرید فعال"
@@ -716,7 +739,7 @@ export function PotentialCustomersPage({ p, openCustomer, openVisitor }) {
                 value={rial(low.sales_rial)}
                 unit="ریال · فروش عادی در بازه"
                 icon={ShoppingBag}
-                tone="violet"
+                tone="blue"
               />
             </div>
 
@@ -734,7 +757,7 @@ export function PotentialCustomersPage({ p, openCustomer, openVisitor }) {
                 { label: 'آخرین خرید', render: (x) => x.last_purchase, value: (x) => x.last_purchase },
                 { label: 'روز بدون خرید', render: (x) => fa(x.days_since), value: (x) => x.days_since },
                 { label: 'تعداد فاکتور', render: (x) => fa(x.invoices), value: (x) => x.invoices },
-                { label: 'فروش قبلی (ریال)', render: (x) => rial(x.sales_rial), value: (x) => x.sales_rial },
+                { label: 'فروش قبلی (ریال)', render: (x) => <span className={`tabular-nums font-bold ${isDark ? 'text-emerald-400' : 'text-emerald-700'}`}>{rial(x.sales_rial)}</span>, value: (x) => x.sales_rial },
               ]} />
             </AppleCard>
 
@@ -750,7 +773,7 @@ export function PotentialCustomersPage({ p, openCustomer, openVisitor }) {
                 { label: 'ویزیتور', render: (x) => (x.visitor_code ? <ProfileLink onClick={() => openVisitor(x.visitor_code)}>{x.visitor ?? x.visitor_code}</ProfileLink> : '—'), value: (x) => String(x.visitor ?? '') },
                 { label: 'شعبه', render: (x) => x.branch ?? '—', value: (x) => String(x.branch ?? '') },
                 { label: 'فاکتور در بازه', render: (x) => fa(x.window_invoices), value: (x) => x.window_invoices },
-                { label: 'فروش در بازه (ریال)', render: (x) => rial(x.window_sales_rial), value: (x) => x.window_sales_rial },
+                { label: 'فروش در بازه (ریال)', render: (x) => <span className={`tabular-nums font-bold ${isDark ? 'text-emerald-400' : 'text-emerald-700'}`}>{rial(x.window_sales_rial)}</span>, value: (x) => x.window_sales_rial },
                 { label: 'آخرین خرید', render: (x) => x.last_purchase, value: (x) => x.last_purchase },
                 { label: 'فروش کل (ریال)', render: (x) => rial(x.sales_rial), value: (x) => x.sales_rial },
               ]} />
@@ -763,6 +786,7 @@ export function PotentialCustomersPage({ p, openCustomer, openVisitor }) {
 }
 
 export function InactiveCustomersPage({ p, openCustomer, openVisitor }) {
+  const { isDark } = useAppearance()
   const [days, setDays] = useState('60')
   const [selVisitor, setSelVisitor] = useState(null)
   const listRef = useRef(null)
@@ -774,19 +798,25 @@ export function InactiveCustomersPage({ p, openCustomer, openVisitor }) {
   const exportQs = new URLSearchParams(Object.entries({ ...query, days }).flatMap(([k, v]) => (Array.isArray(v) ? v.map((x) => [k, x]) : v ? [[k, v]] : []))).toString()
 
   return (
-    <div className="w-full max-w-[1600px] mx-auto space-y-6">
-      {/* Apple Floating Filter Bar */}
-      <div className="rounded-[24px] bg-white/85 backdrop-blur-xl border border-black/[0.04] shadow-[0_4px_20px_rgb(0,0,0,0.03)] p-4 flex items-center justify-between gap-4 flex-wrap">
-        <div className="flex items-center gap-3 flex-wrap">
-          <span className="text-xs font-bold text-[#86868B]">بازه بدون خرید:</span>
-          <div className="flex items-center gap-1 p-1 bg-[#E8E8ED]/80 rounded-2xl flex-wrap">
+    <div className="w-full max-w-[1600px] mx-auto space-y-5">
+      {/* Dark Emerald Floating Filter Bar */}
+      <div className={`rounded-2xl backdrop-blur-xl border p-3 sm:p-4 flex items-center justify-between gap-4 flex-wrap ${
+        isDark
+          ? 'bg-[#0B100E]/75 border-emerald-500/15 shadow-[0_4px_20px_rgba(0,0,0,0.35)]'
+          : 'bg-white/90 border-slate-200/80 shadow-xs'
+      }`}>
+        <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
+          <span className={`text-xs font-bold ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>بازه بدون خرید:</span>
+          <div className={`flex items-center gap-1 p-1 rounded-xl flex-wrap ${isDark ? 'bg-black/30' : 'bg-slate-100'}`}>
             {INACTIVE_DAYS.map(([v, label]) => (
               <button
                 key={v}
                 type="button"
                 onClick={() => setDays(v)}
-                className={`px-4 py-1.5 rounded-xl text-xs font-semibold transition-all ${
-                  days === v ? 'bg-[#0071E3] text-white shadow-sm' : 'text-[#1D1D1F] hover:bg-black/[0.05]'
+                className={`px-3 sm:px-4 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                  days === v
+                    ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-xs'
+                    : isDark ? 'text-slate-300 hover:text-white hover:bg-white/5' : 'text-slate-700 hover:bg-white'
                 }`}
               >
                 {label}
@@ -796,7 +826,11 @@ export function InactiveCustomersPage({ p, openCustomer, openVisitor }) {
         </div>
 
         <a
-          className="px-4 py-2 rounded-xl bg-white border border-black/10 text-xs font-bold text-[#1D1D1F] hover:bg-black/[0.03] transition-all shadow-sm flex items-center gap-1.5"
+          className={`px-3.5 py-1.5 rounded-xl border text-xs font-bold transition-all shadow-xs flex items-center gap-1.5 ${
+            isDark
+              ? 'bg-[#0F1412] border-emerald-500/20 text-emerald-400 hover:bg-emerald-500/10'
+              : 'bg-white border-slate-200 text-slate-800 hover:bg-slate-50'
+          }`}
           href={`/api/inactive-customers/export?${exportQs}`}
           download
         >
@@ -805,11 +839,11 @@ export function InactiveCustomersPage({ p, openCustomer, openVisitor }) {
       </div>
 
       <Status state={r}>{(j) => {
-        if (!j.available) return <div className="rounded-2xl bg-amber-500/10 border border-amber-500/20 p-4 text-xs text-amber-800">{j.reason}</div>
+        if (!j.available) return <div className="rounded-2xl bg-amber-500/10 border border-amber-500/20 p-4 text-xs text-amber-700">{j.reason}</div>
         return (
           <>
-            {/* 4 Apple Bento KPI Cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 w-full">
+            {/* 4 Compact Dark Emerald KPI Cards */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3 w-full">
               <AppleKpiCard
                 label="مشتری غیرفعال"
                 value={fa(j.inactive_customers)}
@@ -829,14 +863,14 @@ export function InactiveCustomersPage({ p, openCustomer, openVisitor }) {
                 value={rial(j.lost_sales_rial)}
                 unit="ریال · فروش عادی تا قبل از بازه"
                 icon={CircleDollarSign}
-                tone="blue"
+                tone="teal"
               />
               <AppleKpiCard
                 label="بازهٔ بررسی"
                 value={`${fa(j.days)} روز`}
                 unit={`${faDate(j.window_start.replace(/\//g, ''))} تا ${faDate(j.as_of.replace(/\//g, ''))}`}
                 icon={Calendar}
-                tone="violet"
+                tone="blue"
               />
             </div>
 
@@ -848,9 +882,9 @@ export function InactiveCustomersPage({ p, openCustomer, openVisitor }) {
             >
               <Table name="غیرفعال-ویزیتور" rows={j.by_visitor} pageSize={INACTIVE_PAGE_SIZE} onRow={(x) => x.code && openVisitor(x.code)} columns={[
                 { label: 'کد', render: (x) => x.code ?? '—', value: (x) => String(x.code ?? '') },
-                { label: 'ویزیتور', render: (x) => x.name ?? '—', value: (x) => String(x.name ?? '') },
+                { label: 'ویزیتور', render: (x) => <span className={`font-semibold ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>{x.name ?? '—'}</span>, value: (x) => String(x.name ?? '') },
                 { label: 'مشتری غیرفعال', render: (x) => <ProfileLink onClick={() => setSelVisitor(x.code ?? '')}>{fa(x.customers)}</ProfileLink>, value: (x) => x.customers },
-                { label: 'فروش قبلی (ریال)', render: (x) => rial(x.sales_rial), value: (x) => x.sales_rial },
+                { label: 'فروش قبلی (ریال)', render: (x) => <span className={`tabular-nums font-bold ${isDark ? 'text-emerald-400' : 'text-emerald-700'}`}>{rial(x.sales_rial)}</span>, value: (x) => x.sales_rial },
               ]} />
             </AppleCard>
 
@@ -868,7 +902,9 @@ export function InactiveCustomersPage({ p, openCustomer, openVisitor }) {
                       <button
                         type="button"
                         onClick={() => setSelVisitor(null)}
-                        className="px-3 py-1 rounded-xl bg-black/[0.05] text-xs font-semibold hover:bg-black/[0.1] transition-colors"
+                        className={`px-3 py-1 rounded-xl text-xs font-semibold transition-colors ${
+                          isDark ? 'bg-white/10 text-slate-200 hover:bg-white/20' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                        }`}
                       >
                         بستن فیلتر ✕
                       </button>
@@ -881,7 +917,7 @@ export function InactiveCustomersPage({ p, openCustomer, openVisitor }) {
                       { label: 'شعبه', render: (x) => x.branch ?? '—', value: (x) => String(x.branch ?? '') },
                       { label: 'روز بدون خرید', render: (x) => fa(x.days_since), value: (x) => x.days_since },
                       { label: 'تعداد فاکتور', render: (x) => fa(x.invoices), value: (x) => x.invoices },
-                      { label: 'فروش قبلی (ریال)', render: (x) => rial(x.sales_rial), value: (x) => x.sales_rial },
+                      { label: 'فروش قبلی (ریال)', render: (x) => <span className={`tabular-nums font-bold ${isDark ? 'text-emerald-400' : 'text-emerald-700'}`}>{rial(x.sales_rial)}</span>, value: (x) => x.sales_rial },
                     ]} />
                   </AppleCard>
                 </div>
@@ -905,7 +941,7 @@ export function InactiveCustomersPage({ p, openCustomer, openVisitor }) {
                 { label: 'آخرین خرید', render: (x) => x.last_purchase, value: (x) => x.last_purchase },
                 { label: 'روز بدون خرید', render: (x) => fa(x.days_since), value: (x) => x.days_since },
                 { label: 'تعداد فاکتور', render: (x) => fa(x.invoices), value: (x) => x.invoices },
-                { label: 'فروش قبلی (ریال)', render: (x) => rial(x.sales_rial), value: (x) => x.sales_rial },
+                { label: 'فروش قبلی (ریال)', render: (x) => <span className={`tabular-nums font-bold ${isDark ? 'text-emerald-400' : 'text-emerald-700'}`}>{rial(x.sales_rial)}</span>, value: (x) => x.sales_rial },
                 { label: 'میانگین فاکتور (ریال)', render: (x) => (x.avg_invoice_rial == null ? '—' : rial(x.avg_invoice_rial)), value: (x) => x.avg_invoice_rial },
                 { label: 'سهم از فروش قبلی', render: (x) => pct(x.share, 1), value: (x) => x.share * 100, unit: '٪' },
               ]} />
@@ -917,22 +953,25 @@ export function InactiveCustomersPage({ p, openCustomer, openVisitor }) {
   )
 }
 
-/* ---------- تحلیل فاکتور (Apple Bento Design) ---------- */
+/* ---------- تحلیل فاکتور (Dark Emerald Matte Design) ---------- */
 function InvoiceCompare({ p }) {
+  const { isDark } = useAppearance()
   const r = useApi('/invoice-compare', { ...p, day: p.end ? p.end.replaceAll('-', '/') : undefined })
   const row = (label, key, fmt) => {
     const ch = r.data?.change?.[key]
     return (
-      <tr key={key} className="border-b border-black/[0.04] hover:bg-black/[0.02] transition-colors">
-        <td className="py-3 px-4 text-xs font-semibold text-[#1D1D1F]">{label}</td>
-        <td className="py-3 px-4 text-xs text-[#1D1D1F] tabular-nums font-bold">{r.data ? fmt(r.data.current[key]) : '—'}</td>
-        <td className="py-3 px-4 text-xs text-[#86868B] tabular-nums">{r.data ? fmt(r.data.previous[key]) : '—'}</td>
+      <tr key={key} className={`border-b transition-colors ${isDark ? 'border-white/[0.04] hover:bg-white/[0.02]' : 'border-slate-100 hover:bg-slate-50/50'}`}>
+        <td className={`py-3 px-4 text-xs font-semibold ${isDark ? 'text-slate-200' : 'text-slate-800'}`}>{label}</td>
+        <td className={`py-3 px-4 text-xs tabular-nums font-bold ${isDark ? 'text-emerald-400' : 'text-emerald-700'}`}>{r.data ? fmt(r.data.current[key]) : '—'}</td>
+        <td className={`py-3 px-4 text-xs tabular-nums ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>{r.data ? fmt(r.data.previous[key]) : '—'}</td>
         <td className="py-3 px-4 text-xs font-bold tabular-nums">
           {ch == null ? (
             '—'
           ) : (
-            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${
-              ch >= 0 ? 'bg-emerald-500/10 text-emerald-700' : 'bg-rose-500/10 text-rose-700'
+            <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-xs font-semibold ${
+              ch >= 0
+                ? isDark ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/25' : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                : isDark ? 'bg-rose-500/15 text-rose-400 border border-rose-500/25' : 'bg-rose-50 text-rose-700 border border-rose-200'
             }`}>
               {ch >= 0 ? '+' : ''}{pct(ch, 1)}
             </span>
@@ -951,7 +990,7 @@ function InvoiceCompare({ p }) {
       <div className="overflow-x-auto">
         <table className="w-full text-right text-sm">
           <thead>
-            <tr className="border-b border-black/[0.06] text-xs text-[#86868B]">
+            <tr className={`border-b text-xs ${isDark ? 'border-white/[0.06] text-slate-400' : 'border-slate-200 text-slate-500'}`}>
               <th className="py-2.5 px-4 font-semibold">شاخص</th>
               <th className="py-2.5 px-4 font-semibold">{`این ماه (${fa(r.data.current.to % 100)} روز)`}</th>
               <th className="py-2.5 px-4 font-semibold">ماه قبل</th>
@@ -970,6 +1009,7 @@ function InvoiceCompare({ p }) {
 }
 
 export function TicketsPage({ isAdmin }) {
+  const { isDark } = useAppearance()
   const [openId, setOpenId] = useState(null)
   const [subject, setSubject] = useState('')
   const [body, setBody] = useState('')
@@ -1008,9 +1048,9 @@ export function TicketsPage({ isAdmin }) {
   }
   const statusLabel = { open: 'باز', answered: 'پاسخ داده شده', closed: 'بسته' }
   return (
-    <div className="w-full max-w-[1600px] mx-auto space-y-6">
+    <div className="w-full max-w-[1600px] mx-auto space-y-5">
       {err && (
-        <div className="rounded-2xl bg-rose-50 border border-rose-200 text-rose-700 px-5 py-3 text-sm flex items-center justify-between">
+        <div className="rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-500 px-5 py-3 text-sm flex items-center justify-between">
           <span>{err}</span>
           <button type="button" onClick={() => setErr('')} className="text-xs font-semibold hover:underline">بستن</button>
         </div>
@@ -1025,7 +1065,7 @@ export function TicketsPage({ isAdmin }) {
         >
           <form className="space-y-4" onSubmit={send}>
             <div>
-              <label className="block text-xs font-semibold text-[#86868B] mb-1.5">موضوع تیکت</label>
+              <label className={`block text-xs font-semibold mb-1.5 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>موضوع تیکت</label>
               <input
                 value={subject}
                 onChange={(e) => setSubject(e.target.value)}
@@ -1033,11 +1073,15 @@ export function TicketsPage({ isAdmin }) {
                 minLength={3}
                 maxLength={120}
                 required
-                className="w-full bg-[#F5F5F7] border border-black/[0.06] rounded-2xl px-4 py-3 text-sm text-[#1D1D1F] placeholder-[#86868B] focus:outline-none focus:ring-2 focus:ring-[#0071E3]/25 focus:border-[#0071E3] transition-all"
+                className={`w-full border rounded-xl px-4 py-3 text-sm focus:outline-none transition-all ${
+                  isDark
+                    ? 'bg-black/30 border-emerald-500/20 text-slate-100 placeholder-slate-500 focus:border-emerald-500/50'
+                    : 'bg-slate-50 border-slate-200 text-slate-800 placeholder-slate-400 focus:border-emerald-600'
+                }`}
               />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-[#86868B] mb-1.5">شرح درخواست یا مشکل</label>
+              <label className={`block text-xs font-semibold mb-1.5 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>شرح درخواست یا مشکل</label>
               <textarea
                 value={body}
                 onChange={(e) => setBody(e.target.value)}
@@ -1045,13 +1089,17 @@ export function TicketsPage({ isAdmin }) {
                 maxLength={4000}
                 rows={4}
                 required
-                className="w-full bg-[#F5F5F7] border border-black/[0.06] rounded-2xl p-4 text-sm text-[#1D1D1F] placeholder-[#86868B] focus:outline-none focus:ring-2 focus:ring-[#0071E3]/25 focus:border-[#0071E3] transition-all resize-y"
+                className={`w-full border rounded-xl p-4 text-sm focus:outline-none transition-all resize-y ${
+                  isDark
+                    ? 'bg-black/30 border-emerald-500/20 text-slate-100 placeholder-slate-500 focus:border-emerald-500/50'
+                    : 'bg-slate-50 border-slate-200 text-slate-800 placeholder-slate-400 focus:border-emerald-600'
+                }`}
               />
             </div>
             <div className="flex justify-start">
               <button
                 type="submit"
-                className="inline-flex items-center gap-2 bg-[#0071E3] hover:bg-[#0077ED] text-white text-sm font-semibold px-6 py-2.5 rounded-2xl shadow-sm shadow-blue-500/25 active:scale-[0.98] transition-all"
+                className="inline-flex items-center gap-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-sm font-semibold px-6 py-2.5 rounded-xl shadow-xs active:scale-[0.98] transition-all"
               >
                 <Send size={15} />
                 <span>ثبت تیکت</span>
@@ -1070,9 +1118,9 @@ export function TicketsPage({ isAdmin }) {
             subtitle="فهرست تیکت‌های پشتیبانی"
             badge={list.data ? `${fa(list.data.tickets.length)} تیکت` : 'در حال بارگذاری'}
           >
-            {!list.data && !list.error && <p className="text-sm text-[#86868B] py-6 text-center">در حال بارگذاری…</p>}
+            {!list.data && !list.error && <p className={`text-sm py-6 text-center ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>در حال بارگذاری…</p>}
             {list.data && list.data.tickets.length === 0 && (
-              <p className="text-sm text-[#86868B] py-8 text-center">تیکتی ثبت نشده است.</p>
+              <p className={`text-sm py-8 text-center ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>تیکتی ثبت نشده است.</p>
             )}
             {list.data && list.data.tickets.length > 0 && (
               <div className="space-y-2.5 max-h-[580px] overflow-y-auto pr-1">
@@ -1083,27 +1131,31 @@ export function TicketsPage({ isAdmin }) {
                       type="button"
                       key={t.id}
                       onClick={() => setOpenId(t.id)}
-                      className={`w-full text-right p-4 rounded-2xl border transition-all flex flex-col gap-2 ${
+                      className={`w-full text-right p-4 rounded-xl border transition-all flex flex-col gap-2 ${
                         active
-                          ? 'bg-[#0071E3]/10 border-[#0071E3]/30 shadow-sm'
-                          : 'bg-white/60 hover:bg-white border-black/[0.04] hover:border-black/[0.08]'
+                          ? isDark
+                            ? 'bg-emerald-500/15 border-emerald-500/30 shadow-xs'
+                            : 'bg-emerald-50 border-emerald-300 shadow-xs'
+                          : isDark
+                          ? 'bg-black/25 hover:bg-black/40 border-white/5 hover:border-white/10'
+                          : 'bg-white/60 hover:bg-white border-slate-200/80 hover:border-slate-300'
                       }`}
                     >
                       <div className="flex items-center justify-between gap-2">
-                        <span className="font-bold text-sm text-[#1D1D1F] truncate">{t.subject}</span>
+                        <span className={`font-bold text-sm truncate ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>{t.subject}</span>
                         <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold shrink-0 ${
                           t.status === 'open'
-                            ? 'bg-[#0071E3]/15 text-[#0071E3]'
+                            ? isDark ? 'bg-sky-500/15 text-sky-400 border border-sky-500/25' : 'bg-sky-50 text-sky-700'
                             : t.status === 'answered'
-                            ? 'bg-emerald-500/15 text-emerald-700'
-                            : 'bg-black/[0.06] text-[#86868B]'
+                            ? isDark ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/25' : 'bg-emerald-50 text-emerald-700'
+                            : isDark ? 'bg-white/10 text-slate-400' : 'bg-slate-100 text-slate-600'
                         }`}>
                           {statusLabel[t.status] ?? t.status}
                         </span>
                       </div>
-                      <div className="flex items-center justify-between text-xs text-[#86868B]">
+                      <div className={`flex items-center justify-between text-xs ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
                         <span>{isAdmin ? `${t.owner ?? ''} · ` : ''}{t.updated_at?.slice(0, 16).replace('T', ' ')}</span>
-                        {active && <span className="text-[#0071E3] font-medium text-[11px]">انتخاب‌شده</span>}
+                        {active && <span className="text-emerald-500 font-medium text-[11px]">انتخاب‌شده</span>}
                       </div>
                     </button>
                   )
@@ -1127,7 +1179,9 @@ export function TicketsPage({ isAdmin }) {
                       <button
                         type="button"
                         onClick={() => setStatus('reopen')}
-                        className="px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-emerald-500/10 text-emerald-700 hover:bg-emerald-500/20 transition-colors"
+                        className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-colors ${
+                          isDark ? 'bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25' : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
+                        }`}
                       >
                         باز کردن تیکت
                       </button>
@@ -1135,7 +1189,9 @@ export function TicketsPage({ isAdmin }) {
                       <button
                         type="button"
                         onClick={() => setStatus('close')}
-                        className="px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-rose-500/10 text-rose-700 hover:bg-rose-500/20 transition-colors"
+                        className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-colors ${
+                          isDark ? 'bg-rose-500/15 text-rose-400 hover:bg-rose-500/25' : 'bg-rose-50 text-rose-700 hover:bg-rose-100'
+                        }`}
                       >
                         بستن تیکت
                       </button>
@@ -1145,40 +1201,42 @@ export function TicketsPage({ isAdmin }) {
               }
             >
               {isAdmin && (
-                <div className="mb-4 text-xs text-[#86868B] bg-[#F5F5F7] px-3.5 py-2 rounded-xl border border-black/[0.04]">
+                <div className={`mb-4 text-xs px-3.5 py-2 rounded-xl border ${
+                  isDark ? 'bg-black/30 border-white/5 text-slate-400' : 'bg-slate-50 border-slate-200 text-slate-600'
+                }`}>
                   تیکت‌های بسته‌شده پس از ۷ روز از سرور حذف می‌شوند.
                 </div>
               )}
 
               {/* Message thread */}
-              <div className="space-y-3.5 max-h-[420px] overflow-y-auto pr-1 mb-5">
+              <div className="space-y-3 max-h-[420px] overflow-y-auto pr-1 mb-5">
                 {one.data.messages.map((m, i) => (
                   <div
                     key={i}
-                    className={`p-4 rounded-2xl border text-right space-y-1.5 ${
+                    className={`p-4 rounded-xl border text-right space-y-1.5 ${
                       m.is_admin
-                        ? 'bg-[#0071E3]/10 border-[#0071E3]/20 mr-4'
-                        : 'bg-[#F5F5F7] border-black/[0.04] ml-4'
+                        ? isDark ? 'bg-emerald-500/10 border-emerald-500/20 mr-4' : 'bg-emerald-50/80 border-emerald-200 mr-4'
+                        : isDark ? 'bg-black/30 border-white/5 ml-4' : 'bg-slate-50 border-slate-200 ml-4'
                     }`}
                   >
-                    <div className="flex items-center justify-between text-xs text-[#86868B]">
-                      <span className="font-semibold text-[#1D1D1F]">
+                    <div className={`flex items-center justify-between text-xs ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                      <span className={`font-semibold ${isDark ? 'text-slate-200' : 'text-slate-800'}`}>
                         {m.is_admin ? '🛡️ پشتیبانی' : `👤 ${m.author}`}
                       </span>
                       <span dir="ltr">{m.created_at?.slice(0, 16).replace('T', ' ')}</span>
                     </div>
-                    <p className="text-sm text-[#1D1D1F] leading-relaxed whitespace-pre-wrap">{m.body}</p>
+                    <p className={`text-sm leading-relaxed whitespace-pre-wrap ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>{m.body}</p>
                   </div>
                 ))}
               </div>
 
               {/* Reply box */}
               {one.data.status === 'closed' && !isAdmin ? (
-                <div className="p-4 rounded-2xl bg-black/[0.04] text-center text-xs text-[#86868B]">
+                <div className={`p-4 rounded-xl text-center text-xs ${isDark ? 'bg-black/30 text-slate-500' : 'bg-slate-100 text-slate-500'}`}>
                   این تیکت بسته شده است. برای پیگیری، تیکت جدید ثبت کنید.
                 </div>
               ) : (
-                <form className="space-y-3 pt-2 border-t border-black/[0.05]" onSubmit={sendReply}>
+                <form className={`space-y-3 pt-2 border-t ${isDark ? 'border-white/5' : 'border-slate-200'}`} onSubmit={sendReply}>
                   <textarea
                     value={reply}
                     onChange={(e) => setReply(e.target.value)}
@@ -1186,12 +1244,16 @@ export function TicketsPage({ isAdmin }) {
                     maxLength={4000}
                     rows={3}
                     required
-                    className="w-full bg-[#F5F5F7] border border-black/[0.06] rounded-2xl p-4 text-sm text-[#1D1D1F] placeholder-[#86868B] focus:outline-none focus:ring-2 focus:ring-[#0071E3]/25 focus:border-[#0071E3] transition-all resize-y"
+                    className={`w-full border rounded-xl p-4 text-sm focus:outline-none transition-all resize-y ${
+                      isDark
+                        ? 'bg-black/30 border-emerald-500/20 text-slate-100 placeholder-slate-500 focus:border-emerald-500/50'
+                        : 'bg-slate-50 border-slate-200 text-slate-800 placeholder-slate-400 focus:border-emerald-600'
+                    }`}
                   />
                   <div className="flex justify-end">
                     <button
                       type="submit"
-                      className="inline-flex items-center gap-2 bg-[#0071E3] hover:bg-[#0077ED] text-white text-xs font-semibold px-5 py-2.5 rounded-xl shadow-sm shadow-blue-500/25 active:scale-[0.98] transition-all"
+                      className="inline-flex items-center gap-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-xs font-semibold px-5 py-2.5 rounded-xl shadow-xs active:scale-[0.98] transition-all"
                     >
                       <Send size={14} />
                       <span>ارسال پاسخ</span>
@@ -1208,17 +1270,18 @@ export function TicketsPage({ isAdmin }) {
 }
 
 function InvoiceLinesSection({ p }) {
+  const { isDark } = useAppearance()
   const r = useApi('/invoice-lines', p)
   return (
     <Status state={r}>{(j) => {
       const buckets = j.buckets.map((b) => ({ ...b, label: b.open_ended ? `${fa(b.lines)}+` : fa(b.lines) }))
       return (
-        <div className="space-y-6">
-          {/* 3 Apple Bento KPI Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 w-full">
-            <AppleKpiCard label="تعداد سطر فاکتور" value={fa(j.total_lines)} unit="سطر · بدون پروموشن و مرجوعی" icon={FileText} tone="violet" />
+        <div className="space-y-5">
+          {/* 3 Compact Dark Emerald KPI Cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 sm:gap-3 w-full">
+            <AppleKpiCard label="تعداد سطر فاکتور" value={fa(j.total_lines)} unit="سطر · بدون پروموشن و مرجوعی" icon={FileText} tone="blue" />
             <AppleKpiCard label="میانگین سطر هر فاکتور" value={fa2(j.avg_lines_per_invoice)} unit="سطر در فاکتور" icon={BarChart3} tone="teal" />
-            <AppleKpiCard label="میانگین ریال هر سطر" value={j.avg_rial_per_line == null ? '—' : rial(j.avg_rial_per_line)} unit="ریال" icon={CircleDollarSign} tone="amber" />
+            <AppleKpiCard label="میانگین ریال هر سطر" value={j.avg_rial_per_line == null ? '—' : rial(j.avg_rial_per_line)} unit="ریال" icon={CircleDollarSign} tone="green" />
           </div>
 
           {/* Distribution Chart Bento */}
@@ -1231,16 +1294,16 @@ function InvoiceLinesSection({ p }) {
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={buckets} margin={{ top: 8, right: 8, left: 8, bottom: 0 }}>
                   <defs>
-                    <linearGradient id="appleLinesBar" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#FF9500" />
-                      <stop offset="100%" stopColor="#FFB340" />
+                    <linearGradient id="emeraldLinesBar" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#10B981" />
+                      <stop offset="100%" stopColor="#059669" />
                     </linearGradient>
                   </defs>
-                  <CartesianGrid vertical={false} stroke="#E5E5EA" strokeDasharray="3 3" />
-                  <XAxis dataKey="label" reversed tickLine={false} axisLine={false} tick={{ fill: '#86868B', fontSize: 12 }} />
-                  <YAxis orientation="right" tickFormatter={(v) => fa(v)} tickLine={false} axisLine={false} width={55} tick={{ fill: '#86868B', fontSize: 12 }} />
-                  <Tooltip content={<ChartTip unit="فاکتور" />} />
-                  <Bar dataKey="invoices" name="تعداد فاکتور" fill="url(#appleLinesBar)" radius={[8, 8, 0, 0]} maxBarSize={36} />
+                  <CartesianGrid vertical={false} stroke={isDark ? 'rgba(255,255,255,0.06)' : '#E5E5EA'} strokeDasharray="3 3" />
+                  <XAxis dataKey="label" reversed tickLine={false} axisLine={false} tick={{ fill: isDark ? '#94A3B8' : '#86868B', fontSize: 12, fontFamily: 'Vazirmatn' }} />
+                  <YAxis orientation="right" tickFormatter={(v) => fa(v)} tickLine={false} axisLine={false} width={55} tick={{ fill: isDark ? '#94A3B8' : '#86868B', fontSize: 12, fontFamily: 'Vazirmatn' }} />
+                  <Tooltip content={<ChartTip unit="فاکتور" />} cursor={{ fill: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.03)' }} />
+                  <Bar dataKey="invoices" name="تعداد فاکتور" fill="url(#emeraldLinesBar)" radius={[6, 6, 0, 0]} maxBarSize={36} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -1250,21 +1313,21 @@ function InvoiceLinesSection({ p }) {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 w-full items-start">
             <AppleCard title="جدول سطر فاکتور" subtitle="فقط فروش عادی؛ آخرین ردیف یعنی ۱۰ سطر یا بیشتر">
               <Table name="توزیع-سطر-فاکتور" rows={buckets} columns={[
-                { label: 'تعداد سطر در فاکتور', render: (b) => b.label, value: (b) => b.lines },
-                { label: 'تعداد فاکتور', render: (b) => fa(b.invoices), value: (b) => b.invoices },
-                { label: 'جمع سطرها', render: (b) => fa(b.line_count), value: (b) => b.line_count },
-                { label: 'سهم از فاکتورها', render: (b) => pct(b.invoice_share, 1), value: (b) => b.invoice_share * 100, unit: '٪' },
-                { label: 'سهم تجمعی فاکتور', render: (b) => pct(b.cum_invoice_share, 1), value: (b) => b.cum_invoice_share * 100, unit: '٪' },
+                { label: 'تعداد سطر در فاکتور', render: (b) => <span className={`font-semibold ${isDark ? 'text-slate-200' : 'text-slate-800'}`}>{b.label}</span>, value: (b) => b.lines },
+                { label: 'تعداد فاکتور', render: (b) => <span className="tabular-nums">{fa(b.invoices)}</span>, value: (b) => b.invoices },
+                { label: 'جمع سطرها', render: (b) => <span className="tabular-nums">{fa(b.line_count)}</span>, value: (b) => b.line_count },
+                { label: 'سهم از فاکتورها', render: (b) => <span className="tabular-nums">{pct(b.invoice_share, 1)}</span>, value: (b) => b.invoice_share * 100, unit: '٪' },
+                { label: 'سهم تجمعی فاکتور', render: (b) => <span className={`tabular-nums font-semibold ${isDark ? 'text-teal-400' : 'text-teal-700'}`}>{pct(b.cum_invoice_share, 1)}</span>, value: (b) => b.cum_invoice_share * 100, unit: '٪' },
               ]} />
             </AppleCard>
 
             <AppleCard title="روند ماهانه سطر فاکتور" subtitle="میانگین سطر هر فاکتور در هر ماه">
               <Table name="سطر-فاکتور-ماهانه" rows={j.months} columns={[
-                { label: 'ماه', render: (m) => monthLabel(m.year_month), value: (m) => m.year_month },
-                { label: 'تعداد فاکتور', render: (m) => fa(m.invoices), value: (m) => m.invoices },
-                { label: 'تعداد سطر', render: (m) => fa(m.lines), value: (m) => m.lines },
-                { label: 'میانگین سطر هر فاکتور', render: (m) => fa2(m.avg_lines_per_invoice), value: (m) => m.avg_lines_per_invoice ?? 0 },
-                { label: 'فروش عادی (ریال)', render: (m) => rial(m.sales_rial), value: (m) => m.sales_rial },
+                { label: 'ماه', render: (m) => <span className={`font-semibold ${isDark ? 'text-slate-200' : 'text-slate-800'}`}>{monthLabel(m.year_month)}</span>, value: (m) => m.year_month },
+                { label: 'تعداد فاکتور', render: (m) => <span className="tabular-nums">{fa(m.invoices)}</span>, value: (m) => m.invoices },
+                { label: 'تعداد سطر', render: (m) => <span className="tabular-nums">{fa(m.lines)}</span>, value: (m) => m.lines },
+                { label: 'میانگین سطر هر فاکتور', render: (m) => <span className={`tabular-nums font-bold ${isDark ? 'text-emerald-400' : 'text-emerald-700'}`}>{fa2(m.avg_lines_per_invoice)}</span>, value: (m) => m.avg_lines_per_invoice ?? 0 },
+                { label: 'فروش عادی (ریال)', render: (m) => <span className="tabular-nums">{rial(m.sales_rial)}</span>, value: (m) => m.sales_rial },
               ]} />
             </AppleCard>
           </div>
@@ -1275,18 +1338,19 @@ function InvoiceLinesSection({ p }) {
 }
 
 export function InvoicePage({ p }) {
+  const { isDark } = useAppearance()
   const [step, setStep] = useState('10000000')
   const r = useApi('/invoice-bands', { ...p, step })
   return (
-    <div className="w-full max-w-[1600px] mx-auto space-y-6">
+    <div className="w-full max-w-[1600px] mx-auto space-y-5">
       <Status state={r}>{(j) => {
         return (
           <>
-            {/* Top 3 Apple Bento KPI Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 w-full">
+            {/* Top 3 Compact Dark Emerald KPI Cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 sm:gap-3 w-full">
               <AppleKpiCard label="تعداد فاکتور فروش" value={fa(j.total_invoices)} unit="فقره" icon={FileText} tone="blue" />
               <AppleKpiCard label="جمع فروش فاکتورها" value={rial(j.total_rial)} unit="ریال" icon={CircleDollarSign} tone="teal" />
-              <AppleKpiCard label="میانگین هر فاکتور" value={j.total_invoices ? rial(j.total_rial / j.total_invoices) : '—'} unit="ریال" icon={TrendingUp} tone="amber" />
+              <AppleKpiCard label="میانگین هر فاکتور" value={j.total_invoices ? rial(j.total_rial / j.total_invoices) : '—'} unit="ریال" icon={TrendingUp} tone="green" />
             </div>
 
             <InvoiceCompare p={p} />
@@ -1298,8 +1362,8 @@ export function InvoicePage({ p }) {
               subtitle="فقط فروش عادی؛ فاکتورهای با جمع منفی حذف است"
               badge="بازه مبالغ"
               action={
-                <div className="flex items-center gap-1.5 p-1 bg-[#E8E8ED]/80 rounded-2xl flex-wrap">
-                  <span className="text-[11px] text-[#86868B] px-2 font-medium">عرض بازه:</span>
+                <div className={`flex items-center gap-1.5 p-1 rounded-xl flex-wrap ${isDark ? 'bg-black/30' : 'bg-slate-100'}`}>
+                  <span className={`text-[11px] px-2 font-medium ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>عرض بازه:</span>
                   {[
                     ['5000000', '۵ م'],
                     ['10000000', '۱۰ م'],
@@ -1310,8 +1374,10 @@ export function InvoicePage({ p }) {
                       key={v}
                       type="button"
                       onClick={() => setStep(v)}
-                      className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all ${
-                        step === v ? 'bg-[#0071E3] text-white shadow-sm' : 'text-[#1D1D1F] hover:bg-black/[0.05]'
+                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                        step === v
+                          ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-xs'
+                          : isDark ? 'text-slate-300 hover:text-white hover:bg-white/5' : 'text-slate-700 hover:bg-white'
                       }`}
                     >
                       {l} ریال
@@ -1325,10 +1391,10 @@ export function InvoicePage({ p }) {
                 { label: 'تا (ریال)', render: (b) => rial(b.to_rial), value: (b) => b.to_rial },
                 { label: 'تعداد فاکتور', render: (b) => fa(b.invoices), value: (b) => b.invoices },
                 { label: 'سهم از فاکتورها', render: (b) => pct(b.invoice_share, 1), value: (b) => b.invoice_share * 100, unit: '٪' },
-                { label: 'سهم تجمعی فاکتور', render: (b) => pct(b.cum_invoice_share, 1), value: (b) => b.cum_invoice_share * 100, unit: '٪' },
-                { label: 'فروش (ریال)', render: (b) => rial(b.sales_rial), value: (b) => b.sales_rial },
+                { label: 'سهم تجمعی فاکتور', render: (b) => <span className={`tabular-nums font-semibold ${isDark ? 'text-teal-400' : 'text-teal-700'}`}>{pct(b.cum_invoice_share, 1)}</span>, value: (b) => b.cum_invoice_share * 100, unit: '٪' },
+                { label: 'فروش (ریال)', render: (b) => <span className={`tabular-nums font-bold ${isDark ? 'text-emerald-400' : 'text-emerald-700'}`}>{rial(b.sales_rial)}</span>, value: (b) => b.sales_rial },
                 { label: 'سهم از فروش', render: (b) => pct(b.sales_share, 1), value: (b) => b.sales_share * 100, unit: '٪' },
-                { label: 'سهم تجمعی فروش', render: (b) => pct(b.cum_sales_share, 1), value: (b) => b.cum_sales_share * 100, unit: '٪' },
+                { label: 'سهم تجمعی فروش', render: (b) => <span className={`tabular-nums font-semibold ${isDark ? 'text-teal-400' : 'text-teal-700'}`}>{pct(b.cum_sales_share, 1)}</span>, value: (b) => b.cum_sales_share * 100, unit: '٪' },
               ]} />
             </AppleCard>
           </>
@@ -1338,36 +1404,47 @@ export function InvoicePage({ p }) {
   )
 }
 
-/* ---------- پروفایل مشتری (Apple Bento Design) ---------- */
+/* ---------- پروفایل مشتری (Dark Emerald Matte Design) ---------- */
 export function CustomerPage({ core, code, setCode, openReturns }) {
+  const { isDark } = useAppearance()
   const [draft, setDraft] = useState(code ?? '')
   const reasonFilter = new URLSearchParams(location.hash.split('?')[1] || '').get('reason') || undefined
   const r = useApi(`/customer/${encodeURIComponent(code ?? '')}`, { core, reason: reasonFilter }, Boolean(code))
   return (
-    <div className="w-full max-w-[1600px] mx-auto space-y-6">
-      {/* Apple Floating Glass Search Bar */}
+    <div className="w-full max-w-[1600px] mx-auto space-y-5">
+      {/* Dark Emerald Floating Glass Search Bar */}
       <form
-        className="rounded-[24px] bg-white/85 backdrop-blur-xl border border-black/[0.04] shadow-[0_4px_20px_rgb(0,0,0,0.03)] p-4 flex items-center justify-between gap-4 flex-wrap"
+        className={`rounded-2xl backdrop-blur-xl border p-3 sm:p-4 flex items-center justify-between gap-4 flex-wrap ${
+          isDark
+            ? 'bg-[#0B100E]/75 border-emerald-500/15 shadow-[0_4px_20px_rgba(0,0,0,0.35)]'
+            : 'bg-white/90 border-slate-200/80 shadow-xs'
+        }`}
         onSubmit={(e) => { e.preventDefault(); setCode(draft.trim()) }}
       >
-        <div className="flex items-center gap-3 flex-wrap">
-          <span className="text-xs font-bold text-[#86868B]">کد مشتری:</span>
+        <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
+          <span className={`text-xs font-bold ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>کد مشتری:</span>
           <input
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
             placeholder="مثلاً Gol100101"
             dir="ltr"
-            className="bg-[#F5F5F7] border border-black/[0.06] rounded-xl px-4 py-2 text-sm text-[#1D1D1F] focus:outline-none focus:ring-2 focus:ring-[#0071E3]/25 focus:border-[#0071E3] transition-all w-60"
+            className={`border rounded-xl px-4 py-2 text-sm focus:outline-none transition-all w-60 ${
+              isDark
+                ? 'bg-black/30 border-emerald-500/20 text-slate-100 placeholder-slate-500 focus:border-emerald-500/50'
+                : 'bg-slate-50 border-slate-200 text-slate-800 placeholder-slate-400 focus:border-emerald-600'
+            }`}
           />
           <button
             type="submit"
-            className="bg-[#0071E3] hover:bg-[#0077ED] text-white text-xs font-semibold px-5 py-2.5 rounded-xl shadow-sm shadow-blue-500/25 active:scale-[0.98] transition-all"
+            className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-xs font-semibold px-5 py-2.5 rounded-xl shadow-xs active:scale-[0.98] transition-all"
           >
             نمایش پروفایل
           </button>
         </div>
         {code && (
-          <span className="px-3 py-1 rounded-full text-xs font-medium bg-[#0071E3]/10 text-[#0071E3]" dir="ltr">
+          <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+            isDark ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/25' : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+          }`} dir="ltr">
             کد فعال: {code}
           </span>
         )}
@@ -1376,15 +1453,15 @@ export function CustomerPage({ core, code, setCode, openReturns }) {
       {!code && (
         <AppleCard>
           <div className="text-center py-10 space-y-2">
-            <UserRound className="mx-auto text-[#86868B]" size={36} />
-            <h3 className="text-sm font-bold text-[#1D1D1F]">کد مشتری را وارد کنید</h3>
-            <p className="text-xs text-[#86868B]">یا از جدول پارتو یک مشتری را انتخاب نمایید تا پروفایل کامل نمایش داده شود.</p>
+            <UserRound className={`mx-auto ${isDark ? 'text-slate-500' : 'text-slate-400'}`} size={36} />
+            <h3 className={`text-sm font-bold ${isDark ? 'text-slate-200' : 'text-slate-800'}`}>کد مشتری را وارد کنید</h3>
+            <p className={`text-xs ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>یا از جدول پارتو یک مشتری را انتخاب نمایید تا پروفایل کامل نمایش داده شود.</p>
           </div>
         </AppleCard>
       )}
 
       {code && r.error && (
-        <div className="rounded-2xl bg-rose-50 border border-rose-200 text-rose-700 px-5 py-4 text-sm font-semibold text-center">
+        <div className="rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-500 px-5 py-4 text-sm font-semibold text-center">
           مشتری با این کد پیدا نشد.
         </div>
       )}
@@ -1395,42 +1472,42 @@ export function CustomerPage({ core, code, setCode, openReturns }) {
           const invoices = j.months.reduce((s, m) => s + m.invoices, 0)
           const d = j.months.map((m) => ({ ...m, gross: billions(m.sales_rial) }))
           return (
-            <div className="space-y-6">
+            <div className="space-y-5">
               {/* Customer Header Bento Widget */}
               <AppleCard title={j.name ?? 'اطلاعات مشتری'} subtitle={j.sales_point ?? ''} badge={`گرید ${j.grade ?? '—'}`}>
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 pt-2">
-                  <div className="bg-[#F5F5F7] p-3.5 rounded-2xl border border-black/[0.03]">
-                    <span className="text-[11px] text-[#86868B] block mb-1">نام مشتری</span>
-                    <b className="text-sm font-bold text-[#1D1D1F] truncate block">{j.name ?? '—'}</b>
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 pt-1">
+                  <div className={`p-3 rounded-xl border ${isDark ? 'bg-black/25 border-white/5' : 'bg-slate-50 border-slate-200/60'}`}>
+                    <span className={`text-[10px] block mb-1 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>نام مشتری</span>
+                    <b className={`text-xs sm:text-sm font-bold truncate block ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>{j.name ?? '—'}</b>
                   </div>
-                  <div className="bg-[#F5F5F7] p-3.5 rounded-2xl border border-black/[0.03]">
-                    <span className="text-[11px] text-[#86868B] block mb-1">نام فروشگاه</span>
-                    <b className="text-sm font-bold text-[#1D1D1F] truncate block">{j.sales_point ?? '—'}</b>
+                  <div className={`p-3 rounded-xl border ${isDark ? 'bg-black/25 border-white/5' : 'bg-slate-50 border-slate-200/60'}`}>
+                    <span className={`text-[10px] block mb-1 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>نام فروشگاه</span>
+                    <b className={`text-xs sm:text-sm font-bold truncate block ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>{j.sales_point ?? '—'}</b>
                   </div>
-                  <div className="bg-[#F5F5F7] p-3.5 rounded-2xl border border-black/[0.03]">
-                    <span className="text-[11px] text-[#86868B] block mb-1">شعبه</span>
-                    <b className="text-sm font-bold text-[#1D1D1F] truncate block">{j.branch ?? '—'}</b>
+                  <div className={`p-3 rounded-xl border ${isDark ? 'bg-black/25 border-white/5' : 'bg-slate-50 border-slate-200/60'}`}>
+                    <span className={`text-[10px] block mb-1 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>شعبه</span>
+                    <b className={`text-xs sm:text-sm font-bold truncate block ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>{j.branch ?? '—'}</b>
                   </div>
-                  <div className="bg-[#F5F5F7] p-3.5 rounded-2xl border border-black/[0.03]">
-                    <span className="text-[11px] text-[#86868B] block mb-1">ویزیتور</span>
-                    <b className="text-sm font-bold text-[#1D1D1F] truncate block">{j.visitor ?? '—'}</b>
+                  <div className={`p-3 rounded-xl border ${isDark ? 'bg-black/25 border-white/5' : 'bg-slate-50 border-slate-200/60'}`}>
+                    <span className={`text-[10px] block mb-1 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>ویزیتور</span>
+                    <b className={`text-xs sm:text-sm font-bold truncate block ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>{j.visitor ?? '—'}</b>
                   </div>
-                  <div className="bg-[#F5F5F7] p-3.5 rounded-2xl border border-black/[0.03]">
-                    <span className="text-[11px] text-[#86868B] block mb-1">گرید</span>
-                    <b className="text-sm font-bold text-[#1D1D1F] truncate block">{j.grade ?? '—'}</b>
+                  <div className={`p-3 rounded-xl border ${isDark ? 'bg-black/25 border-white/5' : 'bg-slate-50 border-slate-200/60'}`}>
+                    <span className={`text-[10px] block mb-1 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>گرید</span>
+                    <b className={`text-xs sm:text-sm font-bold truncate block ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>{j.grade ?? '—'}</b>
                   </div>
-                  <div className="bg-[#F5F5F7] p-3.5 rounded-2xl border border-black/[0.03]">
-                    <span className="text-[11px] text-[#86868B] block mb-1">منطقه / شهر</span>
-                    <b className="text-sm font-bold text-[#1D1D1F] truncate block">{[j.region, j.city].filter(Boolean).join(' / ') || '—'}</b>
+                  <div className={`p-3 rounded-xl border ${isDark ? 'bg-black/25 border-white/5' : 'bg-slate-50 border-slate-200/60'}`}>
+                    <span className={`text-[10px] block mb-1 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>منطقه / شهر</span>
+                    <b className={`text-xs sm:text-sm font-bold truncate block ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>{[j.region, j.city].filter(Boolean).join(' / ') || '—'}</b>
                   </div>
                 </div>
               </AppleCard>
 
-              {/* 3 Apple Bento KPI Cards */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 w-full">
-                <AppleKpiCard label="جمع فروش (ریال)" value={rial(total)} unit="فروش عادی" icon={CircleDollarSign} tone="blue" />
-                <AppleKpiCard label="تعداد فاکتور" value={fa(invoices)} unit="فقره" icon={FileText} tone="violet" />
-                <AppleKpiCard label="تاریخ آخرین خرید" value={j.last_purchase ?? '—'} unit="" icon={Calendar} tone="teal" />
+              {/* 3 Compact Dark Emerald KPI Cards */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 sm:gap-3 w-full">
+                <AppleKpiCard label="جمع فروش (ریال)" value={rial(total)} unit="فروش عادی" icon={CircleDollarSign} tone="teal" />
+                <AppleKpiCard label="تعداد فاکتور" value={fa(invoices)} unit="فقره" icon={FileText} tone="blue" />
+                <AppleKpiCard label="تاریخ آخرین خرید" value={j.last_purchase ?? '—'} unit="" icon={Calendar} tone="green" />
               </div>
 
               {/* Monthly Pattern Bar Chart Bento */}
@@ -1443,23 +1520,23 @@ export function CustomerPage({ core, code, setCode, openReturns }) {
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={d} margin={{ top: 8, right: 8, left: 8, bottom: 0 }}>
                       <defs>
-                        <linearGradient id="appleCustMonthly" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="0%" stopColor="#0071E3" />
-                          <stop offset="100%" stopColor="#42A1EC" />
+                        <linearGradient id="emeraldCustMonthly" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stopColor="#10B981" />
+                          <stop offset="100%" stopColor="#059669" />
                         </linearGradient>
                       </defs>
-                      <CartesianGrid vertical={false} stroke="#E5E5EA" strokeDasharray="3 3" />
-                      <XAxis dataKey="year_month" reversed tickFormatter={monthName} tickLine={false} axisLine={false} tick={{ fill: '#86868B', fontSize: 12 }} />
+                      <CartesianGrid vertical={false} stroke={isDark ? 'rgba(255,255,255,0.06)' : '#E5E5EA'} strokeDasharray="3 3" />
+                      <XAxis dataKey="year_month" reversed tickFormatter={monthName} tickLine={false} axisLine={false} tick={{ fill: isDark ? '#94A3B8' : '#86868B', fontSize: 12, fontFamily: 'Vazirmatn' }} />
                       <YAxis
                         orientation="right"
                         tickFormatter={(v) => (v % 1 === 0 && Math.abs(v) >= 10 ? fa(v) : Number(v).toLocaleString('fa-IR', { maximumFractionDigits: 2 }))}
                         tickLine={false}
                         axisLine={false}
                         width={55}
-                        tick={{ fill: '#86868B', fontSize: 12 }}
+                        tick={{ fill: isDark ? '#94A3B8' : '#86868B', fontSize: 12, fontFamily: 'Vazirmatn' }}
                       />
-                      <Tooltip content={<ChartTip labelFn={monthName} unit="میلیارد ریال" valueFn={(v) => (v == null ? '—' : Number(v).toLocaleString('fa-IR', { minimumFractionDigits: (Number(v) % 1 === 0 && Number(v) >= 10 ? 0 : 1), maximumFractionDigits: 2 }))} />} />
-                      <Bar dataKey="gross" name="فروش" fill="url(#appleCustMonthly)" radius={[8, 8, 0, 0]} maxBarSize={36} />
+                      <Tooltip content={<ChartTip labelFn={monthName} unit="میلیارد ریال" valueFn={(v) => (v == null ? '—' : Number(v).toLocaleString('fa-IR', { minimumFractionDigits: (Number(v) % 1 === 0 && Number(v) >= 10 ? 0 : 1), maximumFractionDigits: 2 }))} />} cursor={{ fill: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.03)' }} />
+                      <Bar dataKey="gross" name="فروش" fill="url(#emeraldCustMonthly)" radius={[6, 6, 0, 0]} maxBarSize={36} />
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
@@ -1469,16 +1546,16 @@ export function CustomerPage({ core, code, setCode, openReturns }) {
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 w-full items-start">
                 <AppleCard title="کالاهای خریداری‌شده" subtitle="۱۵ کالای برتر بر اساس مبلغ فروش">
                   <Table name="کالاهای-مشتری" rows={j.products} columns={[
-                    { label: 'کالا', render: (x) => x.name, value: (x) => String(x.name ?? '') },
-                    { label: 'فروش (ریال)', render: (x) => rial(x.sales_rial), value: (x) => x.sales_rial },
-                    { label: 'تعداد', render: (x) => fa(x.qty), value: (x) => x.qty }
+                    { label: 'کالا', render: (x) => <span className={`font-semibold ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>{x.name}</span>, value: (x) => String(x.name ?? '') },
+                    { label: 'فروش (ریال)', render: (x) => <span className={`tabular-nums font-bold ${isDark ? 'text-emerald-400' : 'text-emerald-700'}`}>{rial(x.sales_rial)}</span>, value: (x) => x.sales_rial },
+                    { label: 'تعداد', render: (x) => <span className="tabular-nums">{fa(x.qty)}</span>, value: (x) => x.qty }
                   ]} />
                 </AppleCard>
 
                 <AppleCard title="برندها" subtitle="مبلغ فروش تفکیک‌شده به برند">
                   <Table name="برندهای-مشتری" rows={j.brands} columns={[
-                    { label: 'برند', render: (x) => x.name, value: (x) => String(x.name ?? '') },
-                    { label: 'فروش (ریال)', render: (x) => rial(x.sales_rial), value: (x) => x.sales_rial }
+                    { label: 'برند', render: (x) => <span className={`font-semibold ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>{x.name}</span>, value: (x) => String(x.name ?? '') },
+                    { label: 'فروش (ریال)', render: (x) => <span className={`tabular-nums font-bold ${isDark ? 'text-emerald-400' : 'text-emerald-700'}`}>{rial(x.sales_rial)}</span>, value: (x) => x.sales_rial }
                   ]} />
                 </AppleCard>
               </div>
@@ -1502,29 +1579,36 @@ const PROFILE_SPLITS = { branch: 'شعبه', brand: 'برند', group: 'لاین
 export { default as GrowthPage } from './growth/GrowthAnalysis'
 
 function ProfileCommon({ j, back, openCustomer, openVisitor }) {
+  const { isDark } = useAppearance()
   const months = (j.months ?? []).map((m) => ({ ...m, gross: billions(m.sales_rial) }))
   const days = (j.days ?? []).map((d) => ({ ...d, gross: billions(d.sales_rial) }))
   return (
-    <div className="w-full max-w-[1600px] mx-auto px-6 space-y-6">
-      {/* Apple Glass Hero Header */}
-      <div className="rounded-[28px] bg-white/85 backdrop-blur-xl border border-black/[0.04] p-5 shadow-[0_8px_30px_rgb(0,0,0,0.04)] flex items-center justify-between flex-wrap gap-4">
-        <div className="flex items-center gap-4 flex-wrap">
-          <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-[#0071E3] to-[#42A1EC] flex items-center justify-center text-white font-black text-lg shadow-sm shadow-blue-500/30">
+    <div className="w-full max-w-[1600px] mx-auto px-4 sm:px-6 space-y-5">
+      {/* Dark Emerald Hero Header */}
+      <div className={`rounded-2xl backdrop-blur-xl border p-4 sm:p-5 flex items-center justify-between flex-wrap gap-4 ${
+        isDark
+          ? 'bg-[#0B100E]/80 border-emerald-500/15 shadow-[0_8px_30px_rgba(0,0,0,0.45)]'
+          : 'bg-white/90 border-slate-200/80 shadow-xs'
+      }`}>
+        <div className="flex items-center gap-3 sm:gap-4 flex-wrap">
+          <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-600 flex items-center justify-center text-white font-black text-lg shadow-sm shadow-emerald-900/30">
             {PROFILE_LABELS_FULL[j.by]?.[0] ?? 'پ'}
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-[#0071E3]/10 text-[#0071E3]">
+              <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold ${
+                isDark ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/25' : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+              }`}>
                 پروفایل {PROFILE_LABELS_FULL[j.by]}
               </span>
-              <h1 className="text-xl font-extrabold text-[#1D1D1F] tracking-tight">{j.key}</h1>
+              <h1 className={`text-lg sm:text-xl font-extrabold tracking-tight ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>{j.key}</h1>
             </div>
-            <div className="flex items-center gap-4 mt-1.5 text-xs text-[#86868B] flex-wrap">
-              <span>سهم از فروش هسته: <b className="text-[#1D1D1F] font-bold">{pct(j.share, 2)}</b></span>
+            <div className={`flex items-center gap-3 sm:gap-4 mt-1 text-xs flex-wrap ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+              <span>سهم از فروش هسته: <b className={`font-bold ${isDark ? 'text-emerald-400' : 'text-emerald-700'}`}>{pct(j.share, 2)}</b></span>
               <span>•</span>
-              <span>اولین فروش دوره: <b className="text-[#1D1D1F]">{j.first_sale ?? '—'}</b></span>
+              <span>اولین فروش دوره: <b className={isDark ? 'text-slate-200' : 'text-slate-700'}>{j.first_sale ?? '—'}</b></span>
               <span>•</span>
-              <span>آخرین فروش دوره: <b className="text-[#1D1D1F]">{j.last_sale ?? '—'}</b></span>
+              <span>آخرین فروش دوره: <b className={isDark ? 'text-slate-200' : 'text-slate-700'}>{j.last_sale ?? '—'}</b></span>
             </div>
           </div>
         </div>
@@ -1532,21 +1616,23 @@ function ProfileCommon({ j, back, openCustomer, openVisitor }) {
         <button
           type="button"
           onClick={back}
-          className="px-4 py-2 rounded-2xl bg-black/[0.05] hover:bg-black/[0.09] text-[#1D1D1F] text-xs font-bold transition-all flex items-center gap-1.5"
+          className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
+            isDark ? 'bg-white/10 hover:bg-white/15 text-slate-200' : 'bg-slate-100 hover:bg-slate-200 text-slate-800'
+          }`}
         >
           <span>← بازگشت</span>
         </button>
       </div>
 
-      {/* 10 Apple Bento KPI Cards in 2 Symmetrical Rows of 5 */}
-      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-4 w-full">
-        <AppleKpiCard label="فروش عادی" value={rial(j.sales_rial)} unit="ریال" icon={CircleDollarSign} tone="blue" />
-        <AppleKpiCard label="ریال خالص" value={rial(j.net_rial)} unit="خالص از پروموشن" icon={Award} tone="teal" />
-        <AppleKpiCard label="فاکتور فروش" value={fa(j.sales_invoices)} unit="فقره فاکتور" icon={FileText} tone="violet" />
-        <AppleKpiCard label="مشتری خریدار" value={fa(j.buying_customers)} unit="مشتری یکتا" icon={Users} tone="blue" />
+      {/* 10 Compact Dark Emerald KPI Cards in 2 Symmetrical Rows of 5 */}
+      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-2.5 sm:gap-3 w-full">
+        <AppleKpiCard label="فروش عادی" value={rial(j.sales_rial)} unit="ریال" icon={CircleDollarSign} tone="teal" />
+        <AppleKpiCard label="ریال خالص" value={rial(j.net_rial)} unit="خالص از پروموشن" icon={Award} tone="green" />
+        <AppleKpiCard label="فاکتور فروش" value={fa(j.sales_invoices)} unit="فقره فاکتور" icon={FileText} tone="blue" />
+        <AppleKpiCard label="مشتری خریدار" value={fa(j.buying_customers)} unit="مشتری یکتا" icon={Users} tone="teal" />
         <AppleKpiCard label="روز دارای فروش" value={fa(j.active_days)} unit="روز فعال" icon={Calendar} tone="green" />
         <AppleKpiCard label="سطر فاکتور" value={fa(j.sales_lines)} unit={`میانگین ${fa2(j.avg_lines_per_invoice)} سطر در فاکتور`} icon={Layers} tone="amber" />
-        <AppleKpiCard label="میانگین هر فاکتور" value={j.avg_invoice_rial == null ? '—' : rial(j.avg_invoice_rial)} unit="ریال" icon={CircleDollarSign} tone="violet" />
+        <AppleKpiCard label="میانگین هر فاکتور" value={j.avg_invoice_rial == null ? '—' : rial(j.avg_invoice_rial)} unit="ریال" icon={CircleDollarSign} tone="blue" />
         <AppleKpiCard label="میانگین هر مشتری" value={j.avg_customer_rial == null ? '—' : rial(j.avg_customer_rial)} unit="ریال" icon={UserCheck} tone="teal" />
         <AppleKpiCard label="درصد مرجوعی" value={pct(j.return_percent, 2)} unit="از فروش عادی" icon={RotateCcw} tone="red" />
         <AppleKpiCard label="درصد تخفیف" value={pct(j.discount_percent, 2)} unit="از فروش عادی" icon={TrendingUp} tone="pink" />
@@ -1559,16 +1645,16 @@ function ProfileCommon({ j, back, openCustomer, openVisitor }) {
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={months} margin={{ top: 8, right: 8, left: 8, bottom: 0 }}>
                 <defs>
-                  <linearGradient id="appleProfileMonthlyBar" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#0071E3" />
-                    <stop offset="100%" stopColor="#42A1EC" />
+                  <linearGradient id="emeraldProfileMonthlyBar" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#10B981" />
+                    <stop offset="100%" stopColor="#059669" />
                   </linearGradient>
                 </defs>
-                <CartesianGrid vertical={false} stroke="#E5E5EA" strokeDasharray="3 3" />
-                <XAxis dataKey="year_month" reversed tickFormatter={monthName} tickLine={false} axisLine={false} tick={{ fill: '#86868B', fontSize: 12 }} />
-                <YAxis orientation="right" tickFormatter={(v) => fa(v)} tickLine={false} axisLine={false} width={55} tick={{ fill: '#86868B', fontSize: 12 }} />
-                <Tooltip content={<ChartTip labelFn={monthName} unit="میلیارد ریال" />} />
-                <Bar dataKey="gross" name="فروش عادی" fill="url(#appleProfileMonthlyBar)" radius={[8, 8, 0, 0]} maxBarSize={36} />
+                <CartesianGrid vertical={false} stroke={isDark ? 'rgba(255,255,255,0.06)' : '#E5E5EA'} strokeDasharray="3 3" />
+                <XAxis dataKey="year_month" reversed tickFormatter={monthName} tickLine={false} axisLine={false} tick={{ fill: isDark ? '#94A3B8' : '#86868B', fontSize: 12, fontFamily: 'Vazirmatn' }} />
+                <YAxis orientation="right" tickFormatter={(v) => fa(v)} tickLine={false} axisLine={false} width={55} tick={{ fill: isDark ? '#94A3B8' : '#86868B', fontSize: 12, fontFamily: 'Vazirmatn' }} />
+                <Tooltip content={<ChartTip labelFn={monthName} unit="میلیارد ریال" />} cursor={{ fill: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.03)' }} />
+                <Bar dataKey="gross" name="فروش عادی" fill="url(#emeraldProfileMonthlyBar)" radius={[6, 6, 0, 0]} maxBarSize={36} />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -1576,22 +1662,22 @@ function ProfileCommon({ j, back, openCustomer, openVisitor }) {
 
         <AppleCard title="روند روزانه" subtitle="فروش عادی به میلیارد ریال" badge="روزانه">
           {!days.length ? (
-            <div className="text-center py-12 text-[#86868B] text-xs">در این بازه فروشی ثبت نشده است.</div>
+            <div className={`text-center py-12 text-xs ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>در این بازه فروشی ثبت نشده است.</div>
           ) : (
             <div className="h-72 w-full mt-2" dir="ltr">
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={days} margin={{ top: 8, right: 8, left: 8, bottom: 0 }}>
                   <defs>
-                    <linearGradient id="appleProfileDailyGrad" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#FF9500" stopOpacity={0.3} />
-                      <stop offset="100%" stopColor="#FF9500" stopOpacity={0.0} />
+                    <linearGradient id="emeraldProfileDailyGrad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#10B981" stopOpacity={0.3} />
+                      <stop offset="100%" stopColor="#10B981" stopOpacity={0.0} />
                     </linearGradient>
                   </defs>
-                  <CartesianGrid vertical={false} stroke="#E5E5EA" strokeDasharray="3 3" />
-                  <XAxis dataKey="date" reversed tickFormatter={dayLabel} tickLine={false} axisLine={false} tick={{ fill: '#86868B', fontSize: 11 }} />
-                  <YAxis orientation="right" tickFormatter={(v) => fa(v)} tickLine={false} axisLine={false} width={55} tick={{ fill: '#86868B', fontSize: 12 }} />
+                  <CartesianGrid vertical={false} stroke={isDark ? 'rgba(255,255,255,0.06)' : '#E5E5EA'} strokeDasharray="3 3" />
+                  <XAxis dataKey="date" reversed tickFormatter={dayLabel} tickLine={false} axisLine={false} tick={{ fill: isDark ? '#94A3B8' : '#86868B', fontSize: 11, fontFamily: 'Vazirmatn' }} />
+                  <YAxis orientation="right" tickFormatter={(v) => fa(v)} tickLine={false} axisLine={false} width={55} tick={{ fill: isDark ? '#94A3B8' : '#86868B', fontSize: 12, fontFamily: 'Vazirmatn' }} />
                   <Tooltip content={<ChartTip labelFn={dayLabel} unit="میلیارد ریال" />} />
-                  <Area type="monotone" dataKey="gross" name="فروش عادی" stroke="#FF9500" strokeWidth={2.5} fill="url(#appleProfileDailyGrad)" />
+                  <Area type="monotone" dataKey="gross" name="فروش عادی" stroke="#10B981" strokeWidth={2.5} fill="url(#emeraldProfileDailyGrad)" />
                 </AreaChart>
               </ResponsiveContainer>
             </div>
@@ -1613,8 +1699,8 @@ function ProfileCommon({ j, back, openCustomer, openVisitor }) {
         <AppleCard title="ویزیتورهای برتر" subtitle="برای دیدن پروفایل روی ردیف کلیک کنید">
           <Table name={`ویزیتور-${j.key}`} rows={j.visitors ?? []} onRow={(x) => openVisitor(x.code)} columns={[
             { label: 'کد', render: (x) => x.code, value: (x) => String(x.code) },
-            { label: 'نام', render: (x) => <span className="font-semibold text-[#1D1D1F]">{x.name ?? '—'}</span>, value: (x) => String(x.name ?? '') },
-            { label: 'فروش', render: (x) => <span className="tabular-nums font-bold text-[#0071E3]">{rial(x.sales_rial)}</span>, value: (x) => x.sales_rial },
+            { label: 'نام', render: (x) => <span className={`font-semibold ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>{x.name ?? '—'}</span>, value: (x) => String(x.name ?? '') },
+            { label: 'فروش', render: (x) => <span className={`tabular-nums font-bold ${isDark ? 'text-emerald-400' : 'text-emerald-700'}`}>{rial(x.sales_rial)}</span>, value: (x) => x.sales_rial },
             { label: 'مشتری', render: (x) => <span className="tabular-nums">{fa(x.customers)}</span>, value: (x) => x.customers },
           ]} />
         </AppleCard>
@@ -1622,8 +1708,8 @@ function ProfileCommon({ j, back, openCustomer, openVisitor }) {
         <AppleCard title="مشتریان برتر" subtitle="برای دیدن پروفایل روی ردیف کلیک کنید">
           <Table name={`مشتری-${j.key}`} rows={j.customers ?? []} onRow={(x) => openCustomer(x.code)} columns={[
             { label: 'کد', render: (x) => x.code, value: (x) => String(x.code) },
-            { label: 'نام مشتری', render: (x) => <span className="font-semibold text-[#1D1D1F]">{x.name ?? '—'}</span>, value: (x) => String(x.name ?? '') },
-            { label: 'فروش', render: (x) => <span className="tabular-nums font-bold text-[#0071E3]">{rial(x.sales_rial)}</span>, value: (x) => x.sales_rial },
+            { label: 'نام مشتری', render: (x) => <span className={`font-semibold ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>{x.name ?? '—'}</span>, value: (x) => String(x.name ?? '') },
+            { label: 'فروش', render: (x) => <span className={`tabular-nums font-bold ${isDark ? 'text-emerald-400' : 'text-emerald-700'}`}>{rial(x.sales_rial)}</span>, value: (x) => x.sales_rial },
             { label: 'فاکتور', render: (x) => <span className="tabular-nums">{fa(x.invoices)}</span>, value: (x) => x.invoices },
           ]} />
         </AppleCard>
@@ -1632,8 +1718,8 @@ function ProfileCommon({ j, back, openCustomer, openVisitor }) {
       {j.products?.length > 0 && (
         <AppleCard title="کالاهای برتر" subtitle="۱۵ کالای پرفروش" badge="کالاها">
           <Table name={`کالا-${j.key}`} rows={j.products} columns={[
-            { label: 'کالا', render: (x) => <span className="font-semibold text-[#1D1D1F]">{x.name}</span>, value: (x) => String(x.name ?? '') },
-            { label: 'فروش', render: (x) => <span className="tabular-nums font-bold text-[#0071E3]">{rial(x.sales_rial)}</span>, value: (x) => x.sales_rial },
+            { label: 'کالا', render: (x) => <span className={`font-semibold ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>{x.name}</span>, value: (x) => String(x.name ?? '') },
+            { label: 'فروش', render: (x) => <span className={`tabular-nums font-bold ${isDark ? 'text-emerald-400' : 'text-emerald-700'}`}>{rial(x.sales_rial)}</span>, value: (x) => x.sales_rial },
             { label: 'تعداد', render: (x) => <span className="tabular-nums">{fa(x.qty)}</span>, value: (x) => x.qty },
           ]} />
         </AppleCard>
@@ -1643,24 +1729,31 @@ function ProfileCommon({ j, back, openCustomer, openVisitor }) {
 }
 
 function ProfileDirectory({ p, openProfile }) {
+  const { isDark } = useAppearance()
   const [by, setBy] = useState('branch')
   const r = useApi('/breakdown', { ...p, by, limit: 100 })
   const labels = { branch: 'شعبه', brand: 'برند', group: 'لاین', product: 'کالا' }
 
   return (
-    <div className="w-full max-w-[1600px] mx-auto px-6 space-y-6">
-      {/* Apple Floating Filter Bar */}
-      <div className="rounded-[24px] bg-white/85 backdrop-blur-xl border border-black/[0.04] shadow-[0_4px_20px_rgb(0,0,0,0.03)] p-4 flex items-center justify-between gap-4 flex-wrap">
-        <div className="flex items-center gap-3 flex-wrap">
-          <span className="text-xs font-bold text-[#86868B]">نوع پروفایل:</span>
-          <div className="flex items-center gap-1 p-1 bg-[#E8E8ED]/80 rounded-2xl flex-wrap">
+    <div className="w-full max-w-[1600px] mx-auto px-4 sm:px-6 space-y-5">
+      {/* Dark Emerald Floating Filter Bar */}
+      <div className={`rounded-2xl backdrop-blur-xl border p-3 sm:p-4 flex items-center justify-between gap-4 flex-wrap ${
+        isDark
+          ? 'bg-[#0B100E]/75 border-emerald-500/15 shadow-[0_4px_20px_rgba(0,0,0,0.35)]'
+          : 'bg-white/90 border-slate-200/80 shadow-xs'
+      }`}>
+        <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
+          <span className={`text-xs font-bold ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>نوع پروفایل:</span>
+          <div className={`flex items-center gap-1 p-1 rounded-xl flex-wrap ${isDark ? 'bg-black/30' : 'bg-slate-100'}`}>
             {Object.entries(labels).map(([k, label]) => (
               <button
                 key={k}
                 type="button"
                 onClick={() => setBy(k)}
-                className={`px-4 py-1.5 rounded-xl text-xs font-semibold transition-all ${
-                  by === k ? 'bg-[#0071E3] text-white shadow-sm' : 'text-[#1D1D1F] hover:bg-black/[0.05]'
+                className={`px-3 sm:px-4 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                  by === k
+                    ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-xs'
+                    : isDark ? 'text-slate-300 hover:text-white hover:bg-white/5' : 'text-slate-700 hover:bg-white'
                 }`}
               >
                 {label}
@@ -1668,7 +1761,7 @@ function ProfileDirectory({ p, openProfile }) {
             ))}
           </div>
         </div>
-        <span className="text-xs text-[#86868B] font-medium hidden sm:inline">
+        <span className={`text-xs font-medium hidden sm:inline ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
           برای مشاهدهٔ تحلیل تفصیلی هر مورد روی ردیف آن کلیک کنید
         </span>
       </div>
@@ -1684,9 +1777,9 @@ function ProfileDirectory({ p, openProfile }) {
             rows={rows}
             onRow={(x) => openProfile(by, x.key)}
             columns={[
-              { label: labels[by], render: (x) => <span className="font-semibold text-[#1D1D1F]">{String(x.key)}</span>, value: (x) => String(x.key) },
-              { label: 'فروش عادی', render: (x) => <span className="tabular-nums font-bold text-[#0071E3]">{rial(x.sales_rial)}</span>, value: (x) => x.sales_rial },
-              { label: 'ریال خالص', render: (x) => <span className="tabular-nums font-medium text-[#86868B]">{rial(x.net_rial)}</span>, value: (x) => x.net_rial },
+              { label: labels[by], render: (x) => <span className={`font-semibold ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>{String(x.key)}</span>, value: (x) => String(x.key) },
+              { label: 'فروش عادی', render: (x) => <span className={`tabular-nums font-bold ${isDark ? 'text-emerald-400' : 'text-emerald-700'}`}>{rial(x.sales_rial)}</span>, value: (x) => x.sales_rial },
+              { label: 'ریال خالص', render: (x) => <span className={`tabular-nums font-medium ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>{rial(x.net_rial)}</span>, value: (x) => x.net_rial },
               { label: 'فاکتور', render: (x) => <span className="tabular-nums">{fa(x.invoice_count)}</span>, value: (x) => x.invoice_count },
               { label: 'مشتری فعال', render: (x) => <span className="tabular-nums">{fa(x.active_customers)}</span>, value: (x) => x.active_customers },
             ]}
@@ -1704,7 +1797,7 @@ export function ProfilePage({ p, arg, openProfile, back, openCustomer, openVisit
   if (r.error) {
     return (
       <div className="w-full max-w-[1600px] mx-auto p-6">
-        <div className="rounded-2xl bg-rose-500/10 border border-rose-500/20 p-4 text-xs text-rose-800 flex items-center justify-between">
+        <div className="rounded-2xl bg-rose-500/10 border border-rose-500/20 p-4 text-xs text-rose-500 flex items-center justify-between">
           <span>مورد یافت نشد.</span>
           <button className="px-3 py-1 rounded-xl bg-white border border-rose-200 text-rose-700 font-bold" type="button" onClick={back}>بازگشت</button>
         </div>
@@ -1714,8 +1807,9 @@ export function ProfilePage({ p, arg, openProfile, back, openCustomer, openVisit
   return <Status state={r}>{(j) => <ProfileCommon j={j} back={back} openCustomer={openCustomer} openVisitor={openVisitor} />}</Status>
 }
 
-/* ---------- پروفایل ویزیتور (Apple Bento Design) ---------- */
+/* ---------- پروفایل ویزیتور (Dark Emerald Matte Design) ---------- */
 function SplitPie({ title, rows }) {
+  const { isDark } = useAppearance()
   const top = rows.slice(0, 8).map((x) => ({ name: String(x.name), value: x.sales_rial }))
   const rest = rows.slice(8).reduce((s, x) => s + x.sales_rial, 0)
   if (rest > 0) top.push({ name: 'سایر', value: rest })
@@ -1723,7 +1817,7 @@ function SplitPie({ title, rows }) {
   return (
     <AppleCard title={title} subtitle="فقط فروش عادی" className="h-full flex flex-col justify-between">
       {!top.length ? (
-        <div className="text-center py-12 text-xs text-[#86868B]">داده‌ای برای این فیلترها وجود ندارد.</div>
+        <div className={`text-center py-12 text-xs ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>داده‌ای برای این فیلترها وجود ندارد.</div>
       ) : (
         <div className="flex flex-col lg:flex-row items-center justify-between gap-5 mt-2 flex-1">
           {/* Donut Chart */}
@@ -1755,11 +1849,11 @@ function SplitPie({ title, rows }) {
                     className="w-2.5 h-2.5 rounded-full shrink-0"
                     style={{ background: PIE_COLORS[i % PIE_COLORS.length] }}
                   />
-                  <span className="text-[#1D1D1F] font-medium truncate text-[12px]" title={s.name}>
+                  <span className={`font-medium truncate text-[12px] ${isDark ? 'text-slate-200' : 'text-slate-800'}`} title={s.name}>
                     {s.name}
                   </span>
                 </div>
-                <span className="text-[#1D1D1F] font-bold tabular-nums text-[12px] shrink-0">
+                <span className={`font-bold tabular-nums text-[12px] shrink-0 ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>
                   {pct(s.value / total, 1)}
                 </span>
               </li>
@@ -1774,10 +1868,11 @@ function SplitPie({ title, rows }) {
 const dash = (v, f = rial) => (v == null ? '—' : f(v))
 
 function VisitorList({ p, openVisitor }) {
+  const { isDark } = useAppearance()
   const r = useApi('/visitors', p)
   const ov = useApi('/overview', p)
   return (
-    <div className="w-full max-w-[1600px] mx-auto space-y-6">
+    <div className="w-full max-w-[1600px] mx-auto space-y-5">
       <Status state={r}>{(j) => {
         const rows = j.visitors ?? []
         const sales = rows.reduce((s, x) => s + x.sales_rial, 0)
@@ -1785,11 +1880,11 @@ function VisitorList({ p, openVisitor }) {
         const top = rows.slice(0, 15).map((x) => ({ ...x, label: `${x.name ?? ''} (${x.code})`, gross: billions(x.sales_rial) }))
         return (
           <>
-            {/* 5 Apple Bento KPI Cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 w-full">
-              <AppleKpiCard label="تعداد ویزیتور دارای فروش" value={fa(rows.length)} unit="کد ویزیتور" icon={UserCheck} tone="blue" />
-              <AppleKpiCard label="جمع فروش عادی" value={rial(sales)} unit="ریال" icon={CircleDollarSign} tone="teal" />
-              <AppleKpiCard label="میانگین فروش هر ویزیتور" value={rows.length ? rial(sales / rows.length) : '—'} unit="ریال" icon={TrendingUp} tone="violet" />
+            {/* 5 Compact Dark Emerald KPI Cards */}
+            <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-2.5 sm:gap-3 w-full">
+              <AppleKpiCard label="تعداد ویزیتور دارای فروش" value={fa(rows.length)} unit="کد ویزیتور" icon={UserCheck} tone="teal" />
+              <AppleKpiCard label="جمع فروش عادی" value={rial(sales)} unit="ریال" icon={CircleDollarSign} tone="green" />
+              <AppleKpiCard label="میانگین فروش هر ویزیتور" value={rows.length ? rial(sales / rows.length) : '—'} unit="ریال" icon={TrendingUp} tone="blue" />
               <AppleKpiCard label="خرید پرسنلی" value={rial(j.personnel_rial ?? 0)} unit={`${fa(j.personnel_visitors ?? 0)} ویزیتور`} icon={Award} tone="amber" />
               <AppleKpiCard label="Rial+Vat بدون کد ویزیتور" value={unassigned == null ? '…' : rial(unassigned)} unit="ریال" icon={FileText} tone="pink" />
             </div>
@@ -1800,16 +1895,16 @@ function VisitorList({ p, openVisitor }) {
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={top} margin={{ top: 8, right: 8, left: 8, bottom: 20 }}>
                     <defs>
-                      <linearGradient id="appleVisitorTopBar" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#0071E3" />
-                        <stop offset="100%" stopColor="#42A1EC" />
+                      <linearGradient id="emeraldVisitorTopBar" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#10B981" />
+                        <stop offset="100%" stopColor="#059669" />
                       </linearGradient>
                     </defs>
-                    <CartesianGrid vertical={false} stroke="#E5E5EA" strokeDasharray="3 3" />
-                    <XAxis dataKey="label" reversed tickLine={false} axisLine={false} interval={0} angle={-25} textAnchor="end" height={60} tick={{ fill: '#86868B', fontSize: 11 }} />
-                    <YAxis orientation="right" tickFormatter={(v) => fa(v)} tickLine={false} axisLine={false} width={55} tick={{ fill: '#86868B', fontSize: 12 }} />
-                    <Tooltip content={<ChartTip unit="میلیارد ریال" />} />
-                    <Bar dataKey="gross" name="فروش عادی" fill="url(#appleVisitorTopBar)" radius={[8, 8, 0, 0]} maxBarSize={32} />
+                    <CartesianGrid vertical={false} stroke={isDark ? 'rgba(255,255,255,0.06)' : '#E5E5EA'} strokeDasharray="3 3" />
+                    <XAxis dataKey="label" reversed tickLine={false} axisLine={false} interval={0} angle={-25} textAnchor="end" height={60} tick={{ fill: isDark ? '#94A3B8' : '#86868B', fontSize: 11, fontFamily: 'Vazirmatn' }} />
+                    <YAxis orientation="right" tickFormatter={(v) => fa(v)} tickLine={false} axisLine={false} width={55} tick={{ fill: isDark ? '#94A3B8' : '#86868B', fontSize: 12, fontFamily: 'Vazirmatn' }} />
+                    <Tooltip content={<ChartTip unit="میلیارد ریال" />} cursor={{ fill: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.03)' }} />
+                    <Bar dataKey="gross" name="فروش عادی" fill="url(#emeraldVisitorTopBar)" radius={[6, 6, 0, 0]} maxBarSize={32} />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
@@ -1820,10 +1915,10 @@ function VisitorList({ p, openVisitor }) {
               <Table name="جدول-ویزیتورها" rows={rows} onRow={(x) => openVisitor(x.code)} columns={[
                 { label: 'رتبه', render: (x) => fa(x.rank), value: (x) => x.rank },
                 { label: 'کد', render: (x) => x.code, value: (x) => String(x.code) },
-                { label: 'نام ویزیتور', render: (x) => x.name ?? '—', value: (x) => String(x.name ?? '') },
+                { label: 'نام ویزیتور', render: (x) => <span className={`font-semibold ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>{x.name ?? '—'}</span>, value: (x) => String(x.name ?? '') },
                 { label: 'تعداد شعبه', render: (x) => fa(x.branch_count), value: (x) => x.branch_count },
-                { label: 'فروش عادی (ریال)', render: (x) => rial(x.sales_rial), value: (x) => x.sales_rial },
-                { label: 'ریال خالص', render: (x) => rial(x.net_rial), value: (x) => x.net_rial },
+                { label: 'فروش عادی (ریال)', render: (x) => <span className={`tabular-nums font-bold ${isDark ? 'text-emerald-400' : 'text-emerald-700'}`}>{rial(x.sales_rial)}</span>, value: (x) => x.sales_rial },
+                { label: 'ریال خالص', render: (x) => <span className={`tabular-nums font-medium ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>{rial(x.net_rial)}</span>, value: (x) => x.net_rial },
                 { label: 'تعداد فاکتور', render: (x) => fa(x.invoice_count), value: (x) => x.invoice_count },
                 { label: 'مشتری فعال', render: (x) => fa(x.active_customers), value: (x) => x.active_customers },
                 { label: 'سهم فروش', render: (x) => pct(x.share, 2), value: (x) => x.share * 100, unit: '٪' },
@@ -1840,13 +1935,14 @@ function VisitorList({ p, openVisitor }) {
 }
 
 function VisitorProfile({ p, code, back, openCustomer, openReturns }) {
+  const { isDark } = useAppearance()
   const r = useApi(`/visitor/${encodeURIComponent(code)}`, p)
   if (r.error) {
     return (
       <div className="w-full max-w-[1600px] mx-auto p-6">
-        <div className="rounded-2xl bg-rose-50 border border-rose-200 text-rose-700 p-5 text-sm flex items-center justify-between">
+        <div className="rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-500 p-5 text-sm flex items-center justify-between">
           <span>ویزیتوری با این کد در این هسته فروش پیدا نشد.</span>
-          <button type="button" className="px-4 py-2 rounded-xl bg-rose-100 hover:bg-rose-200 text-rose-800 text-xs font-semibold" onClick={back}>
+          <button type="button" className="px-4 py-2 rounded-xl bg-white border border-rose-200 text-rose-700 text-xs font-semibold" onClick={back}>
             بازگشت به فهرست
           </button>
         </div>
@@ -1854,7 +1950,7 @@ function VisitorProfile({ p, code, back, openCustomer, openReturns }) {
     )
   }
   return (
-    <div className="w-full max-w-[1600px] mx-auto space-y-6">
+    <div className="w-full max-w-[1600px] mx-auto space-y-5">
       <Status state={r}>{(j) => {
         const months = j.months.map((m) => ({ ...m, gross: billions(m.sales_rial) }))
         const days = j.days.map((d) => ({ ...d, gross: billions(d.sales_rial) }))
@@ -1870,51 +1966,53 @@ function VisitorProfile({ p, code, back, openCustomer, openReturns }) {
                 <button
                   type="button"
                   onClick={back}
-                  className="px-4 py-2 rounded-xl text-xs font-semibold bg-black/[0.05] hover:bg-black/[0.08] text-[#1D1D1F] transition-colors"
+                  className={`px-4 py-2 rounded-xl text-xs font-bold transition-colors ${
+                    isDark ? 'bg-white/10 hover:bg-white/15 text-slate-200' : 'bg-slate-100 hover:bg-slate-200 text-slate-800'
+                  }`}
                 >
                   بازگشت به فهرست
                 </button>
               }
             >
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-2">
-                <div className="bg-[#F5F5F7] p-3.5 rounded-2xl border border-black/[0.03]">
-                  <span className="text-[11px] text-[#86868B] block mb-1">شعبه‌ها</span>
-                  <b className="text-sm font-bold text-[#1D1D1F] truncate block">{j.all_branches.join('، ') || '—'}</b>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-1">
+                <div className={`p-3 rounded-xl border ${isDark ? 'bg-black/25 border-white/5' : 'bg-slate-50 border-slate-200/60'}`}>
+                  <span className={`text-[10px] block mb-1 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>شعبه‌ها</span>
+                  <b className={`text-sm font-bold truncate block ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>{j.all_branches.join('، ') || '—'}</b>
                 </div>
-                <div className="bg-[#F5F5F7] p-3.5 rounded-2xl border border-black/[0.03]">
-                  <span className="text-[11px] text-[#86868B] block mb-1">کد ویزیتور</span>
-                  <b className="text-sm font-bold text-[#1D1D1F] block" dir="ltr">{j.code}</b>
+                <div className={`p-3 rounded-xl border ${isDark ? 'bg-black/25 border-white/5' : 'bg-slate-50 border-slate-200/60'}`}>
+                  <span className={`text-[10px] block mb-1 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>کد ویزیتور</span>
+                  <b className={`text-sm font-bold block ${isDark ? 'text-slate-100' : 'text-slate-900'}`} dir="ltr">{j.code}</b>
                 </div>
-                <div className="bg-[#F5F5F7] p-3.5 rounded-2xl border border-black/[0.03]">
-                  <span className="text-[11px] text-[#86868B] block mb-1">اولین فروش دوره</span>
-                  <b className="text-sm font-bold text-[#1D1D1F] block">{j.first_sale ?? '—'}</b>
+                <div className={`p-3 rounded-xl border ${isDark ? 'bg-black/25 border-white/5' : 'bg-slate-50 border-slate-200/60'}`}>
+                  <span className={`text-[10px] block mb-1 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>اولین فروش دوره</span>
+                  <b className={`text-sm font-bold block ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>{j.first_sale ?? '—'}</b>
                 </div>
-                <div className="bg-[#F5F5F7] p-3.5 rounded-2xl border border-black/[0.03]">
-                  <span className="text-[11px] text-[#86868B] block mb-1">آخرین فروش دوره</span>
-                  <b className="text-sm font-bold text-[#1D1D1F] block">{j.last_sale ?? '—'}</b>
+                <div className={`p-3 rounded-xl border ${isDark ? 'bg-black/25 border-white/5' : 'bg-slate-50 border-slate-200/60'}`}>
+                  <span className={`text-[10px] block mb-1 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>آخرین فروش دوره</span>
+                  <b className={`text-sm font-bold block ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>{j.last_sale ?? '—'}</b>
                 </div>
               </div>
             </AppleCard>
 
             {multi && (
-              <div className="rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-800 px-5 py-3.5 text-xs leading-relaxed">
+              <div className="rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-700 px-5 py-3.5 text-xs leading-relaxed">
                 این کد با {j.names.length > 1 ? `چند نام (${j.names.join('، ')})` : ''}{j.names.length > 1 && j.all_branches.length > 1 ? ' و ' : ''}{j.all_branches.length > 1 ? `چند شعبه (${j.all_branches.length})` : ''} ثبت شده است؛ شاخص‌ها بر پایهٔ کد ویزیتور و یکجا محاسبه می‌شوند.
               </div>
             )}
 
-            {/* 12 KPI Cards Grid */}
-            <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4 w-full">
-              <AppleKpiCard label="فروش عادی" value={rial(j.sales_rial)} unit="ریال" tone="blue" />
-              <AppleKpiCard label="ریال خالص" value={rial(j.net_rial)} unit="ریال" tone="teal" />
-              <AppleKpiCard label="رتبه در بین ویزیتورها" value={j.rank ? fa(j.rank) : '—'} unit={j.rank ? `از ${fa(j.visitor_count)}` : ''} tone="violet" />
+            {/* 12 Compact Dark Emerald KPI Cards Grid */}
+            <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-2.5 sm:gap-3 w-full">
+              <AppleKpiCard label="فروش عادی" value={rial(j.sales_rial)} unit="ریال" tone="teal" />
+              <AppleKpiCard label="ریال خالص" value={rial(j.net_rial)} unit="ریال" tone="green" />
+              <AppleKpiCard label="رتبه بین ویزیتورها" value={j.rank ? fa(j.rank) : '—'} unit={j.rank ? `از ${fa(j.visitor_count)}` : ''} tone="blue" />
               <AppleKpiCard label="سهم از فروش هسته" value={pct(j.share, 2)} unit="فروش عادی" tone="amber" />
-              <AppleKpiCard label="تعداد فاکتور فروش" value={fa(j.sales_invoices)} unit="فقره" tone="blue" />
-              <AppleKpiCard label="تعداد سطر فاکتور" value={fa(j.sales_lines)} unit="سطر" tone="teal" />
-              <AppleKpiCard label="میانگین سطر هر فاکتور" value={fa2(j.avg_lines_per_invoice)} unit="سطر" tone="violet" />
+              <AppleKpiCard label="تعداد فاکتور فروش" value={fa(j.sales_invoices)} unit="فقره" tone="teal" />
+              <AppleKpiCard label="تعداد سطر فاکتور" value={fa(j.sales_lines)} unit="سطر" tone="blue" />
+              <AppleKpiCard label="میانگین سطر فاکتور" value={fa2(j.avg_lines_per_invoice)} unit="سطر" tone="green" />
               <AppleKpiCard label="مشتری خریدار" value={fa(j.buying_customers)} unit="مشتری یکتا" tone="amber" />
-              <AppleKpiCard label="روز دارای فروش" value={fa(j.active_days)} unit="روز" tone="blue" />
-              <AppleKpiCard label="میانگین هر فاکتور" value={dash(j.avg_invoice_rial)} unit="ریال" tone="teal" />
-              <AppleKpiCard label="میانگین هر مشتری" value={dash(j.avg_customer_rial)} unit="ریال" tone="violet" />
+              <AppleKpiCard label="روز دارای فروش" value={fa(j.active_days)} unit="روز" tone="teal" />
+              <AppleKpiCard label="میانگین هر فاکتور" value={dash(j.avg_invoice_rial)} unit="ریال" tone="blue" />
+              <AppleKpiCard label="میانگین هر مشتری" value={dash(j.avg_customer_rial)} unit="ریال" tone="green" />
               <AppleKpiCard label="درصد مرجوعی" value={pct(j.return_percent, 2)} unit="از فروش عادی" tone="pink" />
             </div>
 
@@ -1925,23 +2023,23 @@ function VisitorProfile({ p, code, back, openCustomer, openReturns }) {
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={months} margin={{ top: 8, right: 8, left: 8, bottom: 0 }}>
                       <defs>
-                        <linearGradient id="appleVisitorMonthly" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="0%" stopColor="#0071E3" />
-                          <stop offset="100%" stopColor="#42A1EC" />
+                        <linearGradient id="emeraldVisitorMonthly" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stopColor="#10B981" />
+                          <stop offset="100%" stopColor="#059669" />
                         </linearGradient>
                       </defs>
-                      <CartesianGrid vertical={false} stroke="#E5E5EA" strokeDasharray="3 3" />
-                      <XAxis dataKey="year_month" reversed tickFormatter={monthName} tickLine={false} axisLine={false} tick={{ fill: '#86868B', fontSize: 12 }} />
+                      <CartesianGrid vertical={false} stroke={isDark ? 'rgba(255,255,255,0.06)' : '#E5E5EA'} strokeDasharray="3 3" />
+                      <XAxis dataKey="year_month" reversed tickFormatter={monthName} tickLine={false} axisLine={false} tick={{ fill: isDark ? '#94A3B8' : '#86868B', fontSize: 12, fontFamily: 'Vazirmatn' }} />
                       <YAxis
                         orientation="right"
                         tickFormatter={(v) => (v % 1 === 0 && Math.abs(v) >= 10 ? fa(v) : Number(v).toLocaleString('fa-IR', { maximumFractionDigits: 2 }))}
                         tickLine={false}
                         axisLine={false}
                         width={55}
-                        tick={{ fill: '#86868B', fontSize: 12 }}
+                        tick={{ fill: isDark ? '#94A3B8' : '#86868B', fontSize: 12, fontFamily: 'Vazirmatn' }}
                       />
-                      <Tooltip content={<ChartTip labelFn={monthName} unit="میلیارد ریال" valueFn={(v) => (v == null ? '—' : Number(v).toLocaleString('fa-IR', { minimumFractionDigits: (Number(v) % 1 === 0 && Number(v) >= 10 ? 0 : 1), maximumFractionDigits: 2 }))} />} />
-                      <Bar dataKey="gross" name="فروش عادی" fill="url(#appleVisitorMonthly)" radius={[8, 8, 0, 0]} maxBarSize={36} />
+                      <Tooltip content={<ChartTip labelFn={monthName} unit="میلیارد ریال" valueFn={(v) => (v == null ? '—' : Number(v).toLocaleString('fa-IR', { minimumFractionDigits: (Number(v) % 1 === 0 && Number(v) >= 10 ? 0 : 1), maximumFractionDigits: 2 }))} />} cursor={{ fill: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.03)' }} />
+                      <Bar dataKey="gross" name="فروش عادی" fill="url(#emeraldVisitorMonthly)" radius={[6, 6, 0, 0]} maxBarSize={36} />
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
@@ -1949,22 +2047,22 @@ function VisitorProfile({ p, code, back, openCustomer, openReturns }) {
 
               <AppleCard title="روند روزانه فروش ویزیتور" subtitle="میلیارد ریال، در بازهٔ انتخاب‌شده">
                 {!days.length ? (
-                  <div className="text-center py-20 text-xs text-[#86868B]">در این بازه فروشی ثبت نشده است.</div>
+                  <div className={`text-center py-20 text-xs ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>در این بازه فروشی ثبت نشده است.</div>
                 ) : (
                   <div className="h-72 w-full mt-2" dir="ltr">
                     <ResponsiveContainer width="100%" height="100%">
                       <AreaChart data={days} margin={{ top: 8, right: 8, left: 8, bottom: 0 }}>
                         <defs>
-                          <linearGradient id="appleVisitorDaily" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="0%" stopColor="#FF9500" stopOpacity={0.25} />
-                            <stop offset="100%" stopColor="#FF9500" stopOpacity={0.01} />
+                          <linearGradient id="emeraldVisitorDaily" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stopColor="#10B981" stopOpacity={0.3} />
+                            <stop offset="100%" stopColor="#10B981" stopOpacity={0.0} />
                           </linearGradient>
                         </defs>
-                        <CartesianGrid vertical={false} stroke="#E5E5EA" strokeDasharray="3 3" />
-                        <XAxis dataKey="date" reversed tickFormatter={dayLabel} tickLine={false} axisLine={false} minTickGap={28} tick={{ fill: '#86868B', fontSize: 12 }} />
-                        <YAxis orientation="right" tickFormatter={(v) => fa(v)} tickLine={false} axisLine={false} width={55} tick={{ fill: '#86868B', fontSize: 12 }} />
+                        <CartesianGrid vertical={false} stroke={isDark ? 'rgba(255,255,255,0.06)' : '#E5E5EA'} strokeDasharray="3 3" />
+                        <XAxis dataKey="date" reversed tickFormatter={dayLabel} tickLine={false} axisLine={false} minTickGap={28} tick={{ fill: isDark ? '#94A3B8' : '#86868B', fontSize: 12, fontFamily: 'Vazirmatn' }} />
+                        <YAxis orientation="right" tickFormatter={(v) => fa(v)} tickLine={false} axisLine={false} width={55} tick={{ fill: isDark ? '#94A3B8' : '#86868B', fontSize: 12, fontFamily: 'Vazirmatn' }} />
                         <Tooltip content={<ChartTip labelFn={dayLabel} unit="میلیارد ریال" />} />
-                        <Area type="monotone" dataKey="gross" name="فروش عادی" stroke="#FF9500" strokeWidth={2.5} fill="url(#appleVisitorDaily)" />
+                        <Area type="monotone" dataKey="gross" name="فروش عادی" stroke="#10B981" strokeWidth={2.5} fill="url(#emeraldVisitorDaily)" />
                       </AreaChart>
                     </ResponsiveContainer>
                   </div>
@@ -1985,17 +2083,17 @@ function VisitorProfile({ p, code, back, openCustomer, openReturns }) {
               <AppleCard title="مشتریان برتر" subtitle="۲۰ مشتری؛ برای دیدن پروفایل روی ردیف کلیک کنید">
                 <Table name="مشتریان-ویزیتور" rows={j.customers} onRow={(x) => openCustomer(x.code)} columns={[
                   { label: 'کد', render: (x) => x.code, value: (x) => String(x.code) },
-                  { label: 'نام مشتری', render: (x) => x.name ?? '—', value: (x) => String(x.name ?? '') },
-                  { label: 'فروش عادی (ریال)', render: (x) => rial(x.sales_rial), value: (x) => x.sales_rial },
-                  { label: 'تعداد فاکتور', render: (x) => fa(x.invoices), value: (x) => x.invoices },
+                  { label: 'نام مشتری', render: (x) => <span className={`font-semibold ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>{x.name ?? '—'}</span>, value: (x) => String(x.name ?? '') },
+                  { label: 'فروش عادی (ریال)', render: (x) => <span className={`tabular-nums font-bold ${isDark ? 'text-emerald-400' : 'text-emerald-700'}`}>{rial(x.sales_rial)}</span>, value: (x) => x.sales_rial },
+                  { label: 'تعداد فاکتور', render: (x) => <span className="tabular-nums">{fa(x.invoices)}</span>, value: (x) => x.invoices },
                 ]} />
               </AppleCard>
 
               <AppleCard title="کالاهای برتر" subtitle="۱۵ کالا">
                 <Table name="کالاهای-ویزیتور" rows={j.products} columns={[
-                  { label: 'کالا', render: (x) => x.name, value: (x) => String(x.name ?? '') },
-                  { label: 'فروش عادی (ریال)', render: (x) => rial(x.sales_rial), value: (x) => x.sales_rial },
-                  { label: 'تعداد', render: (x) => fa(x.qty), value: (x) => x.qty },
+                  { label: 'کالا', render: (x) => <span className={`font-semibold ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>{x.name}</span>, value: (x) => String(x.name ?? '') },
+                  { label: 'فروش عادی (ریال)', render: (x) => <span className={`tabular-nums font-bold ${isDark ? 'text-emerald-400' : 'text-emerald-700'}`}>{rial(x.sales_rial)}</span>, value: (x) => x.sales_rial },
+                  { label: 'تعداد', render: (x) => <span className="tabular-nums">{fa(x.qty)}</span>, value: (x) => x.qty },
                 ]} />
               </AppleCard>
             </div>
@@ -2018,8 +2116,9 @@ export function VisitorPage({ p, code, setCode, openCustomer, openReturns }) {
     : <VisitorList p={p} openVisitor={setCode} />
 }
 
-/* ---------- سلامت داده (Apple Bento Design) ---------- */
+/* ---------- سلامت داده (Dark Emerald Matte Design) ---------- */
 export function HealthPage({ health, meta, quality, biSync, onTriggerBiSync, isAdmin }) {
+  const { isDark } = useAppearance()
   const isReady = health?.status === 'ready'
   const biData = biSync?.data
   const isRunning = biData?.state === 'running' || biData?.state === 'staging'
@@ -2027,23 +2126,29 @@ export function HealthPage({ health, meta, quality, biSync, onTriggerBiSync, isA
   const logs = biData?.recent_logs || []
 
   return (
-    <div className="w-full max-w-[1600px] mx-auto space-y-6">
+    <div className="w-full max-w-[1600px] mx-auto space-y-5">
       {/* Top Header Card */}
-      <div className="rounded-[28px] bg-white/85 backdrop-blur-xl border border-black/[0.04] p-5 shadow-[0_8px_30px_rgb(0,0,0,0.04)] flex items-center justify-between flex-wrap gap-4">
-        <div className="flex items-center gap-4">
-          <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-emerald-500 to-teal-400 flex items-center justify-center text-white font-black text-xl shadow-sm shadow-emerald-500/20">
+      <div className={`rounded-2xl backdrop-blur-xl border p-4 sm:p-5 flex items-center justify-between flex-wrap gap-4 ${
+        isDark
+          ? 'bg-[#0B100E]/80 border-emerald-500/15 shadow-[0_8px_30px_rgba(0,0,0,0.45)]'
+          : 'bg-white/90 border-slate-200/80 shadow-xs'
+      }`}>
+        <div className="flex items-center gap-3 sm:gap-4">
+          <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-500 flex items-center justify-center text-white font-black text-xl shadow-sm shadow-emerald-900/30">
             ✓
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h1 className="text-xl font-extrabold text-[#1D1D1F] tracking-tight">وضعیت سلامت و کیفیت داده‌ها</h1>
+              <h1 className={`text-lg sm:text-xl font-extrabold tracking-tight ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>وضعیت سلامت و کیفیت داده‌ها</h1>
               <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold ${
-                isReady ? 'bg-emerald-500/10 text-emerald-700' : 'bg-amber-500/10 text-amber-700'
+                isReady
+                  ? isDark ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/25' : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                  : isDark ? 'bg-amber-500/15 text-amber-400 border border-amber-500/25' : 'bg-amber-50 text-amber-700 border border-amber-200'
               }`}>
                 {isReady ? 'سامانه پایدار و آماده' : 'داده در حال بارگذاری یا ناقص'}
               </span>
             </div>
-            <p className="text-xs text-[#86868B] mt-1">
+            <p className={`text-xs mt-1 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
               بررسی پیوستگی، صحت ردیف‌های فروش و مرجوعی، و سازگاری ساختار پایگاه داده
             </p>
           </div>
@@ -2051,38 +2156,44 @@ export function HealthPage({ health, meta, quality, biSync, onTriggerBiSync, isA
       </div>
 
       {/* Live BI Sync Pipeline Status & Actions */}
-      <div className="rounded-[28px] bg-white/85 backdrop-blur-xl border border-black/[0.04] p-5 shadow-[0_8px_30px_rgb(0,0,0,0.04)] flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+      <div className={`rounded-2xl backdrop-blur-xl border p-4 sm:p-5 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 ${
+        isDark
+          ? 'bg-[#0B100E]/75 border-emerald-500/15 shadow-[0_4px_20px_rgba(0,0,0,0.35)]'
+          : 'bg-white/90 border-slate-200/80 shadow-xs'
+      }`}>
         <div className="flex items-center gap-3.5">
-          <div className={`w-11 h-11 rounded-2xl flex items-center justify-center text-white font-bold shadow-md ${
-            isRunning ? 'bg-amber-500 shadow-amber-500/25 animate-pulse' : 'bg-[#0071E3] shadow-blue-500/25'
+          <div className={`w-11 h-11 rounded-xl flex items-center justify-center text-white font-bold shadow-md ${
+            isRunning ? 'bg-amber-500 shadow-amber-500/25 animate-pulse' : 'bg-emerald-600 shadow-emerald-900/30'
           }`}>
             <Server size={20} />
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h2 className="text-base font-extrabold text-[#1D1D1F]">پایپ‌لاین خودکار همگام‌سازی سرور مرکزی BI</h2>
+              <h2 className={`text-sm sm:text-base font-extrabold ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>پایپ‌لاین خودکار همگام‌سازی سرور مرکزی BI</h2>
               <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${
-                isRunning ? 'bg-amber-500/10 text-amber-700 animate-pulse' : 'bg-emerald-500/10 text-emerald-700'
+                isRunning
+                  ? isDark ? 'bg-amber-500/15 text-amber-400 border border-amber-500/25 animate-pulse' : 'bg-amber-50 text-amber-700 animate-pulse'
+                  : isDark ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/25' : 'bg-emerald-50 text-emerald-700'
               }`}>
                 {isRunning ? (biData?.message || 'در حال استخراج مستقیم از BI...') : 'متصل و فعال (زمان‌بندی خودکار ۰۰:۳۰ و ساعتی)'}
               </span>
             </div>
             {isRunning && (
-              <div className="w-full bg-black/5 rounded-full h-1.5 overflow-hidden mt-2">
+              <div className="w-full bg-black/20 rounded-full h-1.5 overflow-hidden mt-2">
                 <div
                   className="bg-gradient-to-r from-amber-500 to-emerald-500 h-full rounded-full transition-all duration-300"
                   style={{ width: `${biData?.progress || 25}%` }}
                 />
               </div>
             )}
-            <div className="flex items-center gap-3 text-xs text-[#86868B] mt-1 flex-wrap">
-              <span>سرور: <code className="font-mono text-[11px] text-[#1D1D1F]">185.119.242.128:1433</code></span>
+            <div className={`flex items-center gap-3 text-xs mt-1 flex-wrap ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+              <span>سرور: <code className="font-mono text-[11px] text-emerald-500">185.119.242.128:1433</code></span>
               <span>•</span>
-              <span>آخرین همگام‌سازی موفق: <b className="text-[#1D1D1F]">{lastSyncTime}</b></span>
+              <span>آخرین همگام‌سازی موفق: <b className={isDark ? 'text-slate-200' : 'text-slate-800'}>{lastSyncTime}</b></span>
               {biData?.max_invoice_date && (
                 <>
                   <span>•</span>
-                  <span>حداکثر تاریخ فاکتور: <b className="text-[#1D1D1F]">{faDate(biData.max_invoice_date)}</b></span>
+                  <span>حداکثر تاریخ فاکتور: <b className={isDark ? 'text-slate-200' : 'text-slate-800'}>{faDate(biData.max_invoice_date)}</b></span>
                 </>
               )}
             </div>
@@ -2093,17 +2204,17 @@ export function HealthPage({ health, meta, quality, biSync, onTriggerBiSync, isA
             <button
               onClick={onTriggerBiSync}
               disabled={isRunning}
-              className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs font-bold transition-all shadow-sm ${
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all shadow-xs ${
                 isRunning
-                  ? 'bg-amber-100 text-amber-800 cursor-not-allowed opacity-80'
-                  : 'bg-[#0071E3] text-white hover:bg-[#0062c4] active:scale-95 shadow-[#0071E3]/20'
+                  ? 'bg-amber-500/20 text-amber-400 cursor-not-allowed opacity-80'
+                  : 'bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white active:scale-95'
               }`}
             >
               <RefreshCw size={15} className={isRunning ? 'animate-spin' : ''} />
               {isRunning ? (biData?.message || 'در حال همگام‌سازی...') : 'همگام‌سازی فوری از سرور BI'}
             </button>
           ) : (
-            <div className="text-xs text-[#86868B] bg-black/[0.03] px-3 py-1.5 rounded-xl">
+            <div className={`text-xs px-3 py-1.5 rounded-xl ${isDark ? 'bg-black/30 text-slate-400' : 'bg-slate-100 text-slate-600'}`}>
               همگام‌سازی خودکار هر شب ۰۰:۳۰
             </div>
           )}
@@ -2111,86 +2222,92 @@ export function HealthPage({ health, meta, quality, biSync, onTriggerBiSync, isA
       </div>
 
       {/* 3-Procedure Consolidation & Reconciliation Live Audit Card */}
-      <div className="rounded-[28px] bg-gradient-to-br from-emerald-500/[0.05] via-white/80 to-teal-500/[0.03] backdrop-blur-xl border border-emerald-500/20 p-5 shadow-[0_8px_30px_rgb(0,0,0,0.03)] space-y-4">
+      <div className={`rounded-2xl backdrop-blur-xl border p-4 sm:p-5 space-y-4 ${
+        isDark
+          ? 'bg-[#0B100E]/75 border-emerald-500/20 shadow-[0_4px_20px_rgba(0,0,0,0.35)]'
+          : 'bg-gradient-to-br from-emerald-500/[0.05] via-white/90 to-teal-500/[0.03] border-emerald-500/20 shadow-xs'
+      }`}>
         <div className="flex items-center justify-between flex-wrap gap-3">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-emerald-500 text-white flex items-center justify-center font-bold shadow-md shadow-emerald-500/25">
+            <div className="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center font-bold shadow-md shadow-emerald-900/30">
               <CheckCircle2 size={22} />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h2 className="text-base font-extrabold text-[#1D1D1F] tracking-tight">
+                <h2 className={`text-sm sm:text-base font-extrabold tracking-tight ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>
                   تطابق زنده فرمول تجمیع ۳گانه BI با اکسل مرجع (SR-1405.xlsx)
                 </h2>
-                <span className="px-2.5 py-0.5 rounded-full text-xs font-black bg-emerald-500 text-white shadow-xs">
+                <span className="px-2.5 py-0.5 rounded-full text-xs font-black bg-emerald-600 text-white shadow-xs">
                   ۱۰۰٪ منطبق (۰ ریال اختلاف)
                 </span>
               </div>
-              <p className="text-xs text-[#86868B] mt-0.5">
+              <p className={`text-xs mt-0.5 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
                 خط لوله همگام‌سازی مستقیم از سرور مرکزی SQL Server با تجمیع خالص ۳ پروسیجر استاندارد
               </p>
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <span className="text-xs font-bold px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-800 border border-emerald-500/20">
+            <span className={`text-xs font-bold px-3 py-1 rounded-full border ${
+              isDark ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/25' : 'bg-emerald-50 text-emerald-800 border-emerald-200'
+            }`}>
               بازه زمانی فعال: تا ۲۴ آبان ۱۴۰۵ (۲۴:۰۰)
             </span>
           </div>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 pt-1">
-          <div className="p-3.5 rounded-2xl bg-white border border-black/[0.05] shadow-xs">
-            <div className="text-[11px] font-bold text-[#86868B] mb-1">(+) فروش با مالیات (SRSales)</div>
-            <div className="text-sm font-black text-[#1D1D1F] tabular-nums">۲,۲۶۳,۵۱۵ م.ر</div>
-            <div className="text-[10px] text-emerald-600 mt-1 font-semibold">۷۴,۵۸۶ سطر تراکنش</div>
+          <div className={`p-3 rounded-xl border ${isDark ? 'bg-black/25 border-white/5' : 'bg-white border-slate-200/80 shadow-xs'}`}>
+            <div className={`text-[11px] font-bold mb-1 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>(+) فروش با مالیات (SRSales)</div>
+            <div className={`text-sm font-black tabular-nums ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>۲,۲۶۳,۵۱۵ م.ر</div>
+            <div className="text-[10px] text-emerald-500 mt-1 font-semibold">۷۴,۵۸۶ سطر تراکنش</div>
           </div>
-          <div className="p-3.5 rounded-2xl bg-white border border-black/[0.05] shadow-xs">
-            <div className="text-[11px] font-bold text-[#86868B] mb-1">(+) پروموشن فعال (SRPromotions)</div>
-            <div className="text-sm font-black text-[#1D1D1F] tabular-nums">+۱۴۹,۸۵۲ م.ر</div>
-            <div className="text-[10px] text-amber-600 mt-1 font-semibold">۱۴,۶۸۷ سطر (خالص از کل برگشتی)</div>
+          <div className={`p-3 rounded-xl border ${isDark ? 'bg-black/25 border-white/5' : 'bg-white border-slate-200/80 shadow-xs'}`}>
+            <div className={`text-[11px] font-bold mb-1 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>(+) پروموشن فعال (SRPromotions)</div>
+            <div className={`text-sm font-black tabular-nums ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>+۱۴۹,۸۵۲ م.ر</div>
+            <div className="text-[10px] text-amber-500 mt-1 font-semibold">۱۴,۶۸۷ سطر (خالص از کل برگشتی)</div>
           </div>
-          <div className="p-3.5 rounded-2xl bg-white border border-black/[0.05] shadow-xs">
-            <div className="text-[11px] font-bold text-[#86868B] mb-1">(-) مرجوعی با مالیات (SRDatedReturn)</div>
-            <div className="text-sm font-black text-rose-600 tabular-nums">-۱۱,۰۴۶ م.ر</div>
-            <div className="text-[10px] text-rose-500 mt-1 font-semibold">۳۲۵ سطر مرجوعی رسمی</div>
+          <div className={`p-3 rounded-xl border ${isDark ? 'bg-black/25 border-white/5' : 'bg-white border-slate-200/80 shadow-xs'}`}>
+            <div className={`text-[11px] font-bold mb-1 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>(-) مرجوعی با مالیات (SRDatedReturn)</div>
+            <div className="text-sm font-black text-rose-500 tabular-nums">-۱۱,۰۴۶ م.ر</div>
+            <div className="text-[10px] text-rose-400 mt-1 font-semibold">۳۲۵ سطر مرجوعی رسمی</div>
           </div>
-          <div className="p-3.5 rounded-2xl bg-emerald-50 border border-emerald-200 shadow-xs">
-            <div className="text-[11px] font-bold text-emerald-800 mb-1">(=) مجموع خالص تجمیعی DuckDB</div>
-            <div className="text-sm font-black text-emerald-700 tabular-nums">۲,۴۰۲,۳۲۱ م.ر</div>
-            <div className="text-[10px] text-emerald-700 mt-1 font-bold">۲۰,۵۸۹ فاکتور (تطابق ۱۰۰.۰۰٪)</div>
+          <div className={`p-3 rounded-xl border ${isDark ? 'bg-emerald-950/30 border-emerald-500/30' : 'bg-emerald-50 border-emerald-200 shadow-xs'}`}>
+            <div className={`text-[11px] font-bold mb-1 ${isDark ? 'text-emerald-400' : 'text-emerald-800'}`}>(=) مجموع خالص تجمیعی DuckDB</div>
+            <div className={`text-sm font-black tabular-nums ${isDark ? 'text-emerald-300' : 'text-emerald-700'}`}>۲,۴۰۲,۳۲۱ م.ر</div>
+            <div className={`text-[10px] mt-1 font-bold ${isDark ? 'text-emerald-400' : 'text-emerald-700'}`}>۲۰,۵۸۹ فاکتور (تطابق ۱۰۰.۰۰٪)</div>
           </div>
         </div>
       </div>
 
       {/* KPI Cards Row */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 w-full">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3 w-full">
         <AppleKpiCard
           label="کل ردیف‌های تحلیلی"
           value={quality ? fa(quality.rows) : '—'}
           unit="سطر تراکنش معتبر"
           icon={Layers}
-          tone="blue"
+          tone="teal"
         />
         <AppleKpiCard
           label="بدون کد مشتری"
           value={quality ? fa(quality.null_customer_code) : '—'}
           unit="تراکنش‌های بدون شناسه"
           icon={Users}
-          tone={quality?.null_customer_code > 0 ? 'amber' : 'teal'}
+          tone={quality?.null_customer_code > 0 ? 'amber' : 'green'}
         />
         <AppleKpiCard
           label="بدون تاریخ فاکتور"
           value={quality ? fa(quality.null_invoice_date) : '—'}
           unit="تراکنش‌های بدون زمان"
           icon={Calendar}
-          tone={quality?.null_invoice_date > 0 ? 'amber' : 'teal'}
+          tone={quality?.null_invoice_date > 0 ? 'amber' : 'green'}
         />
         <AppleKpiCard
           label="منفی غیرمرجوعی"
           value={quality ? fa(quality.negative_rows_non_return) : '—'}
           unit="موارد نامتعارف دیتابیس"
           icon={Activity}
-          tone={quality?.negative_rows_non_return > 0 ? 'red' : 'teal'}
+          tone={quality?.negative_rows_non_return > 0 ? 'red' : 'green'}
         />
       </div>
 
@@ -2204,7 +2321,7 @@ export function HealthPage({ health, meta, quality, biSync, onTriggerBiSync, isA
           <div className="overflow-x-auto mt-2">
             <table className="w-full text-right text-xs">
               <thead>
-                <tr className="border-b border-black/[0.06] text-[#86868B] font-bold">
+                <tr className={`border-b font-bold ${isDark ? 'border-white/[0.06] text-slate-400' : 'border-slate-200 text-slate-500'}`}>
                   <th className="py-2.5 px-3">شناسه</th>
                   <th className="py-2.5 px-3">زمان شروع</th>
                   <th className="py-2.5 px-3">وضعیت</th>
@@ -2216,24 +2333,26 @@ export function HealthPage({ health, meta, quality, biSync, onTriggerBiSync, isA
                   <th className="py-2.5 px-3">مدت زمان</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-black/[0.04]">
+              <tbody className={`divide-y ${isDark ? 'divide-white/[0.04]' : 'divide-slate-100'}`}>
                 {logs.map((log) => (
-                  <tr key={log.id} className="hover:bg-black/[0.01] transition-colors font-medium">
-                    <td className="py-2.5 px-3 font-mono text-[11px] text-[#86868B]">#{log.id}</td>
-                    <td className="py-2.5 px-3 text-[#1D1D1F]">{log.sync_started_at ? new Date(log.sync_started_at).toLocaleString('fa-IR') : '—'}</td>
+                  <tr key={log.id} className={`transition-colors font-medium ${isDark ? 'hover:bg-white/[0.02]' : 'hover:bg-slate-50/50'}`}>
+                    <td className="py-2.5 px-3 font-mono text-[11px] text-slate-400">#{log.id}</td>
+                    <td className={`py-2.5 px-3 ${isDark ? 'text-slate-200' : 'text-slate-800'}`}>{log.sync_started_at ? new Date(log.sync_started_at).toLocaleString('fa-IR') : '—'}</td>
                     <td className="py-2.5 px-3">
                       <span className={`px-2 py-0.5 rounded-full text-[11px] font-bold ${
-                        log.status === 'success' ? 'bg-emerald-500/10 text-emerald-700' : 'bg-rose-500/10 text-rose-700'
+                        log.status === 'success'
+                          ? isDark ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/25' : 'bg-emerald-50 text-emerald-700'
+                          : isDark ? 'bg-rose-500/15 text-rose-400 border border-rose-500/25' : 'bg-rose-50 text-rose-700'
                       }`}>
                         {log.status === 'success' ? 'موفق (Atomic Swap)' : 'ناموفق'}
                       </span>
                     </td>
                     <td className="py-2.5 px-3 tabular-nums">{log.total_rows_sales ? fa(log.total_rows_sales) : '—'}</td>
                     <td className="py-2.5 px-3 tabular-nums">{log.total_rows_promo ? fa(log.total_rows_promo) : '—'}</td>
-                    <td className="py-2.5 px-3 tabular-nums text-rose-600">{log.total_rows_returns ? fa(log.total_rows_returns) : '—'}</td>
-                    <td className="py-2.5 px-3 font-bold tabular-nums">{log.total_invoices ? fa(log.total_invoices) : '—'}</td>
-                    <td className="py-2.5 px-3 font-bold tabular-nums text-emerald-700">{log.total_net_rial ? rial(log.total_net_rial) : '—'}</td>
-                    <td className="py-2.5 px-3 tabular-nums text-[#86868B]">{log.duration_seconds != null ? `${fa(log.duration_seconds.toFixed(1))} ثانیه` : '—'}</td>
+                    <td className="py-2.5 px-3 tabular-nums text-rose-400">{log.total_rows_returns ? fa(log.total_rows_returns) : '—'}</td>
+                    <td className={`py-2.5 px-3 font-bold tabular-nums ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>{log.total_invoices ? fa(log.total_invoices) : '—'}</td>
+                    <td className={`py-2.5 px-3 font-bold tabular-nums ${isDark ? 'text-emerald-400' : 'text-emerald-700'}`}>{log.total_net_rial ? rial(log.total_net_rial) : '—'}</td>
+                    <td className="py-2.5 px-3 tabular-nums text-slate-400">{log.duration_seconds != null ? `${fa(log.duration_seconds.toFixed(1))} ثانیه` : '—'}</td>
                   </tr>
                 ))}
               </tbody>
@@ -2250,18 +2369,18 @@ export function HealthPage({ health, meta, quality, biSync, onTriggerBiSync, isA
           badge={`${meta?.limitations?.length ?? 0} مورد`}
         >
           {!(meta?.limitations?.length) ? (
-            <div className="text-center py-8 text-xs text-[#86868B]">محدودیت خاصی ثبت نشده است.</div>
+            <div className={`text-center py-8 text-xs ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>محدودیت خاصی ثبت نشده است.</div>
           ) : (
             <div className="space-y-2.5 mt-2">
               {(meta?.limitations ?? []).map((l) => (
                 <div
                   key={l.code}
-                  className={`p-3.5 rounded-2xl border text-xs leading-relaxed flex items-start gap-2.5 ${
+                  className={`p-3.5 rounded-xl border text-xs leading-relaxed flex items-start gap-2.5 ${
                     l.severity === 'err' || l.severity === 'blocked'
-                      ? 'bg-rose-500/5 border-rose-500/15 text-rose-800'
+                      ? isDark ? 'bg-rose-500/10 border-rose-500/20 text-rose-400' : 'bg-rose-50 border-rose-200 text-rose-800'
                       : l.severity === 'warning'
-                      ? 'bg-amber-500/5 border-amber-500/15 text-amber-800'
-                      : 'bg-black/[0.02] border-black/[0.05] text-[#1D1D1F]'
+                      ? isDark ? 'bg-amber-500/10 border-amber-500/20 text-amber-400' : 'bg-amber-50 border-amber-200 text-amber-800'
+                      : isDark ? 'bg-black/25 border-white/5 text-slate-300' : 'bg-slate-50 border-slate-200 text-slate-800'
                   }`}
                 >
                   <span className="font-bold shrink-0">⚠️</span>
@@ -2278,13 +2397,17 @@ export function HealthPage({ health, meta, quality, biSync, onTriggerBiSync, isA
           badge="نقشه راه"
         >
           <div className="space-y-2.5 mt-2">
-            <div className="p-3.5 rounded-2xl bg-amber-500/5 border border-amber-500/15 text-xs text-amber-800 leading-relaxed flex items-start gap-2.5">
+            <div className={`p-3.5 rounded-xl border text-xs leading-relaxed flex items-start gap-2.5 ${
+              isDark ? 'bg-amber-500/10 border-amber-500/20 text-amber-300' : 'bg-amber-50 border-amber-200 text-amber-800'
+            }`}>
               <span className="font-bold shrink-0">📦</span>
               <div>
                 <b>واحد کارتن:</b> ضریب تبدیل کارتن در داده‌های استخراج‌شده فعلی موجود نیست و در حال حاضر فقط «واحد اصلی» کالا گزارش می‌شود.
               </div>
             </div>
-            <div className="p-3.5 rounded-2xl bg-blue-500/5 border border-blue-500/15 text-xs text-blue-800 leading-relaxed flex items-start gap-2.5">
+            <div className={`p-3.5 rounded-xl border text-xs leading-relaxed flex items-start gap-2.5 ${
+              isDark ? 'bg-sky-500/10 border-sky-500/20 text-sky-300' : 'bg-sky-50 border-sky-200 text-sky-800'
+            }`}>
               <span className="font-bold shrink-0">📊</span>
               <div>
                 <b>شاخص‌های پیشرفته ریزش و ارزش دوره عمر (CLV):</b> فرمول دقیق و دورهٔ بازگشت مشتری بر اساس مدل سفارش‌های آتی تعریف خواهد شد.

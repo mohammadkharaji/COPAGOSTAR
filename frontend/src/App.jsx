@@ -10,7 +10,7 @@ import ExecutiveDashboard, { ExecShell, NAV } from './ExecutiveDashboard'
 import { BranchRegionPage, CustomerPage, GrowthPage, HealthPage, InactiveCustomersPage, InvoicePage, MonthlyTrendPage, PotentialCustomersPage, QuantityPage, TicketsPage, ParetoPage, ProductBrandPage, ProfilePage, ReturnsPage, TrendPage, VisitorPage } from './pages'
 
 const CORES = { kg: 'کوپا گستر', ch: 'زنجیره‌ای' }
-const SHARED_KEYS = ['month', 'branch', 'region', 'state', 'city', 'brand', 'group', 'grade', 'sales_type', 'main_group', 'sub_group', 'product', 'reason']
+const SHARED_KEYS = ['month', 'branch', 'office', 'region', 'state', 'city', 'brand', 'group', 'grade', 'sales_type', 'main_group', 'sub_group', 'product', 'reason']
 const PAGE_IDS = [...NAV.map(([k]) => k), 'admin']
 const CLUB_KIND = { club_b2b: 'b2b', club_visitor: 'visitor' }
 
@@ -76,6 +76,7 @@ export default function App({ onLogout }) {
     core,
     v: ver,
     ...(dims.branch && { branch: dims.branch }),
+    ...(dims.office && { office: dims.office }),
     ...(dims.region && { region: dims.region }),
     ...(dims.state && { state: dims.state }),
     ...(dims.city && { city: dims.city }),
@@ -163,7 +164,7 @@ export default function App({ onLogout }) {
   const setDim = (k, v) => setDims((d) => {
     const n = { ...d }
     if (v) n[k] = v; else delete n[k]
-    if (k === 'branch' && d.branch !== v) { delete n.region; delete n.state; delete n.city }
+    if (k === 'branch' && d.branch !== v) { delete n.region; delete n.state; delete n.city; delete n.office }
     if (k === 'city' && d.city !== v) { delete n.state; delete n.region }
     if (k === 'brand' && d.brand !== v) { delete n.main_group; delete n.product; delete n.sub_group }
     if (k === 'main_group' && d.main_group !== v) { delete n.product; delete n.sub_group }

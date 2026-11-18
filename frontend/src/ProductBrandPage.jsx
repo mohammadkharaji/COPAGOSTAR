@@ -15,6 +15,8 @@ import {
   TrendingUp,
   UserCheck,
   Users,
+  Search,
+  Sparkles,
 } from 'lucide-react'
 import {
   Bar,
@@ -28,10 +30,11 @@ import {
   XAxis,
   YAxis,
 } from 'recharts'
+import { motion, AnimatePresence } from 'motion/react'
 import { useApi } from './api'
 import { useAppearance } from './AppearanceContext'
 import { fa, fa1, fa2, monthLabel } from './format'
-import { ChartTip, Table, pct, rial } from './ui'
+import { Table, pct, rial } from './ui'
 
 const DIM_LABELS = { brand: 'برند', main_group: 'گروه کالا', product: 'کالا', sales_type: 'نوع فروش' }
 const DRILL_OPTIONS = {
@@ -46,8 +49,48 @@ const faDate = (k) => {
   return s
 }
 
+/**
+ * Glassmorphic Tooltip for Product Analytics Charts
+ */
+function ChartTooltip({ active, payload, label, isDark, unit = '', formatter }) {
+  if (!active || !payload?.length) return null
+
+  return (
+    <div
+      dir="rtl"
+      className={`rounded-2xl p-3 shadow-2xl backdrop-blur-xl border text-right min-w-[170px] ${
+        isDark
+          ? 'bg-[#0F1412]/95 border-white/10 text-slate-100 shadow-[0_16px_40px_rgba(0,0,0,0.6)]'
+          : 'bg-white/95 border-slate-200 text-slate-900 shadow-xl'
+      }`}
+    >
+      <div className={`pb-1.5 mb-1.5 border-b text-xs font-bold ${
+        isDark ? 'border-white/[0.08] text-slate-300' : 'border-slate-100 text-slate-700'
+      }`}>
+        {label}
+      </div>
+      <div className="space-y-1.5 text-xs">
+        {payload.map((p, idx) => {
+          const valStr = formatter ? formatter(p.value, p.name, p) : `${fa(p.value)} ${unit}`
+          return (
+            <div key={idx} className="flex items-center justify-between gap-3">
+              <span className="flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: p.color || p.fill }} />
+                <span className={isDark ? 'text-slate-400' : 'text-slate-500'}>{p.name}:</span>
+              </span>
+              <b className={`font-sans font-bold tabular-nums ${isDark ? 'text-emerald-400' : 'text-emerald-700'}`}>
+                {valStr}
+              </b>
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
 export function ProductBrandPage({ p, openProfile }) {
-  const { isDark, isSolid } = useAppearance()
+  const { isDark } = useAppearance()
 
   const [by, setBy] = useState('brand')
   const [sel, setSel] = useState(null) // e.g. { by: 'brand', key: 'سوفیت' }
@@ -86,24 +129,10 @@ export function ProductBrandPage({ p, openProfile }) {
   const itemCycles = metricsData.item_cycles || {}
   const summaryCycle = metricsData.summary_cycle
 
-  // Appearance classes
-  const glassCard = isSolid
-    ? isDark
-      ? 'bg-[#18181B] border border-zinc-800 shadow-sm'
-      : 'bg-white border border-slate-200 shadow-sm'
-    : isDark
-    ? 'bg-[#1C1C1E]/80 backdrop-blur-xl border border-white/[0.08] shadow-[0_4px_24px_rgba(0,0,0,0.3)]'
-    : 'bg-white/85 backdrop-blur-xl border border-black/[0.06] shadow-[0_4px_20px_rgb(0,0,0,0.03)]'
-
-  const glassPill = isSolid
-    ? isDark
-      ? 'bg-zinc-800 text-zinc-300 border border-zinc-700'
-      : 'bg-slate-100 text-slate-700 border border-slate-200'
-    : isDark
-    ? 'bg-white/[0.06] text-zinc-300 border border-white/[0.08]'
-    : 'bg-black/[0.04] text-slate-700 border border-black/[0.05]'
-
-  const glassPillActive = 'bg-[#0071E3] text-white shadow-sm font-bold border-transparent'
+  // Card appearance
+  const cardCls = isDark
+    ? 'bg-[#0F1412] border-white/[0.06] text-slate-100 shadow-[0_8px_32px_rgba(0,0,0,0.4)]'
+    : 'bg-white border-slate-200/90 text-slate-900 shadow-sm'
 
   const changeBy = (newBy) => {
     setBy(newBy)
@@ -147,12 +176,21 @@ export function ProductBrandPage({ p, openProfile }) {
       label: 'دوره تناوب خرید',
       render: (r) => {
         const cycle = itemCycles[String(r.key)]
-        if (cycle == null) return <span className="text-zinc-400 dark:text-zinc-500">—</span>
-        let badgeCls = 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20'
-        if (cycle > 35) badgeCls = 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20'
-        else if (cycle > 14) badgeCls = 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20'
+        if (cycle == null) return <span className="text-slate-400">—</span>
+        let badgeCls = isDark
+          ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30'
+          : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+        if (cycle > 35) {
+          badgeCls = isDark
+            ? 'bg-cyan-500/15 text-cyan-400 border border-cyan-500/30'
+            : 'bg-cyan-50 text-cyan-700 border border-cyan-200'
+        } else if (cycle > 14) {
+          badgeCls = isDark
+            ? 'bg-amber-500/15 text-amber-400 border border-amber-500/30'
+            : 'bg-amber-50 text-amber-700 border border-amber-200'
+        }
         return (
-          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold tabular-nums ${badgeCls}`}>
+          <span className={`inline-flex items-center px-2 py-0.5 rounded-lg text-[11px] font-bold tabular-nums font-sans ${badgeCls}`}>
             {fa1(cycle)} روز
           </span>
         )
@@ -162,7 +200,7 @@ export function ProductBrandPage({ p, openProfile }) {
     { label: 'درصد پروموشن کل', render: (r) => pct(r.promo_percent, 2), value: (r) => (r.promo_percent || 0) * 100, unit: '٪' },
     { label: 'درصد تخفیف', render: (r) => pct(r.discount_percent, 2), value: (r) => (r.discount_percent || 0) * 100, unit: '٪' },
     { label: 'درصد مرجوعی', render: (r) => pct(r.return_percent, 2), value: (r) => (r.return_percent || 0) * 100, unit: '٪' },
-  ], [headLabel, itemCycles])
+  ], [headLabel, itemCycles, isDark])
 
   // Table summary footer row calculation
   const tableFooter = useMemo(() => {
@@ -195,56 +233,87 @@ export function ProductBrandPage({ p, openProfile }) {
   }, [rows, summaryCycle])
 
   return (
-    <div className="w-full max-w-[1600px] mx-auto space-y-4 px-1 pb-12 font-sans select-none">
-      {/* 1. Header & Dimension Selector (Floating Glass Filter Bar) */}
-      <div className={`rounded-2xl p-3.5 sm:p-4 flex items-center justify-between gap-3 flex-wrap ${glassCard}`}>
+    <div className="w-full max-w-[1600px] mx-auto space-y-5 sm:space-y-6">
+      {/* ── 1. Floating Dimension & Drilldown Selector ── */}
+      <div className={`rounded-2xl sm:rounded-3xl p-3.5 sm:p-4 flex items-center justify-between gap-3 flex-wrap border transition-colors ${cardCls}`}>
         <div className="flex items-center gap-3 flex-wrap">
           <div className="flex items-center gap-2">
-            <span className="w-2.5 h-2.5 rounded-full bg-[#0071E3] animate-pulse" />
-            <span className="text-xs sm:text-sm font-extrabold text-[#1D1D1F] dark:text-[#F5F5F7]">
+            <span className={`w-2.5 h-2.5 rounded-full ${isDark ? 'bg-emerald-400 shadow-[0_0_10px_#10B981]' : 'bg-emerald-500'}`} />
+            <span className={`text-xs sm:text-sm font-bold ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>
               بُعد گزارش:
             </span>
           </div>
 
-          <div className="flex items-center gap-1 p-1 bg-black/[0.04] dark:bg-white/[0.05] rounded-xl flex-wrap">
-            {[['brand', 'برند'], ['main_group', 'گروه کالا'], ['product', 'کالا'], ['sales_type', 'نوع فروش']].map(([k, label]) => (
-              <button
-                key={k}
-                type="button"
-                onClick={() => changeBy(k)}
-                className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                  by === k && !sel ? glassPillActive : 'text-[#86868B] hover:text-[#1D1D1F] dark:hover:text-[#F5F5F7]'
-                }`}
-              >
-                {label}
-              </button>
-            ))}
+          <div className={`flex items-center gap-1 p-1 rounded-2xl border ${
+            isDark ? 'bg-white/[0.04] border-white/[0.06]' : 'bg-slate-100 border-slate-200'
+          }`} role="tablist">
+            {[['brand', 'برند'], ['main_group', 'گروه کالا'], ['product', 'کالا'], ['sales_type', 'نوع فروش']].map(([k, label]) => {
+              const active = by === k && !sel
+              return (
+                <button
+                  key={k}
+                  type="button"
+                  role="tab"
+                  aria-selected={active}
+                  onClick={() => changeBy(k)}
+                  className={`relative shrink-0 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all select-none cursor-pointer ${
+                    active
+                      ? 'text-[#090C0B]'
+                      : isDark
+                      ? 'text-slate-400 hover:text-slate-200'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  {active && (
+                    <motion.span
+                      layoutId="productDimTab"
+                      className="absolute inset-0 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-400 shadow-sm"
+                      transition={{ type: 'spring', stiffness: 420, damping: 32 }}
+                    />
+                  )}
+                  <span className="relative z-10">{label}</span>
+                </button>
+              )
+            })}
           </div>
         </div>
 
         {/* Active Drilldown Pill & Clear Button */}
         {sel && (
-          <div className="flex items-center gap-2">
-            <div className="flex items-center gap-2 px-3 py-1 bg-[#0071E3]/10 text-[#0071E3] border border-[#0071E3]/20 rounded-xl text-xs font-extrabold">
+          <div className="flex items-center gap-2 flex-wrap">
+            <div className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-bold border ${
+              isDark
+                ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-300'
+                : 'bg-emerald-50 border-emerald-300 text-emerald-900'
+            }`}>
               <span>فیلتر عمیق:</span>
-              <span className="underline">{sel.key}</span>
-              <span className="text-[10px] text-[#0071E3]/70">({DIM_LABELS[sel.by]})</span>
+              <span className="underline font-black">{sel.key}</span>
+              <span className="text-[10px] opacity-75">({DIM_LABELS[sel.by]})</span>
             </div>
 
             {children && (
-              <div className="flex items-center gap-1 p-0.5 bg-black/[0.04] dark:bg-white/[0.05] rounded-xl text-xs">
-                {children.map((c) => (
-                  <button
-                    key={c}
-                    type="button"
-                    onClick={() => setChildBy(c)}
-                    className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all ${
-                      activeChild === c ? glassPillActive : 'text-[#86868B]'
-                    }`}
-                  >
-                    زیرشاخه {DIM_LABELS[c]}
-                  </button>
-                ))}
+              <div className={`flex items-center gap-1 p-1 rounded-xl border ${
+                isDark ? 'bg-white/[0.04] border-white/[0.06]' : 'bg-slate-100 border-slate-200'
+              }`}>
+                {children.map((c) => {
+                  const active = activeChild === c
+                  return (
+                    <button
+                      key={c}
+                      type="button"
+                      onClick={() => setChildBy(c)}
+                      className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                        active
+                          ? 'bg-gradient-to-r from-emerald-500 to-teal-400 text-[#090C0B]'
+                          : isDark
+                          ? 'text-slate-400 hover:text-slate-200'
+                          : 'text-slate-600 hover:text-slate-900'
+                      }`}
+                    >
+                      زیرشاخه {DIM_LABELS[c]}
+                    </button>
+                  )
+                })}
               </div>
             )}
 
@@ -254,208 +323,205 @@ export function ProductBrandPage({ p, openProfile }) {
                 setSel(null)
                 setChildBy(null)
               }}
-              className="flex items-center gap-1 px-3 py-1 rounded-xl text-xs font-bold bg-rose-500/10 text-rose-600 hover:bg-rose-500/20 transition-all border border-rose-500/20"
+              className="flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-bold bg-rose-500/10 text-rose-400 hover:bg-rose-500/20 transition-all border border-rose-500/20 cursor-pointer"
             >
-              <ArrowLeft className="w-3.5 h-3.5" />
+              <ArrowLeft size={13} />
               <span>بازگشت به همه</span>
             </button>
           </div>
         )}
 
         {!sel && (
-          <span className="text-[11px] text-[#86868B] dark:text-[#98989D] hidden lg:inline font-medium">
-            💡 برای فیلتر و بررسی دقیق، روی میله‌های نمودار یا ردیف‌های جدول کلیک کنید
+          <span className={`text-xs hidden lg:inline font-medium ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+            💡 روی هر میله نمودار یا سطر جدول برای دریل‌داون کلیک کنید
           </span>
         )}
       </div>
 
-      {/* 2. Top 5 Summary KPI Cards (Compact, Single-Row Responsive Glass Grid) */}
-      <div className="product-kpi-grid">
-        {/* KPI 1: خرید کارتنی / تعدادی */}
-        <div className={`rounded-xl p-2.5 flex flex-col justify-between transition-all hover:scale-[1.01] ${glassCard}`}>
-          <div className="flex items-center justify-between text-[#0071E3]">
-            <span className="text-[11px] font-bold text-[#86868B] dark:text-[#98989D] truncate">
-              خرید کارتنی / تعدادی
+      {/* ── 2. Top 5-Card Unified Executive KPI Strip (Single Row) ── */}
+      <div className="grid grid-cols-5 gap-2 sm:gap-2.5 w-full">
+        {/* KPI 1: خرید کارتنی */}
+        <div className={`rounded-xl sm:rounded-2xl p-2.5 sm:p-3 flex flex-col justify-between transition-all border ${cardCls}`}>
+          <div className="flex items-center justify-between text-[11px] font-semibold">
+            <span className={isDark ? 'text-slate-400' : 'text-slate-500'}>خرید کارتنی / تعداد</span>
+            <span className={`w-6 h-6 rounded-lg flex items-center justify-center shrink-0 ${
+              isDark ? 'bg-emerald-500/15 text-emerald-400' : 'bg-emerald-50 text-emerald-700'
+            }`}>
+              <Package size={13} />
             </span>
-            <div className="w-5 h-5 rounded-md bg-[#0071E3]/10 flex items-center justify-center shrink-0">
-              <Package className="w-3 h-3" />
-            </div>
           </div>
           <div className="my-1">
-            <span className="text-lg sm:text-xl font-black text-[#1D1D1F] dark:text-[#F5F5F7] tabular-nums tracking-tight">
-              {fa(Math.round(kpis.total_cartons || 0))}
-            </span>
-            <p className="text-[10px] text-[#86868B] dark:text-[#98989D] font-medium truncate">
-              کارتن خالص فروش
-            </p>
+            <div className={`text-base sm:text-lg font-black tabular-nums font-sans tracking-tight truncate ${
+              isDark ? 'text-slate-100' : 'text-slate-900'
+            }`}>
+              {fa(Math.round(kpis.total_cartons || 0))} <span className={`text-[10px] font-bold ${isDark ? 'text-emerald-400' : 'text-emerald-700'}`}>کارتن</span>
+            </div>
+            <div className={`text-[11px] font-sans font-medium truncate ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
+              فروش خالص کارتنی
+            </div>
           </div>
-          <div className="pt-1 border-t border-black/[0.04] dark:border-white/[0.05] flex items-center justify-between text-[9px]">
-            <span className="text-[#86868B]">واحد</span>
-            <span className="font-bold text-[#0071E3]">کارتن</span>
+          <div className="flex items-center gap-1 text-[10px] text-emerald-400 font-medium pt-1.5 border-t border-white/[0.06] truncate">
+            <CheckCircle2 size={11} className="shrink-0" />
+            <span className="truncate">حجم ناخالص کالا</span>
           </div>
         </div>
 
         {/* KPI 2: خرید ریالی */}
-        <div className={`rounded-xl p-2.5 flex flex-col justify-between transition-all hover:scale-[1.01] ${glassCard}`}>
-          <div className="flex items-center justify-between text-[#10B981]">
-            <span className="text-[11px] font-bold text-[#86868B] dark:text-[#98989D] truncate">
-              خرید ریالی
+        <div className={`rounded-xl sm:rounded-2xl p-2.5 sm:p-3 flex flex-col justify-between transition-all border ${cardCls}`}>
+          <div className="flex items-center justify-between text-[11px] font-semibold">
+            <span className={isDark ? 'text-slate-400' : 'text-slate-500'}>خرید ریالی کل</span>
+            <span className={`w-6 h-6 rounded-lg flex items-center justify-center shrink-0 ${
+              isDark ? 'bg-teal-500/15 text-teal-400' : 'bg-teal-50 text-teal-700'
+            }`}>
+              <CircleDollarSign size={13} />
             </span>
-            <div className="w-5 h-5 rounded-md bg-[#10B981]/10 flex items-center justify-center shrink-0">
-              <CircleDollarSign className="w-3 h-3" />
-            </div>
           </div>
           <div className="my-1">
-            <span className="text-lg sm:text-xl font-black text-[#10B981] tabular-nums tracking-tight">
+            <div className={`text-base sm:text-lg font-black tabular-nums font-sans tracking-tight truncate ${
+              isDark ? 'text-teal-400' : 'text-teal-700'
+            }`}>
               {rial(kpis.total_rial || 0)}
-            </span>
-            <p className="text-[10px] text-[#86868B] dark:text-[#98989D] font-medium truncate">
-              فروش با مالیات
-            </p>
+            </div>
+            <div className={`text-[11px] font-sans font-medium truncate ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
+              فروش با احتساب مالیات
+            </div>
           </div>
-          <div className="pt-1 border-t border-black/[0.04] dark:border-white/[0.05] flex items-center justify-between text-[9px]">
-            <span className="text-[#86868B]">مبنا</span>
-            <span className="font-bold text-[#10B981]">Rial+VAT</span>
+          <div className="flex items-center gap-1 text-[10px] text-teal-400 font-medium pt-1.5 border-t border-white/[0.06] truncate">
+            <Sparkles size={11} className="shrink-0" />
+            <span className="truncate">Rial + VAT</span>
           </div>
         </div>
 
-        {/* KPI 3: تعداد مشتریان خریدار */}
-        <div className={`rounded-xl p-2.5 flex flex-col justify-between transition-all hover:scale-[1.01] ${glassCard}`}>
-          <div className="flex items-center justify-between text-[#0D9488]">
-            <span className="text-[11px] font-bold text-[#86868B] dark:text-[#98989D] truncate">
-              مشتریان خریدار
+        {/* KPI 3: مشتریان خریدار */}
+        <div className={`rounded-xl sm:rounded-2xl p-2.5 sm:p-3 flex flex-col justify-between transition-all border ${cardCls}`}>
+          <div className="flex items-center justify-between text-[11px] font-semibold">
+            <span className={isDark ? 'text-slate-400' : 'text-slate-500'}>مشتریان خریدار</span>
+            <span className={`w-6 h-6 rounded-lg flex items-center justify-center shrink-0 ${
+              isDark ? 'bg-cyan-500/15 text-cyan-400' : 'bg-cyan-50 text-cyan-700'
+            }`}>
+              <Users size={13} />
             </span>
-            <div className="w-5 h-5 rounded-md bg-[#0D9488]/10 flex items-center justify-center shrink-0">
-              <Users className="w-3 h-3" />
-            </div>
           </div>
           <div className="my-1">
-            <span className="text-lg sm:text-xl font-black text-[#0D9488] tabular-nums tracking-tight">
-              {fa(kpis.unique_customers || 0)}
-            </span>
-            <p className="text-[10px] text-[#86868B] dark:text-[#98989D] font-medium truncate">
-              مشتری دارای فاکتور
-            </p>
+            <div className={`text-base sm:text-lg font-black tabular-nums font-sans tracking-tight truncate ${
+              isDark ? 'text-cyan-400' : 'text-cyan-700'
+            }`}>
+              {fa(kpis.unique_customers || 0)} <span className="text-[10px] font-bold">مشتری</span>
+            </div>
+            <div className={`text-[11px] font-sans font-medium truncate ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
+              خریداران یکتا با فاکتور
+            </div>
           </div>
-          <div className="pt-1 border-t border-black/[0.04] dark:border-white/[0.05] flex items-center justify-between text-[9px]">
-            <span className="text-[#86868B]">خریدار یکتا</span>
-            <span className="font-bold text-[#0D9488]">Unique</span>
+          <div className="flex items-center gap-1 text-[10px] text-cyan-400 font-medium pt-1.5 border-t border-white/[0.06] truncate">
+            <TrendingUp size={11} className="shrink-0" />
+            <span className="truncate">پوشش فعال مشتری</span>
           </div>
         </div>
 
-        {/* KPI 4: تعداد فروشندگان کالا */}
-        <div className={`rounded-xl p-2.5 flex flex-col justify-between transition-all hover:scale-[1.01] ${glassCard}`}>
-          <div className="flex items-center justify-between text-[#6366F1]">
-            <span className="text-[11px] font-bold text-[#86868B] dark:text-[#98989D] truncate">
-              فروشندگان کالا
+        {/* KPI 4: فروشندگان کالا */}
+        <div className={`rounded-xl sm:rounded-2xl p-2.5 sm:p-3 flex flex-col justify-between transition-all border ${cardCls}`}>
+          <div className="flex items-center justify-between text-[11px] font-semibold">
+            <span className={isDark ? 'text-slate-400' : 'text-slate-500'}>ویزیتورهای فعال</span>
+            <span className={`w-6 h-6 rounded-lg flex items-center justify-center shrink-0 ${
+              isDark ? 'bg-amber-500/15 text-amber-400' : 'bg-amber-50 text-amber-700'
+            }`}>
+              <UserCheck size={13} />
             </span>
-            <div className="w-5 h-5 rounded-md bg-[#6366F1]/10 flex items-center justify-center shrink-0">
-              <UserCheck className="w-3 h-3" />
-            </div>
           </div>
           <div className="my-1">
-            <span className="text-lg sm:text-xl font-black text-[#6366F1] tabular-nums tracking-tight">
-              {fa(kpis.unique_sellers || 0)}
-            </span>
-            <p className="text-[10px] text-[#86868B] dark:text-[#98989D] font-medium truncate">
+            <div className={`text-base sm:text-lg font-black tabular-nums font-sans tracking-tight truncate ${
+              isDark ? 'text-amber-400' : 'text-amber-700'
+            }`}>
+              {fa(kpis.unique_sellers || 0)} <span className="text-[10px] font-bold">ویزیتور</span>
+            </div>
+            <div className={`text-[11px] font-sans font-medium truncate ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
               ویزیتور با فروش موفق
-            </p>
+            </div>
           </div>
-          <div className="pt-1 border-t border-black/[0.04] dark:border-white/[0.05] flex items-center justify-between text-[9px]">
-            <span className="text-[#86868B]">پوشش</span>
-            <span className="font-bold text-[#6366F1]">Sellers</span>
+          <div className="flex items-center gap-1 text-[10px] text-amber-400 font-medium pt-1.5 border-t border-white/[0.06] truncate">
+            <CheckCircle2 size={11} className="shrink-0" />
+            <span className="truncate">نیروی فروش درگیر</span>
           </div>
         </div>
 
         {/* KPI 5: تاریخ آخرین خرید */}
-        <div className={`rounded-xl p-2.5 flex flex-col justify-between transition-all hover:scale-[1.01] ${glassCard}`}>
-          <div className="flex items-center justify-between text-[#8B5CF6]">
-            <span className="text-[11px] font-bold text-[#86868B] dark:text-[#98989D] truncate">
-              آخرین تاریخ خرید
+        <div className={`rounded-xl sm:rounded-2xl p-2.5 sm:p-3 flex flex-col justify-between transition-all border ${cardCls}`}>
+          <div className="flex items-center justify-between text-[11px] font-semibold">
+            <span className={isDark ? 'text-slate-400' : 'text-slate-500'}>آخرین تاریخ خرید</span>
+            <span className={`w-6 h-6 rounded-lg flex items-center justify-center shrink-0 ${
+              isDark ? 'bg-purple-500/15 text-purple-400' : 'bg-purple-50 text-purple-700'
+            }`}>
+              <Calendar size={13} />
             </span>
-            <div className="w-5 h-5 rounded-md bg-[#8B5CF6]/10 flex items-center justify-center shrink-0">
-              <Calendar className="w-3 h-3" />
-            </div>
           </div>
           <div className="my-1">
-            <span className="text-base sm:text-lg font-black text-[#1D1D1F] dark:text-[#F5F5F7] tabular-nums tracking-tight">
+            <div className={`text-base sm:text-lg font-black tabular-nums font-sans tracking-tight truncate ${
+              isDark ? 'text-purple-400' : 'text-purple-700'
+            }`}>
               {faDate(kpis.last_purchase_date)}
-            </span>
-            <p className="text-[10px] text-[#86868B] dark:text-[#98989D] font-medium truncate">
+            </div>
+            <div className={`text-[11px] font-sans font-medium truncate ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
               آخرین سفارش ثبت‌شده
-            </p>
+            </div>
           </div>
-          <div className="pt-1 border-t border-black/[0.04] dark:border-white/[0.05] flex items-center justify-between text-[9px]">
-            <span className="text-[#86868B]">تازگی</span>
-            <span className="font-bold text-[#8B5CF6]">Last Date</span>
+          <div className="flex items-center gap-1 text-[10px] text-purple-400 font-medium pt-1.5 border-t border-white/[0.06] truncate">
+            <Clock size={11} className="shrink-0" />
+            <span className="truncate">تازگی داده‌های فروش</span>
           </div>
         </div>
       </div>
 
-      {/* 3. Three New Analytical Charts (3-Column Glass Grid) */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4">
-        {/* Chart 1: الگوی تناوب خرید مشتریان (Customer Purchase Frequency Pattern) */}
-        <div className={`rounded-2xl p-4 flex flex-col justify-between ${glassCard}`}>
+      {/* ── 3. Three Analytical Trend Charts ── */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-5 items-stretch">
+        {/* Chart 1: الگوی تناوب خرید مشتریان */}
+        <div className={`rounded-[24px] sm:rounded-[28px] p-5 flex flex-col justify-between border transition-colors ${cardCls}`}>
           <div>
-            <div className="flex items-center justify-between mb-2">
-              <div className="flex items-center gap-2">
-                <div className="w-6 h-6 rounded-lg bg-[#10B981]/10 text-[#10B981] flex items-center justify-center">
-                  <Repeat className="w-3.5 h-3.5" />
-                </div>
-                <div>
-                  <h3 className="text-xs sm:text-sm font-extrabold text-[#1D1D1F] dark:text-[#F5F5F7]">
-                    الگوی تناوب خرید مشتریان
-                  </h3>
-                  <span className="text-[10px] text-[#86868B] dark:text-[#98989D]">
-                    توزیع بازه تکرار خرید (میانگین روز بین سفارشات)
-                  </span>
-                </div>
+            <div className="flex items-center gap-2 mb-3">
+              <span className={`w-2 h-2 rounded-full ${isDark ? 'bg-emerald-400 shadow-[0_0_8px_#10B981]' : 'bg-emerald-500'}`} />
+              <div>
+                <h3 className={`text-sm font-bold ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>
+                  الگوی تناوب خرید مشتریان
+                </h3>
+                <p className={`text-[11px] mt-0.5 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                  توزیع بازه تکرار خرید (میانگین روز بین سفارشات)
+                </p>
               </div>
             </div>
 
-            <div className="h-[210px] w-full" dir="ltr">
+            <div className="h-[210px] w-full mt-2" dir="ltr">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={freqPattern} margin={{ top: 20, right: 10, left: 10, bottom: 5 }}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={isDark ? '#2C2C2E' : '#E5E5EA'} />
+                <BarChart data={freqPattern} margin={{ top: 20, right: 10, left: 0, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={isDark ? 'rgba(255,255,255,0.06)' : '#E2E8F0'} />
                   <XAxis
                     dataKey="interval"
                     tickLine={false}
                     axisLine={false}
-                    tick={{ fill: isDark ? '#98989D' : '#86868B', fontSize: 10, fontWeight: 600 }}
+                    tick={{ fill: isDark ? '#94A3B8' : '#64748B', fontSize: 10, fontFamily: 'Vazirmatn' }}
                   />
                   <YAxis
                     orientation="right"
                     tickLine={false}
                     axisLine={false}
                     tickFormatter={(v) => fa(v)}
-                    tick={{ fill: isDark ? '#98989D' : '#86868B', fontSize: 10 }}
+                    tick={{ fill: isDark ? '#94A3B8' : '#64748B', fontSize: 10, fontFamily: 'Vazirmatn' }}
                     width={40}
                   />
                   <Tooltip
-                    contentStyle={{
-                      backgroundColor: isDark ? '#1C1C1E' : '#FFFFFF',
-                      borderColor: isDark ? '#2C2C2E' : '#E5E5EA',
-                      borderRadius: '12px',
-                      fontSize: '11px',
-                      direction: 'rtl',
-                    }}
-                    formatter={(val, name, item) => [
-                      `${fa(val)} مشتری (${fa1(item.payload.percent)}٪)`,
-                      'تعداد مشتریان',
-                    ]}
+                    content={<ChartTooltip isDark={isDark} formatter={(val, name, item) => `${fa(val)} مشتری (${fa1(item?.payload?.percent)}٪)`} />}
                   />
-                  <Bar dataKey="count" radius={[6, 6, 0, 0]} maxBarSize={44}>
+                  <Bar dataKey="count" name="تعداد مشتری" radius={[6, 6, 0, 0]} maxBarSize={38}>
                     {freqPattern.map((entry, idx) => (
-                      <Cell key={`cell-${idx}`} fill={entry.color} />
+                      <Cell key={`cell-${idx}`} fill={entry.color || '#10B981'} />
                     ))}
                     <LabelList
                       dataKey="percent"
                       position="top"
                       formatter={(val) => `${fa1(val)}٪`}
                       style={{
-                        fill: isDark ? '#F5F5F7' : '#1D1D1F',
+                        fill: isDark ? '#94A3B8' : '#475569',
                         fontSize: 10,
                         fontWeight: 700,
+                        fontFamily: 'Vazirmatn',
                       }}
                     />
                   </Bar>
@@ -465,11 +531,15 @@ export function ProductBrandPage({ p, openProfile }) {
           </div>
 
           {/* Quick Frequency Breakdown Footers */}
-          <div className="pt-2 mt-1 border-t border-black/[0.04] dark:border-white/[0.05] grid grid-cols-4 gap-1 text-center text-[9px]">
+          <div className={`pt-2.5 mt-2 border-t grid grid-cols-4 gap-1.5 text-center text-[10px] ${
+            isDark ? 'border-white/[0.06]' : 'border-slate-100'
+          }`}>
             {freqPattern.map((f) => (
-              <div key={f.key} className="p-1 rounded-lg bg-black/[0.02] dark:bg-white/[0.02]">
-                <span className="text-[#86868B] block truncate">{f.interval}</span>
-                <span className="font-extrabold text-[#1D1D1F] dark:text-[#F5F5F7] tabular-nums block mt-0.5" style={{ color: f.color }}>
+              <div key={f.key} className={`p-1.5 rounded-xl border ${
+                isDark ? 'bg-white/[0.02] border-white/[0.04]' : 'bg-slate-50 border-slate-200/60'
+              }`}>
+                <span className={`block truncate ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>{f.interval}</span>
+                <span className="font-bold tabular-nums font-sans block mt-0.5" style={{ color: f.color }}>
                   {fa(f.count)}
                 </span>
               </div>
@@ -477,34 +547,30 @@ export function ProductBrandPage({ p, openProfile }) {
           </div>
         </div>
 
-        {/* Chart 2: الگوی ماهانه خرید کالا (Monthly Purchase Trend) */}
-        <div className={`rounded-2xl p-4 flex flex-col justify-between ${glassCard}`}>
+        {/* Chart 2: الگوی ماهانه خرید کالا */}
+        <div className={`rounded-[24px] sm:rounded-[28px] p-5 flex flex-col justify-between border transition-colors ${cardCls}`}>
           <div>
-            <div className="flex items-center justify-between mb-2">
-              <div className="flex items-center gap-2">
-                <div className="w-6 h-6 rounded-lg bg-[#0071E3]/10 text-[#0071E3] flex items-center justify-center">
-                  <TrendingUp className="w-3.5 h-3.5" />
-                </div>
-                <div>
-                  <h3 className="text-xs sm:text-sm font-extrabold text-[#1D1D1F] dark:text-[#F5F5F7]">
-                    الگوی ماهانه خرید کالا
-                  </h3>
-                  <span className="text-[10px] text-[#86868B] dark:text-[#98989D]">
-                    روند ماهانه مشتریان خریدار و حجم کارتنی
-                  </span>
-                </div>
+            <div className="flex items-center gap-2 mb-3">
+              <span className={`w-2 h-2 rounded-full ${isDark ? 'bg-teal-400 shadow-[0_0_8px_#14B8A6]' : 'bg-teal-500'}`} />
+              <div>
+                <h3 className={`text-sm font-bold ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>
+                  الگوی ماهانه خرید کالا
+                </h3>
+                <p className={`text-[11px] mt-0.5 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                  روند ماهانه مشتریان خریدار و حجم کارتنی
+                </p>
               </div>
             </div>
 
-            <div className="h-[210px] w-full" dir="ltr">
+            <div className="h-[210px] w-full mt-2" dir="ltr">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={monthlyTrend} margin={{ top: 20, right: 10, left: 10, bottom: 5 }}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={isDark ? '#2C2C2E' : '#E5E5EA'} />
+                <BarChart data={monthlyTrend} margin={{ top: 20, right: 10, left: 0, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={isDark ? 'rgba(255,255,255,0.06)' : '#E2E8F0'} />
                   <XAxis
                     dataKey="month_label"
                     tickLine={false}
                     axisLine={false}
-                    tick={{ fill: isDark ? '#98989D' : '#86868B', fontSize: 10, fontWeight: 600 }}
+                    tick={{ fill: isDark ? '#94A3B8' : '#64748B', fontSize: 10, fontFamily: 'Vazirmatn' }}
                   />
                   <YAxis
                     yAxisId="right"
@@ -512,7 +578,7 @@ export function ProductBrandPage({ p, openProfile }) {
                     tickLine={false}
                     axisLine={false}
                     tickFormatter={(v) => fa(v)}
-                    tick={{ fill: '#0071E3', fontSize: 10 }}
+                    tick={{ fill: '#0EA5E9', fontSize: 10, fontFamily: 'Vazirmatn' }}
                     width={40}
                   />
                   <YAxis
@@ -521,136 +587,116 @@ export function ProductBrandPage({ p, openProfile }) {
                     tickLine={false}
                     axisLine={false}
                     tickFormatter={(v) => fa(Math.round(v))}
-                    tick={{ fill: '#10B981', fontSize: 10 }}
+                    tick={{ fill: '#10B981', fontSize: 10, fontFamily: 'Vazirmatn' }}
                     width={40}
                   />
                   <Tooltip
-                    contentStyle={{
-                      backgroundColor: isDark ? '#1C1C1E' : '#FFFFFF',
-                      borderColor: isDark ? '#2C2C2E' : '#E5E5EA',
-                      borderRadius: '12px',
-                      fontSize: '11px',
-                      direction: 'rtl',
-                    }}
-                    formatter={(val, name) => [
-                      name === 'unique_customers' ? `${fa(val)} مشتری` : `${fa(Math.round(val))} کارتن`,
-                      name === 'unique_customers' ? 'مشتریان خریدار' : 'فروش کارتنی',
-                    ]}
+                    content={<ChartTooltip isDark={isDark} formatter={(val, name) => name === 'unique_customers' ? `${fa(val)} مشتری` : `${fa(Math.round(val))} کارتن`} />}
                   />
                   <Legend
                     verticalAlign="top"
                     align="right"
-                    wrapperStyle={{ fontSize: 10, paddingBottom: 6 }}
+                    wrapperStyle={{ fontSize: 10, paddingBottom: 6, fontFamily: 'Vazirmatn' }}
                     formatter={(val) => (val === 'unique_customers' ? 'مشتریان خریدار' : 'فروش کارتنی')}
                   />
-                  <Bar yAxisId="right" dataKey="unique_customers" fill="#0071E3" radius={[4, 4, 0, 0]} maxBarSize={18} />
-                  <Bar yAxisId="left" dataKey="carton_qty" fill="#10B981" radius={[4, 4, 0, 0]} maxBarSize={18} />
+                  <Bar yAxisId="right" dataKey="unique_customers" name="unique_customers" fill="#0EA5E9" radius={[4, 4, 0, 0]} maxBarSize={18} />
+                  <Bar yAxisId="left" dataKey="carton_qty" name="carton_qty" fill="#10B981" radius={[4, 4, 0, 0]} maxBarSize={18} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
           </div>
 
-          <div className="pt-2 mt-1 border-t border-black/[0.04] dark:border-white/[0.05] flex items-center justify-between text-[10px] text-[#86868B]">
-            <span>ماه ابتدایی: <strong className="text-[#1D1D1F] dark:text-[#F5F5F7]">{monthlyTrend[0]?.month_label || '—'}</strong></span>
-            <span>آخرین ماه: <strong className="text-[#1D1D1F] dark:text-[#F5F5F7]">{monthlyTrend[monthlyTrend.length - 1]?.month_label || '—'}</strong></span>
+          <div className={`pt-2.5 mt-2 border-t flex items-center justify-between text-[11px] ${
+            isDark ? 'border-white/[0.06] text-slate-400' : 'border-slate-100 text-slate-500'
+          }`}>
+            <span>ابتدا: <strong className={isDark ? 'text-slate-200' : 'text-slate-800'}>{monthlyTrend[0]?.month_label || '—'}</strong></span>
+            <span>انتها: <strong className={isDark ? 'text-slate-200' : 'text-slate-800'}>{monthlyTrend[monthlyTrend.length - 1]?.month_label || '—'}</strong></span>
           </div>
         </div>
 
-        {/* Chart 3: الگوی ماهانه تخفیف کالا (Monthly Discount / Promotion Pattern) */}
-        <div className={`rounded-2xl p-4 flex flex-col justify-between ${glassCard}`}>
+        {/* Chart 3: الگوی ماهانه تخفیف و پروموشن */}
+        <div className={`rounded-[24px] sm:rounded-[28px] p-5 flex flex-col justify-between border transition-colors ${cardCls}`}>
           <div>
-            <div className="flex items-center justify-between mb-2">
-              <div className="flex items-center gap-2">
-                <div className="w-6 h-6 rounded-lg bg-[#F59E0B]/10 text-[#F59E0B] flex items-center justify-center">
-                  <Percent className="w-3.5 h-3.5" />
-                </div>
-                <div>
-                  <h3 className="text-xs sm:text-sm font-extrabold text-[#1D1D1F] dark:text-[#F5F5F7]">
-                    الگوی ماهانه تخفیف و پروموشن
-                  </h3>
-                  <span className="text-[10px] text-[#86868B] dark:text-[#98989D]">
-                    درصد تخفیفات فاکتور و کل پروموشن‌ها به تفکیک ماه
-                  </span>
-                </div>
+            <div className="flex items-center gap-2 mb-3">
+              <span className={`w-2 h-2 rounded-full ${isDark ? 'bg-amber-400 shadow-[0_0_8px_#F59E0B]' : 'bg-amber-500'}`} />
+              <div>
+                <h3 className={`text-sm font-bold ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>
+                  الگوی ماهانه تخفیف و پروموشن
+                </h3>
+                <p className={`text-[11px] mt-0.5 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                  درصد تخفیفات فاکتور و کل پروموشن‌ها به تفکیک ماه
+                </p>
               </div>
             </div>
 
-            <div className="h-[210px] w-full" dir="ltr">
+            <div className="h-[210px] w-full mt-2" dir="ltr">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={monthlyDiscount} margin={{ top: 20, right: 10, left: 10, bottom: 5 }}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={isDark ? '#2C2C2E' : '#E5E5EA'} />
+                <BarChart data={monthlyDiscount} margin={{ top: 20, right: 10, left: 0, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={isDark ? 'rgba(255,255,255,0.06)' : '#E2E8F0'} />
                   <XAxis
                     dataKey="month_label"
                     tickLine={false}
                     axisLine={false}
-                    tick={{ fill: isDark ? '#98989D' : '#86868B', fontSize: 10, fontWeight: 600 }}
+                    tick={{ fill: isDark ? '#94A3B8' : '#64748B', fontSize: 10, fontFamily: 'Vazirmatn' }}
                   />
                   <YAxis
                     orientation="right"
                     tickLine={false}
                     axisLine={false}
                     tickFormatter={(v) => `${fa1(v)}٪`}
-                    tick={{ fill: isDark ? '#98989D' : '#86868B', fontSize: 10 }}
+                    tick={{ fill: isDark ? '#94A3B8' : '#64748B', fontSize: 10, fontFamily: 'Vazirmatn' }}
                     width={40}
                   />
                   <Tooltip
-                    contentStyle={{
-                      backgroundColor: isDark ? '#1C1C1E' : '#FFFFFF',
-                      borderColor: isDark ? '#2C2C2E' : '#E5E5EA',
-                      borderRadius: '12px',
-                      fontSize: '11px',
-                      direction: 'rtl',
-                    }}
-                    formatter={(val, name) => [
-                      `${fa2(val)}٪`,
-                      name === 'discount_pct' ? 'درصد تخفیف' : 'درصد کل پروموشن',
-                    ]}
+                    content={<ChartTooltip isDark={isDark} formatter={(val, name) => `${fa2(val)}٪`} />}
                   />
                   <Legend
                     verticalAlign="top"
                     align="right"
-                    wrapperStyle={{ fontSize: 10, paddingBottom: 6 }}
+                    wrapperStyle={{ fontSize: 10, paddingBottom: 6, fontFamily: 'Vazirmatn' }}
                     formatter={(val) => (val === 'discount_pct' ? 'درصد تخفیف' : 'درصد پروموشن')}
                   />
-                  <Bar dataKey="discount_pct" fill="#F59E0B" radius={[4, 4, 0, 0]} maxBarSize={18} />
-                  <Bar dataKey="promo_pct" fill="#F43F5E" radius={[4, 4, 0, 0]} maxBarSize={18} />
+                  <Bar dataKey="discount_pct" name="discount_pct" fill="#F59E0B" radius={[4, 4, 0, 0]} maxBarSize={18} />
+                  <Bar dataKey="promo_pct" name="promo_pct" fill="#F43F5E" radius={[4, 4, 0, 0]} maxBarSize={18} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
           </div>
 
-          <div className="pt-2 mt-1 border-t border-black/[0.04] dark:border-white/[0.05] flex items-center justify-between text-[10px] text-[#86868B]">
-            <span>میانگین تخفیف: <strong className="text-[#F59E0B] font-bold">{fa2(monthlyDiscount.reduce((acc, m) => acc + m.discount_pct, 0) / (monthlyDiscount.length || 1))}٪</strong></span>
-            <span>میانگین پروموشن: <strong className="text-[#F43F5E] font-bold">{fa2(monthlyDiscount.reduce((acc, m) => acc + m.promo_pct, 0) / (monthlyDiscount.length || 1))}٪</strong></span>
+          <div className={`pt-2.5 mt-2 border-t flex items-center justify-between text-[11px] ${
+            isDark ? 'border-white/[0.06] text-slate-400' : 'border-slate-100 text-slate-500'
+          }`}>
+            <span>میانگین تخفیف: <strong className="text-amber-400 font-bold">{fa2(monthlyDiscount.reduce((acc, m) => acc + m.discount_pct, 0) / (monthlyDiscount.length || 1))}٪</strong></span>
+            <span>میانگین پروموشن: <strong className="text-rose-400 font-bold">{fa2(monthlyDiscount.reduce((acc, m) => acc + m.promo_pct, 0) / (monthlyDiscount.length || 1))}٪</strong></span>
           </div>
         </div>
       </div>
 
-      {/* 4. Top 20 Breakdown Ranking Bar Chart */}
-      <div className={`rounded-2xl p-4 ${glassCard}`}>
-        <div className="flex items-center justify-between mb-3">
+      {/* ── 4. Top 20 Breakdown Ranking Bar Chart ── */}
+      <div className={`rounded-[24px] sm:rounded-[28px] p-5 sm:p-7 border transition-colors ${cardCls}`}>
+        <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
           <div className="flex items-center gap-2">
-            <div className="w-6 h-6 rounded-lg bg-[#0071E3]/10 text-[#0071E3] flex items-center justify-center">
-              <ShoppingBag className="w-3.5 h-3.5" />
-            </div>
+            <span className={`w-2.5 h-2.5 rounded-full ${isDark ? 'bg-emerald-400 shadow-[0_0_10px_#10B981]' : 'bg-emerald-500'}`} />
             <div>
-              <h3 className="text-xs sm:text-sm font-extrabold text-[#1D1D1F] dark:text-[#F5F5F7]">
-                ۲۰ {headLabel} برتر بر اساس فروش ریالی
+              <h3 className={`text-base font-bold ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>
+                ۲۰ {headLabel} برتر بر پایه فروش ریالی
               </h3>
-              <span className="text-[10px] text-[#86868B] dark:text-[#98989D]">
-                کلیک روی هر میله برای فیلتر و تمرکز روی آن {headLabel}
-              </span>
+              <p className={`text-xs mt-0.5 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                برای فیلتر روی هر {headLabel} و بررسی زیرشاخه‌های آن، روی میله مربوطه کلیک کنید
+              </p>
             </div>
           </div>
-          <span className="text-[10px] font-bold text-[#0071E3] bg-[#0071E3]/10 px-2 py-0.5 rounded-lg tabular-nums">
-            {fa(top20Rows.length)} مورد
+          <span className={`text-xs font-bold px-3 py-1 rounded-xl ${
+            isDark ? 'bg-emerald-500/15 text-emerald-300' : 'bg-emerald-50 text-emerald-800'
+          }`}>
+            {fa(top20Rows.length)} مورد برتر
           </span>
         </div>
 
-        <div className="h-[240px] w-full" dir="ltr">
+        <div className="h-[250px] w-full mt-2" dir="ltr">
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={top20Rows} margin={{ top: 20, right: 10, left: 10, bottom: 25 }}>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={isDark ? '#2C2C2E' : '#E5E5EA'} />
+            <BarChart data={top20Rows} margin={{ top: 20, right: 10, left: 0, bottom: 25 }}>
+              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={isDark ? 'rgba(255,255,255,0.06)' : '#E2E8F0'} />
               <XAxis
                 dataKey="key"
                 tickLine={false}
@@ -658,37 +704,31 @@ export function ProductBrandPage({ p, openProfile }) {
                 interval={0}
                 angle={top20Rows.length > 8 ? -30 : 0}
                 textAnchor={top20Rows.length > 8 ? 'end' : 'middle'}
-                tick={{ fill: isDark ? '#98989D' : '#86868B', fontSize: 10, fontWeight: 600 }}
+                tick={{ fill: isDark ? '#94A3B8' : '#64748B', fontSize: 10, fontFamily: 'Vazirmatn' }}
               />
               <YAxis
                 orientation="right"
                 tickLine={false}
                 axisLine={false}
                 tickFormatter={(v) => rial(v)}
-                tick={{ fill: isDark ? '#98989D' : '#86868B', fontSize: 10 }}
-                width={70}
+                tick={{ fill: isDark ? '#94A3B8' : '#64748B', fontSize: 10, fontFamily: 'Vazirmatn' }}
+                width={72}
               />
               <Tooltip
-                contentStyle={{
-                  backgroundColor: isDark ? '#1C1C1E' : '#FFFFFF',
-                  borderColor: isDark ? '#2C2C2E' : '#E5E5EA',
-                  borderRadius: '12px',
-                  fontSize: '11px',
-                  direction: 'rtl',
-                }}
-                formatter={(val) => [rial(val), 'فروش ریالی']}
+                content={<ChartTooltip isDark={isDark} formatter={(val) => rial(val)} />}
               />
               <Bar
                 dataKey="sum_rial_vat"
+                name="فروش ریالی"
                 radius={[6, 6, 0, 0]}
-                maxBarSize={40}
+                maxBarSize={42}
                 onClick={(entry) => handleDrill(entry.key)}
                 cursor="pointer"
               >
                 {top20Rows.map((entry, idx) => (
                   <Cell
                     key={`bar-${idx}`}
-                    fill={sel?.key === String(entry.key) ? '#0071E3' : '#3B82F6'}
+                    fill={sel?.key === String(entry.key) ? '#10B981' : isDark ? '#059669' : '#10B981'}
                     className="hover:opacity-80 transition-opacity"
                   />
                 ))}
@@ -698,23 +738,23 @@ export function ProductBrandPage({ p, openProfile }) {
         </div>
       </div>
 
-      {/* 5. Enhanced Detailed Table (جدول تفصیلی) with Carton Qty & Repurchase Cycle Badge */}
-      <div className={`rounded-2xl p-4 ${glassCard}`}>
-        <div className="flex items-center justify-between mb-3">
+      {/* ── 5. Enhanced Detailed Ledger Table ── */}
+      <div className={`rounded-[24px] sm:rounded-[28px] p-5 sm:p-7 border transition-colors ${cardCls}`}>
+        <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
           <div className="flex items-center gap-2">
-            <div className="w-6 h-6 rounded-lg bg-[#0071E3]/10 text-[#0071E3] flex items-center justify-center">
-              <Layers className="w-3.5 h-3.5" />
-            </div>
+            <span className={`w-2.5 h-2.5 rounded-full ${isDark ? 'bg-cyan-400 shadow-[0_0_10px_#06B6D4]' : 'bg-cyan-500'}`} />
             <div>
-              <h3 className="text-xs sm:text-sm font-extrabold text-[#1D1D1F] dark:text-[#F5F5F7]">
+              <h3 className={`text-base font-bold ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>
                 {sel ? `جدول تفصیلی زیرشاخه‌های «${sel.key}»` : `جدول تفصیلی تحلیل ${headLabel}`}
               </h3>
-              <span className="text-[10px] text-[#86868B] dark:text-[#98989D]">
-                شامل فروش کارتنی، دوره تناوب خرید (فاصله خرید مجدد)، تخفیف و مرجوعی
-              </span>
+              <p className={`text-xs mt-0.5 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                شامل فروش کارتنی، دوره تناوب خرید (فاصله خرید مجدد)، درصد تخفیف و مرجوعی
+              </p>
             </div>
           </div>
-          <span className="text-[10px] font-bold text-[#0071E3] bg-[#0071E3]/10 px-2.5 py-1 rounded-lg tabular-nums">
+          <span className={`text-xs font-bold px-3 py-1 rounded-xl tabular-nums ${
+            isDark ? 'bg-cyan-500/15 text-cyan-300' : 'bg-cyan-50 text-cyan-800'
+          }`}>
             {fa(rows.length)} ردیف
           </span>
         </div>
@@ -730,4 +770,5 @@ export function ProductBrandPage({ p, openProfile }) {
     </div>
   )
 }
+
 export default ProductBrandPage

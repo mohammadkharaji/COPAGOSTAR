@@ -71,6 +71,7 @@ const PIE_BY = [['branch', 'شعبه'], ['region', 'منطقه'], ['brand', 'ب�
  * ─────────────────────────────────────────────────────────────
  */
 const ADVANCED_FILTER_KEYS = [
+  { key: 'office', label: 'دفتر' },
   { key: 'brand', label: 'برند' },
   { key: 'main_group', label: 'گروه کالای اصلی' },
   { key: 'product', label: 'کالا' },
@@ -81,7 +82,27 @@ const ADVANCED_FILTER_KEYS = [
   { key: 'sales_type', label: 'کانال فروش' },
 ]
 
+const TEHRAN_EXCLUDED_GEO = new Set([
+  'استان مرکزی',
+  'استان البرز',
+  'شهرستان اصفهان',
+  'شهرستان بویر احمد',
+  'شهرستان خفر',
+  'شهرستان نظرآباد',
+  'شهرستان ساوه',
+  'کرج',
+  'یاسوج',
+  'نظر آباد',
+])
+
 const cleanDistrictLabel = (label) => (typeof label === 'string' ? label.replace(/\s*[-_]\s*[\d۰-۹]+$/, '').trim() : label)
+
+const formatOptionLabel = (key, opt) => {
+  if (typeof opt !== 'string') return opt
+  if (key === 'office') return opt.replace(/^شعبه\s+/, 'دفتر ')
+  if (key === 'state') return cleanDistrictLabel(opt)
+  return opt
+}
 
 export function OverviewHeader({
   title = 'نمای کلی فروش',
@@ -96,6 +117,8 @@ export function OverviewHeader({
   filters = {},
   onFilterChange,
   onReset,
+  showFilters = true,
+  hideMonth = false,
 }) {
   const { isDark } = useAppearance()
   const [dropdownOpen, setDropdownOpen] = useState(false)
@@ -119,6 +142,10 @@ export function OverviewHeader({
   const activeFilterCount = useMemo(() => {
     return ADVANCED_FILTER_KEYS.filter(({ key }) => Boolean(dims[key])).length
   }, [dims])
+
+  const hasAnyFilter = Boolean(month) || Boolean(branch) || activeFilterCount > 0
+  const branchList = branches.length > 0 ? branches : (filters.branch ?? [])
+  const monthList = months.length > 0 ? months : (filters.month ?? [])
 
   return (
     <header className={`flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 pb-3 border-b mb-5 transition-colors ${
@@ -149,274 +176,315 @@ export function OverviewHeader({
       </div>
 
       {/* Left side: Branch filter + Month switcher + Floating Advanced Filter Popover */}
-      <div className="flex items-center flex-wrap gap-2.5 sm:gap-3">
-        {/* Branch / Supervisor Filter Dropdown */}
-        <div className="relative" ref={dropdownRef}>
-          <button
-            type="button"
-            onClick={() => setDropdownOpen((v) => !v)}
-            className={`flex items-center gap-2 text-xs sm:text-sm font-semibold px-3 py-2 rounded-xl transition-all shadow-xs border cursor-pointer select-none outline-none ${
-              isDark
-                ? 'bg-[#0F1412] hover:bg-[#151D1A] border-white/[0.08] hover:border-emerald-500/40 text-slate-200'
-                : 'bg-white hover:bg-slate-50 border-slate-200/90 text-slate-800 shadow-sm'
-            }`}
-            aria-expanded={dropdownOpen}
-          >
-            <Building size={14} className={isDark ? 'text-emerald-400' : 'text-emerald-600'} />
-            <span>{branch || 'همه شعب و مناطق'}</span>
-            <ChevronDown size={14} className={`transition-transform duration-200 ${isDark ? 'text-slate-400' : 'text-slate-500'} ${dropdownOpen ? 'rotate-180' : ''}`} />
-          </button>
+      {showFilters && (
+        <div className="flex items-center flex-wrap gap-2.5 sm:gap-3">
+          {/* Branch / Supervisor Filter Dropdown */}
+          <div className="relative" ref={dropdownRef}>
+            <button
+              type="button"
+              onClick={() => setDropdownOpen((v) => !v)}
+              className={`flex items-center gap-2 text-xs sm:text-sm font-semibold px-3 py-2 rounded-xl transition-all shadow-xs border cursor-pointer select-none outline-none ${
+                isDark
+                  ? 'bg-[#0F1412] hover:bg-[#151D1A] border-white/[0.08] hover:border-emerald-500/40 text-slate-200'
+                  : 'bg-white hover:bg-slate-50 border-slate-200/90 text-slate-800 shadow-sm'
+              }`}
+              aria-expanded={dropdownOpen}
+            >
+              <Building size={14} className={isDark ? 'text-emerald-400' : 'text-emerald-600'} />
+              <span>{branch || 'همه شعب و مناطق'}</span>
+              <ChevronDown size={14} className={`transition-transform duration-200 ${isDark ? 'text-slate-400' : 'text-slate-500'} ${dropdownOpen ? 'rotate-180' : ''}`} />
+            </button>
 
-          <AnimatePresence>
-            {dropdownOpen && (
-              <motion.div
-                initial={{ opacity: 0, y: 6, scale: 0.98 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: 4, scale: 0.98 }}
-                transition={{ duration: 0.15 }}
-                className={`absolute left-0 top-full mt-1.5 z-50 w-56 max-h-60 overflow-y-auto exec-hover-scrollbar rounded-2xl p-1.5 shadow-2xl backdrop-blur-xl space-y-0.5 text-right border ${
-                  isDark
-                    ? 'bg-[#0F1412] border-white/10 text-slate-200 shadow-[0_16px_40px_rgba(0,0,0,0.7)]'
-                    : 'bg-white border-slate-200 text-slate-800 shadow-xl'
-                }`}
-              >
-                <button
-                  type="button"
-                  onClick={() => {
-                    onBranchChange?.('')
-                    setDropdownOpen(false)
-                  }}
-                  className={`w-full flex items-center justify-between px-3 py-2 text-xs rounded-xl transition-colors cursor-pointer ${
-                    !branch
-                      ? (isDark ? 'bg-emerald-500/15 text-emerald-400 font-bold' : 'bg-emerald-50 text-emerald-800 font-bold')
-                      : (isDark ? 'text-slate-300 hover:bg-white/[0.05]' : 'text-slate-700 hover:bg-slate-100')
+            <AnimatePresence>
+              {dropdownOpen && (
+                <motion.div
+                  initial={{ opacity: 0, y: 6, scale: 0.98 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: 4, scale: 0.98 }}
+                  transition={{ duration: 0.15 }}
+                  className={`absolute left-0 top-full mt-1.5 z-50 w-56 max-h-60 overflow-y-auto exec-hover-scrollbar rounded-2xl p-1.5 shadow-2xl backdrop-blur-xl space-y-0.5 text-right border ${
+                    isDark
+                      ? 'bg-[#0F1412] border-white/10 text-slate-200 shadow-[0_16px_40px_rgba(0,0,0,0.7)]'
+                      : 'bg-white border-slate-200 text-slate-800 shadow-xl'
                   }`}
                 >
-                  <span>همه شعب</span>
-                  {!branch && <Check size={13} className={isDark ? 'text-emerald-400' : 'text-emerald-700'} />}
-                </button>
-                {branches.map((b) => (
                   <button
-                    key={b}
                     type="button"
                     onClick={() => {
-                      onBranchChange?.(b)
+                      onBranchChange?.('')
                       setDropdownOpen(false)
                     }}
                     className={`w-full flex items-center justify-between px-3 py-2 text-xs rounded-xl transition-colors cursor-pointer ${
-                      branch === b
+                      !branch
                         ? (isDark ? 'bg-emerald-500/15 text-emerald-400 font-bold' : 'bg-emerald-50 text-emerald-800 font-bold')
                         : (isDark ? 'text-slate-300 hover:bg-white/[0.05]' : 'text-slate-700 hover:bg-slate-100')
                     }`}
                   >
-                    <span className="truncate">{b}</span>
-                    {branch === b && <Check size={13} className={isDark ? 'text-emerald-400' : 'text-emerald-700'} />}
+                    <span>همه شعب</span>
+                    {!branch && <Check size={13} className={isDark ? 'text-emerald-400' : 'text-emerald-700'} />}
                   </button>
-                ))}
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
-
-        {/* Month Selector Filter */}
-        {months.length > 0 && (
-          <div className="relative">
-            <select
-              value={month || ''}
-              onChange={(e) => setMonth?.(e.target.value)}
-              className={`text-xs sm:text-sm font-semibold px-3 py-2 rounded-xl transition-all shadow-xs cursor-pointer outline-none border ${
-                isDark
-                  ? 'bg-[#0F1412] border-white/[0.08] hover:border-emerald-500/40 text-slate-200'
-                  : 'bg-white border-slate-200/90 hover:border-emerald-500 text-slate-800 shadow-sm'
-              }`}
-            >
-              <option value="" className={isDark ? 'bg-[#0F1412] text-slate-200' : 'bg-white text-slate-800'}>
-                همه ماه‌ها
-              </option>
-              {months.map((m) => (
-                <option key={m} value={m} className={isDark ? 'bg-[#0F1412] text-slate-200' : 'bg-white text-slate-800'}>
-                  {monthLabel(m)}
-                </option>
-              ))}
-            </select>
+                  {branchList.map((b) => (
+                    <button
+                      key={b}
+                      type="button"
+                      onClick={() => {
+                        onBranchChange?.(b)
+                        setDropdownOpen(false)
+                      }}
+                      className={`w-full flex items-center justify-between px-3 py-2 text-xs rounded-xl transition-colors cursor-pointer ${
+                        branch === b
+                          ? (isDark ? 'bg-emerald-500/15 text-emerald-400 font-bold' : 'bg-emerald-50 text-emerald-800 font-bold')
+                          : (isDark ? 'text-slate-300 hover:bg-white/[0.05]' : 'text-slate-700 hover:bg-slate-100')
+                      }`}
+                    >
+                      <span className="truncate">{b}</span>
+                      {branch === b && <Check size={13} className={isDark ? 'text-emerald-400' : 'text-emerald-700'} />}
+                    </button>
+                  ))}
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
-        )}
 
-        {/* ── Advanced Floating Filter Popover Button ── */}
-        <div className="relative" ref={filterPopoverRef}>
-          <button
-            type="button"
-            onClick={() => setFilterOpen((v) => !v)}
-            className={`flex items-center gap-2 text-xs sm:text-sm font-bold px-3.5 py-2 rounded-xl transition-all shadow-xs cursor-pointer select-none border outline-none ${
-              activeFilterCount > 0
-                ? 'bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-[#090C0B] font-extrabold shadow-[0_0_20px_rgba(16,185,129,0.3)] hover:shadow-[0_0_28px_rgba(16,185,129,0.45)]'
-                : isDark
-                ? 'bg-[#0F1412] hover:bg-[#151D1A] border-white/[0.08] hover:border-emerald-500/40 text-slate-200'
-                : 'bg-white hover:bg-slate-50 border-slate-200/90 hover:border-emerald-500 text-slate-800 shadow-sm'
-            }`}
-            aria-expanded={filterOpen}
-          >
-            <SlidersHorizontal
-              size={14}
-              className={activeFilterCount > 0 ? 'text-[#090C0B]' : isDark ? 'text-emerald-400' : 'text-emerald-600'}
-            />
-            <span>فیلتر پیشرفته</span>
-            {activeFilterCount > 0 && (
-              <span className="w-5 h-5 rounded-full bg-[#090C0B] text-emerald-400 text-[10px] font-black flex items-center justify-center shrink-0">
-                {fa(activeFilterCount)}
-              </span>
-            )}
-            <ChevronDown size={14} className={`transition-transform duration-200 ${filterOpen ? 'rotate-180' : ''}`} />
-          </button>
-
-          {/* Floating Dropdown Menu (منوی شناور فیلترها) */}
-          <AnimatePresence>
-            {filterOpen && (
-              <motion.div
-                initial={{ opacity: 0, y: 8, scale: 0.98 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: 6, scale: 0.98 }}
-                transition={{ duration: 0.18, ease: 'easeOut' }}
-                className={`absolute left-0 top-full mt-2 z-50 w-[340px] sm:w-[560px] md:w-[680px] max-h-[85vh] overflow-y-auto exec-hover-scrollbar rounded-3xl p-5 backdrop-blur-2xl border text-right ${
+          {/* Month Selector Filter */}
+          {!hideMonth && monthList.length > 0 && (
+            <div className="relative">
+              <select
+                value={month || ''}
+                onChange={(e) => setMonth?.(e.target.value)}
+                className={`text-xs sm:text-sm font-semibold px-3 py-2 rounded-xl transition-all shadow-xs cursor-pointer outline-none border ${
                   isDark
-                    ? 'bg-[#0F1412]/95 border-white/[0.1] text-slate-100 shadow-[0_20px_60px_rgba(0,0,0,0.8)]'
-                    : 'bg-white/95 border-slate-200/90 text-slate-900 shadow-[0_20px_50px_rgba(15,23,42,0.15)]'
+                    ? 'bg-[#0F1412] border-white/[0.08] hover:border-emerald-500/40 text-slate-200'
+                    : 'bg-white border-slate-200/90 hover:border-emerald-500 text-slate-800 shadow-sm'
                 }`}
               >
-                {/* Floating Menu Header */}
-                <div className={`flex items-center justify-between pb-3.5 mb-4 border-b ${
-                  isDark ? 'border-white/[0.08]' : 'border-slate-100'
-                }`}>
-                  <div className="flex items-center gap-2.5">
-                    <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${
-                      isDark ? 'bg-emerald-500/15 text-emerald-400' : 'bg-emerald-50 text-emerald-700'
-                    }`}>
-                      <SlidersHorizontal size={16} />
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <h3 className={`text-sm font-extrabold ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>
-                          فیلترهای تحلیلی پیشرفته
-                        </h3>
-                        {activeFilterCount > 0 && (
-                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
-                            isDark
-                              ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30'
-                              : 'bg-emerald-50 text-emerald-800 border-emerald-200'
-                          }`}>
-                            {fa(activeFilterCount)} فیلتر فعال
-                          </span>
-                        )}
-                      </div>
-                      <p className={`text-[11px] mt-0.5 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-                        روی همهٔ نمودارها، کارت‌ها و داده‌های داشبورد اعمال می‌شود
-                      </p>
-                    </div>
-                  </div>
-                  <button
-                    type="button"
+                <option value="" className={isDark ? 'bg-[#0F1412] text-slate-200' : 'bg-white text-slate-800'}>
+                  همه ماه‌ها
+                </option>
+                {monthList.map((m) => (
+                  <option key={m} value={m} className={isDark ? 'bg-[#0F1412] text-slate-200' : 'bg-white text-slate-800'}>
+                    {monthLabel(m)}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          {/* ── Advanced Floating Filter Popover Button ── */}
+          <div className="relative" ref={filterPopoverRef}>
+            <button
+              type="button"
+              onClick={() => setFilterOpen((v) => !v)}
+              className={`flex items-center gap-2 text-xs sm:text-sm font-bold px-3.5 py-2 rounded-xl transition-all shadow-xs cursor-pointer select-none border outline-none ${
+                activeFilterCount > 0
+                  ? 'bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-[#090C0B] font-extrabold shadow-[0_0_20px_rgba(16,185,129,0.3)] hover:shadow-[0_0_28px_rgba(16,185,129,0.45)]'
+                  : isDark
+                  ? 'bg-[#0F1412] hover:bg-[#151D1A] border-white/[0.08] hover:border-emerald-500/40 text-slate-200'
+                  : 'bg-white hover:bg-slate-50 border-slate-200/90 hover:border-emerald-500 text-slate-800 shadow-sm'
+              }`}
+              aria-expanded={filterOpen}
+            >
+              <SlidersHorizontal
+                size={14}
+                className={activeFilterCount > 0 ? 'text-[#090C0B]' : isDark ? 'text-emerald-400' : 'text-emerald-600'}
+              />
+              <span>فیلتر پیشرفته</span>
+              {activeFilterCount > 0 && (
+                <span className="w-5 h-5 rounded-full bg-[#090C0B] text-emerald-400 text-[10px] font-black flex items-center justify-center shrink-0">
+                  {fa(activeFilterCount)}
+                </span>
+              )}
+              <ChevronDown size={14} className={`transition-transform duration-200 ${filterOpen ? 'rotate-180' : ''}`} />
+            </button>
+
+            {/* Floating Dropdown Menu (منوی شناور فیلترها با پشتیبانی کامل از موبایل) */}
+            <AnimatePresence>
+              {filterOpen && (
+                <>
+                  {/* Mobile Backdrop Overlay */}
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.15 }}
+                    className="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 sm:hidden"
                     onClick={() => setFilterOpen(false)}
-                    className={`w-7 h-7 rounded-lg flex items-center justify-center transition-colors cursor-pointer ${
-                      isDark ? 'text-slate-400 hover:text-white hover:bg-white/10' : 'text-slate-500 hover:text-slate-900 hover:bg-slate-100'
+                    aria-hidden="true"
+                  />
+
+                  <motion.div
+                    initial={{ opacity: 0, y: 8, scale: 0.98 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: 6, scale: 0.98 }}
+                    transition={{ duration: 0.18, ease: 'easeOut' }}
+                    className={`fixed inset-x-3 top-16 bottom-auto z-50 max-h-[82vh] overflow-y-auto exec-hover-scrollbar rounded-3xl p-4 sm:p-5 backdrop-blur-2xl border text-right shadow-2xl sm:inset-x-auto sm:top-full sm:absolute sm:left-0 sm:mt-2 sm:w-[560px] md:w-[680px] sm:max-h-[85vh] ${
+                      isDark
+                        ? 'bg-[#0F1412]/95 border-white/[0.1] text-slate-100 shadow-[0_20px_60px_rgba(0,0,0,0.8)]'
+                        : 'bg-white/95 border-slate-200/90 text-slate-900 shadow-[0_20px_50px_rgba(15,23,42,0.15)]'
                     }`}
-                    aria-label="بستن"
                   >
-                    <X size={16} />
-                  </button>
-                </div>
-
-                {/* Filter Inputs Grid */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-                  {ADVANCED_FILTER_KEYS.map(({ key, label }) => {
-                    const rawOptions = filters[key] ?? []
-                    const options = key === 'state'
-                      ? (rawOptions.some((c) => typeof c === 'string' && c.includes('منطقه'))
-                          ? rawOptions.filter((c) => typeof c === 'string' && !c.includes('استان'))
-                          : (filters.region ?? []).filter((c) => typeof c === 'string' && c.includes('منطقه')))
-                      : rawOptions
-
-                    const value = dims[key] ?? ''
-                    const hasValue = Boolean(value)
-
-                    return (
-                      <div key={key} className="space-y-1">
-                        <label className={`text-[11px] font-bold block ${
-                          hasValue
-                            ? (isDark ? 'text-emerald-400' : 'text-emerald-700')
-                            : (isDark ? 'text-slate-400' : 'text-slate-600')
+                    {/* Floating Menu Header */}
+                    <div className={`flex items-center justify-between pb-3.5 mb-4 border-b ${
+                      isDark ? 'border-white/[0.08]' : 'border-slate-100'
+                    }`}>
+                      <div className="flex items-center gap-2.5">
+                        <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${
+                          isDark ? 'bg-emerald-500/15 text-emerald-400' : 'bg-emerald-50 text-emerald-700'
                         }`}>
-                          {label}
-                        </label>
-                        <div className="relative">
-                          <select
-                            value={value}
-                            onChange={(e) => onFilterChange?.(key, e.target.value)}
-                            className={`w-full text-xs font-semibold px-2.5 py-2 rounded-xl transition-all cursor-pointer outline-none appearance-none border ${
-                              hasValue
-                                ? (isDark
-                                    ? 'bg-emerald-500/10 border-emerald-500/40 text-emerald-300 font-bold'
-                                    : 'bg-emerald-50 border-emerald-300 text-emerald-900 font-bold')
-                                : (isDark
-                                    ? 'bg-[#090C0B] border-white/[0.08] hover:border-white/20 text-slate-200'
-                                    : 'bg-slate-50 border-slate-200 hover:border-slate-300 text-slate-800')
-                            }`}
-                          >
-                            <option value="" className={isDark ? 'bg-[#0F1412] text-slate-200' : 'bg-white text-slate-800'}>
-                              همه
-                            </option>
-                            {options.map((opt) => (
-                              <option key={opt} value={opt} className={isDark ? 'bg-[#0F1412] text-slate-200' : 'bg-white text-slate-800'}>
-                                {key === 'state' ? cleanDistrictLabel(opt) : opt}
-                              </option>
-                            ))}
-                          </select>
-                          <ChevronDown
-                            size={13}
-                            className={`absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none ${
-                              hasValue
-                                ? (isDark ? 'text-emerald-400' : 'text-emerald-700')
-                                : (isDark ? 'text-slate-400' : 'text-slate-500')
-                            }`}
-                          />
+                          <SlidersHorizontal size={16} />
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <h3 className={`text-sm font-extrabold ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>
+                              فیلترهای تحلیلی پیشرفته
+                            </h3>
+                            {activeFilterCount > 0 && (
+                              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+                                isDark
+                                  ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30'
+                                  : 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                              }`}>
+                                {fa(activeFilterCount)} فیلتر فعال
+                              </span>
+                            )}
+                          </div>
+                          <p className={`text-[11px] mt-0.5 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                            روی همهٔ نمودارها، کارت‌ها و داده‌های داشبورد اعمال می‌شود
+                          </p>
                         </div>
                       </div>
-                    )
-                  })}
-                </div>
+                      <button
+                        type="button"
+                        onClick={() => setFilterOpen(false)}
+                        className={`w-7 h-7 rounded-lg flex items-center justify-center transition-colors cursor-pointer ${
+                          isDark ? 'text-slate-400 hover:text-white hover:bg-white/10' : 'text-slate-500 hover:text-slate-900 hover:bg-slate-100'
+                        }`}
+                        aria-label="بستن"
+                      >
+                        <X size={16} />
+                      </button>
+                    </div>
 
-                {/* Floating Menu Footer Actions */}
-                <div className={`flex items-center justify-between pt-4 mt-5 border-t ${
-                  isDark ? 'border-white/[0.08]' : 'border-slate-100'
-                }`}>
-                  {activeFilterCount > 0 ? (
-                    <button
-                      type="button"
-                      onClick={() => onReset?.()}
-                      className="flex items-center gap-1.5 text-xs font-bold text-rose-400 hover:text-rose-300 transition-colors cursor-pointer"
-                    >
-                      <RotateCcw size={13} />
-                      <span>پاک کردن فیلترها</span>
-                    </button>
-                  ) : (
-                    <span className={`text-[11px] ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>
-                      هیچ فیلتری انتخاب نشده است
-                    </span>
-                  )}
+                    {/* Filter Inputs Grid */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                      {ADVANCED_FILTER_KEYS.map(({ key, label }) => {
+                        const rawOptions = (filters[key] ?? []).filter((c) => {
+                          if ((branch === 'شعبه تهران' || dims.branch === 'شعبه تهران') && TEHRAN_EXCLUDED_GEO.has(c)) {
+                            return false
+                          }
+                          return true
+                        })
+                        const options = key === 'state'
+                          ? (rawOptions.some((c) => typeof c === 'string' && c.includes('منطقه'))
+                              ? rawOptions.filter((c) => typeof c === 'string' && !c.includes('استان'))
+                              : (filters.region ?? []).filter((c) => typeof c === 'string' && c.includes('منطقه') && !TEHRAN_EXCLUDED_GEO.has(c)))
+                          : rawOptions
 
-                  <button
-                    type="button"
-                    onClick={() => setFilterOpen(false)}
-                    className="flex items-center gap-1.5 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-[#090C0B] font-extrabold text-xs px-4 py-2 rounded-xl transition-all shadow-sm active:scale-95 cursor-pointer"
-                  >
-                    <Check size={14} />
-                    <span>اعمال و بستن</span>
-                  </button>
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
+                        const value = dims[key] ?? ''
+                        const hasValue = Boolean(value)
+
+                        return (
+                          <div key={key} className="space-y-1">
+                            <label className={`text-[11px] font-bold block ${
+                              hasValue
+                                ? (isDark ? 'text-emerald-400' : 'text-emerald-700')
+                                : (isDark ? 'text-slate-400' : 'text-slate-600')
+                            }`}>
+                              {label}
+                            </label>
+                            <div className="relative">
+                              <select
+                                value={value}
+                                onChange={(e) => onFilterChange?.(key, e.target.value)}
+                                className={`w-full text-xs font-semibold px-2.5 py-2 rounded-xl transition-all cursor-pointer outline-none appearance-none border ${
+                                  hasValue
+                                    ? (isDark
+                                        ? 'bg-emerald-500/10 border-emerald-500/40 text-emerald-300 font-bold'
+                                        : 'bg-emerald-50 border-emerald-300 text-emerald-900 font-bold')
+                                    : (isDark
+                                        ? 'bg-[#090C0B] border-white/[0.08] hover:border-white/20 text-slate-200'
+                                        : 'bg-slate-50 border-slate-200 hover:border-slate-300 text-slate-800')
+                                }`}
+                              >
+                                <option value="" className={isDark ? 'bg-[#0F1412] text-slate-200' : 'bg-white text-slate-800'}>
+                                  همه
+                                </option>
+                                {options.map((opt) => (
+                                  <option key={opt} value={opt} className={isDark ? 'bg-[#0F1412] text-slate-200' : 'bg-white text-slate-800'}>
+                                    {formatOptionLabel(key, opt)}
+                                  </option>
+                                ))}
+                              </select>
+                              <ChevronDown
+                                size={13}
+                                className={`absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none ${
+                                  hasValue
+                                    ? (isDark ? 'text-emerald-400' : 'text-emerald-700')
+                                    : (isDark ? 'text-slate-400' : 'text-slate-500')
+                                }`}
+                              />
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+
+                    {/* Floating Menu Footer Actions */}
+                    <div className={`flex items-center justify-between pt-4 mt-5 border-t ${
+                      isDark ? 'border-white/[0.08]' : 'border-slate-100'
+                    }`}>
+                      {activeFilterCount > 0 ? (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            ADVANCED_FILTER_KEYS.forEach(({ key }) => {
+                              if (dims[key]) onFilterChange?.(key, '')
+                            })
+                          }}
+                          className="flex items-center gap-1.5 text-xs font-bold text-rose-400 hover:text-rose-300 transition-colors cursor-pointer"
+                        >
+                          <RotateCcw size={13} />
+                          <span>پاک کردن فیلترهای پیشرفته</span>
+                        </button>
+                      ) : (
+                        <span className={`text-[11px] ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>
+                          هیچ فیلتری انتخاب نشده است
+                        </span>
+                      )}
+
+                      <button
+                        type="button"
+                        onClick={() => setFilterOpen(false)}
+                        className="flex items-center gap-1.5 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-[#090C0B] font-extrabold text-xs px-4 py-2 rounded-xl transition-all shadow-sm active:scale-95 cursor-pointer"
+                      >
+                        <Check size={14} />
+                        <span>مشاهده نتایج</span>
+                      </button>
+                    </div>
+                  </motion.div>
+                </>
+              )}
+            </AnimatePresence>
+          </div>
+
+          {/* Quick Reset All Filters Button on Main Bar */}
+          {hasAnyFilter && onReset && (
+            <button
+              type="button"
+              onClick={onReset}
+              className={`flex items-center gap-1.5 text-xs font-bold px-2.5 py-2 rounded-xl transition-all cursor-pointer border ${
+                isDark
+                  ? 'border-rose-500/30 text-rose-400 hover:bg-rose-500/10'
+                  : 'border-rose-200 text-rose-600 hover:bg-rose-50'
+              }`}
+              title="پاک کردن همه فیلترها"
+            >
+              <RotateCcw size={13} />
+              <span className="hidden sm:inline">پاک کردن فیلترها</span>
+            </button>
+          )}
         </div>
-      </div>
+      )}
     </header>
   )
 }

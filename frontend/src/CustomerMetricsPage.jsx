@@ -74,26 +74,24 @@ export default function CustomerMetricsPage({ p, core, setCore, openCustomer }) 
   const metrics = data?.metrics || {}
   const activeMetricObj = METRIC_OPTIONS.find((m) => m.id === selectedMetric) || METRIC_OPTIONS[0]
 
-  // Appearance-dependent styling classes
+  // Appearance-dependent styling classes (Dark Emerald Matte)
   const glassCard = isSolid
     ? isDark
-      ? 'bg-[#18181B] border border-zinc-800 shadow-sm'
+      ? 'bg-[#0F1412] border border-emerald-500/20 shadow-sm'
       : 'bg-white border border-slate-200 shadow-sm'
     : isDark
-    ? 'bg-[#1C1C1E]/80 backdrop-blur-xl border border-white/[0.08] shadow-[0_4px_24px_rgba(0,0,0,0.3)]'
-    : 'bg-white/85 backdrop-blur-xl border border-black/[0.06] shadow-[0_4px_20px_rgb(0,0,0,0.03)]'
+    ? 'bg-[#0B100E]/75 backdrop-blur-xl border border-emerald-500/15 shadow-[0_4px_24px_rgba(0,0,0,0.4)]'
+    : 'bg-white/90 backdrop-blur-xl border border-slate-200/80 shadow-xs'
 
   const glassPill = isSolid
     ? isDark
-      ? 'bg-zinc-800 text-zinc-300 border border-zinc-700'
+      ? 'bg-black/30 text-slate-300 border border-white/5'
       : 'bg-slate-100 text-slate-700 border border-slate-200'
     : isDark
-    ? 'bg-white/[0.06] text-zinc-300 border border-white/[0.08]'
-    : 'bg-black/[0.04] text-slate-700 border border-black/[0.05]'
+    ? 'bg-black/30 text-slate-300 border border-white/5'
+    : 'bg-slate-100 text-slate-700 border border-slate-200'
 
-  const glassPillActive = isDark
-    ? 'bg-[#0071E3] text-white shadow-[0_2px_10px_rgba(0,113,227,0.4)] border-transparent'
-    : 'bg-[#0071E3] text-white shadow-[0_2px_10px_rgba(0,113,227,0.3)] border-transparent'
+  const glassPillActive = 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-xs border-transparent'
 
   // Dynamic bar color mapper based on metric
   const getBrandBarColor = (item) => {
@@ -108,7 +106,7 @@ export default function CustomerMetricsPage({ p, core, setCore, openCustomer }) 
       if (val >= 25) return '#F59E0B' // Amber
       return '#F43F5E' // Coral
     }
-    if (selectedMetric === 'clv_qty') return '#0071E3'
+    if (selectedMetric === 'clv_qty') return '#10B981'
     if (selectedMetric === 'avg_order_size') return '#6366F1'
     if (selectedMetric === 'avg_sku') return '#8B5CF6'
     return '#0EA5E9'
@@ -160,7 +158,7 @@ export default function CustomerMetricsPage({ p, core, setCore, openCustomer }) 
       ───────────────────────────────────────────────────────────── */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-0.5 pb-1">
         <div className="flex items-center gap-2 flex-wrap">
-          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold tracking-tight bg-[#0071E3]/10 text-[#0071E3] border border-[#0071E3]/20">
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold tracking-tight bg-emerald-500/15 text-emerald-400 border border-emerald-500/25">
             <Sparkles className="w-3.5 h-3.5" />
             آنالیز رفتاری و کوهورت مشتریان (Cohort Analytics)
           </span>
@@ -204,7 +202,7 @@ export default function CustomerMetricsPage({ p, core, setCore, openCustomer }) 
           {/* Target Month */}
           <div className="flex items-center gap-1.5">
             <div className="flex items-center gap-1 text-xs font-bold text-[#86868B] dark:text-[#98989D]">
-              <Calendar className="w-3.5 h-3.5 text-[#0071E3]" />
+              <Calendar className="w-3.5 h-3.5 text-emerald-500" />
               <span>ماه هدف:</span>
             </div>
             <div className="flex items-center gap-1 p-0.5 bg-black/[0.03] dark:bg-white/[0.04] rounded-xl flex-wrap">
@@ -291,7 +289,7 @@ export default function CustomerMetricsPage({ p, core, setCore, openCustomer }) 
                 setLookback('prev_1m')
                 setTargetMonth('140508')
               }}
-              className="text-xs font-bold text-[#0071E3] hover:underline px-1.5 py-1"
+              className="text-xs font-bold text-emerald-500 hover:underline px-1.5 py-1"
             >
               بازنشانی فیلترها
             </button>
@@ -302,7 +300,7 @@ export default function CustomerMetricsPage({ p, core, setCore, openCustomer }) 
       {/* Comparison Context Notice Banner */}
       <div className="flex flex-wrap items-center justify-between gap-2 px-3.5 py-2 rounded-xl bg-black/[0.02] dark:bg-white/[0.02] border border-black/[0.04] dark:border-white/[0.04] text-[11px] text-[#86868B] dark:text-[#98989D]">
         <div className="flex items-center gap-1.5">
-          <Activity className="w-3.5 h-3.5 text-[#0071E3]" />
+          <Activity className="w-3.5 h-3.5 text-emerald-500" />
           <span>
             مبنای مقایسه:{' '}
             <strong className="text-[#1D1D1F] dark:text-[#F5F5F7] font-bold">
@@ -348,7 +346,7 @@ export default function CustomerMetricsPage({ p, core, setCore, openCustomer }) 
       <div>
         <div className="flex items-center justify-between mb-2 px-1">
           <div className="flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-full bg-[#0071E3]" />
+            <span className="w-2 h-2 rounded-full bg-emerald-500" />
             <h2 className="text-xs sm:text-sm font-extrabold text-[#1D1D1F] dark:text-[#F5F5F7] tracking-tight">
               شاخص‌های کوهورت و ماندگاری مشتریان (Cohort & Churn Metrics)
             </h2>
@@ -432,14 +430,14 @@ export default function CustomerMetricsPage({ p, core, setCore, openCustomer }) 
 
           {/* 3. New Customers */}
           <div className={`rounded-xl p-2.5 flex flex-col justify-between transition-all hover:scale-[1.01] ${glassCard}`}>
-            <div className="flex items-center justify-between text-[#0071E3]">
+            <div className="flex items-center justify-between text-emerald-500">
               <span className="text-[11px] font-bold text-[#86868B] dark:text-[#98989D] truncate">مشتریان جدید</span>
-              <div className="w-5 h-5 rounded-md bg-[#0071E3]/10 flex items-center justify-center shrink-0">
+              <div className="w-5 h-5 rounded-md bg-emerald-500/10 flex items-center justify-center shrink-0">
                 <UserPlus className="w-3 h-3" />
               </div>
             </div>
             <div className="my-1">
-              <span className="text-lg font-black text-[#0071E3] tabular-nums tracking-tight">
+              <span className="text-lg font-black text-emerald-500 tabular-nums tracking-tight">
                 {fa(metrics.new_customers || 0)}
               </span>
               <p className="text-[10px] text-[#86868B] dark:text-[#98989D] font-medium truncate">
@@ -448,7 +446,7 @@ export default function CustomerMetricsPage({ p, core, setCore, openCustomer }) 
             </div>
             <div className="pt-1 border-t border-black/[0.04] dark:border-white/[0.05] flex items-center justify-between text-[9px]">
               <span className="text-[#86868B]">سهم:</span>
-              <span className="font-bold text-[#0071E3] tabular-nums">
+              <span className="font-bold text-emerald-500 tabular-nums">
                 {metrics.active_customers
                   ? `${fa2(metrics.new_customers / metrics.active_customers * 100)}٪`
                   : '—'}
@@ -554,7 +552,7 @@ export default function CustomerMetricsPage({ p, core, setCore, openCustomer }) 
         <div className={`rounded-2xl p-3 sm:p-3.5 ${glassCard}`}>
           <div className="flex items-center justify-between mb-2.5 pb-1.5 border-b border-black/[0.04] dark:border-white/[0.05]">
             <div className="flex items-center gap-1.5">
-              <div className="w-5 h-5 rounded-md bg-[#0071E3]/10 text-[#0071E3] flex items-center justify-center">
+              <div className="w-5 h-5 rounded-md bg-emerald-500/10 text-emerald-500 flex items-center justify-center">
                 <Users className="w-3 h-3" />
               </div>
               <h3 className="text-xs sm:text-sm font-extrabold text-[#1D1D1F] dark:text-[#F5F5F7]">
@@ -584,7 +582,7 @@ export default function CustomerMetricsPage({ p, core, setCore, openCustomer }) 
               <span className="text-[10px] font-bold text-[#86868B] dark:text-[#98989D] block truncate">
                 میانگین خرید (ریال)
               </span>
-              <span className="text-base font-black text-[#0071E3] tabular-nums mt-0.5 block">
+              <span className="text-base font-black text-emerald-500 tabular-nums mt-0.5 block">
                 {fa(Math.round((metrics.clv_rial || 0) / 1e6))}{' '}
                 <span className="text-[9px] font-normal text-[#86868B]">م.ریال</span>
               </span>
@@ -716,7 +714,7 @@ export default function CustomerMetricsPage({ p, core, setCore, openCustomer }) 
           <div>
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-2">
-                <div className="w-6 h-6 rounded-lg bg-[#0071E3]/10 text-[#0071E3] flex items-center justify-center">
+                <div className="w-6 h-6 rounded-lg bg-emerald-500/10 text-emerald-500 flex items-center justify-center">
                   <ShoppingBag className="w-3.5 h-3.5" />
                 </div>
                 <div>

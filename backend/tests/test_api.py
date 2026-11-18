@@ -19,14 +19,14 @@ COLS = ["SR[ID]", "SR[ProductName]", "SR[Brand]", "SR[MainUnit]", "SR[InvoiceCod
 
 
 def make_row(src, inv, cust, rv, qty, disc="0", d2="0", settle="0", vcode="", vname="", date="1405/07/18",
-             branch="شعبه تهران", brand="", ucode="", line="", sup=""):
+             branch="شعبه تهران", brand="", ucode="", line="", sup="", guild="", region="تهران", city="تهران", state="منطقه ۱"):
     d = dict.fromkeys(COLS, "")
     d.update({"SR[SourceTable]": src, "SR[InvoiceCode]": inv, "SR[CustomerCode]": cust, "SR[InvoiceDate]": date,
               "SR[Year/Month]": date[:4] + date[5:7], "SR[Core]": "کوپا گستر", "SR[Rial+Vat]": rv, "SR[QTY]": qty,
               "SR[TotalDiscount]": disc, "SR[DISCOUNT]": d2, "SR[TotalDiscountBySettlementInInvoiceRecord]": settle,
-              "SR[Branch]": branch, "SR[CityName]": "تهران", "SR[State]": "منطقه ۱", "SR[Movaze]": "غرب",
+              "SR[Branch]": branch, "SR[Mantaghe]": region, "SR[CityName]": city, "SR[State]": state, "SR[Movaze]": "غرب",
               "SR[VisitorCode]": vcode, "SR[Visitor]": vname, "SR[Brand]": brand, "SR[UniqueProductCode]": ucode,
-              "SR[GROUP]": line, "SR[Superviser]": sup})
+              "SR[GROUP]": line, "SR[Superviser]": sup, "SR[Guild]": guild})
     return "\x1f".join(d[c] for c in COLS)
 
 
@@ -207,6 +207,32 @@ def test_geo_filter_options_follow_selected_branch(client):
     assert other["branch"] == allopts["branch"]
     assert client.get("/api/filters", params={"branch": "x' OR '1'='1"}).json()["city"] == []
     assert client.get("/api/filters", params={"city": "اصفهان"}).json()["state"] == []
+
+
+def test_tehran_branch_geo_filters_exclude_outside_provinces_and_personnel(tmp_path, monkeypatch):
+    s = "SRSalesProcedure1405"
+    c = build_client(tmp_path, monkeypatch, {"sr_kg_140507": [
+        make_row(s, "1", "C1", "1000", "10", branch="شعبه تهران", region="تهران", city="تهران"),
+        make_row(s, "2", "C2", "500", "5", branch="شعبه تهران", region="شهرستان اسلامشهر", city="اسلامشهر"),
+        make_row(s, "3", "C3", "300", "3", branch="شعبه تهران", region="استان مرکزی", city="شهرستان ساوه"),
+        make_row(s, "4", "C4", "200", "2", branch="شعبه تهران", region="استان البرز", city="کرج", guild="خرید پرسنلی"),
+        make_row(s, "5", "C5", "100", "1", branch="شعبه تهران", region="شهرستان اصفهان", city="بهارستان"),
+    ]})
+    opts = c.get("/api/filters", params={"branch": "شعبه تهران"}).json()
+    # Markazi, Alborz, Isfahan, Saveh, Karaj must NOT be offered under Tehran branch filter
+    assert "استان مرکزی" not in opts["region"]
+    assert "استان البرز" not in opts["region"]
+    assert "شهرستان اصفهان" not in opts["region"]
+    assert "شهرستان ساوه" not in opts["city"]
+    assert "کرج" not in opts["city"]
+    assert "استان البرز" not in opts["city"]
+    # Valid Tehran items are present
+    assert "تهران" in opts["region"]
+    assert "شهرستان اسلامشهر" in opts["region"]
+    assert "تهران" in opts["city"]
+    assert "اسلامشهر" in opts["city"]
+    # Sales numbers remain intact (rows not removed from sales data)
+    assert c.get("/api/overview", params={"branch": "شعبه تهران"}).json()["sum_rial_vat"] == 2100
 
 
 def test_product_group_filters_and_sub_group_follows_main_group(tmp_path, monkeypatch):

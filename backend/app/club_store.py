@@ -11,7 +11,7 @@ import duckdb
 
 from . import config
 
-write_lock = threading.Lock()
+write_lock = threading.RLock()   # reentrant: writers hold it and connect() takes it again for schema setup
 
 DDL = (
     "CREATE TABLE IF NOT EXISTS plans (id INTEGER PRIMARY KEY, kind VARCHAR, name VARCHAR, core VARCHAR, "
@@ -47,8 +47,11 @@ def path():
 
 def connect() -> duckdb.DuckDBPyConnection:
     config.DATA_DIR.mkdir(parents=True, exist_ok=True)
-    con = duckdb.connect(str(path()))
-    for stmt in DDL:
-        con.execute(stmt)
-    _migrate(con)
+    # Schema setup writes, so two concurrent requests on a fresh file race in DuckDB ("write-write conflict on
+    # alter"); serialize it. Writers already take write_lock, so this only nests harmlessly inside them.
+    with write_lock:
+        con = duckdb.connect(str(path()))
+        for stmt in DDL:
+            con.execute(stmt)
+        _migrate(con)
     return con

@@ -36,9 +36,14 @@ def load_visitor_months(con, core_name: str, months: list[str]) -> list[VisitorM
         return []
     marks = ",".join("?" * len(months))
     by_name = target_sales.visitor_codes_by_name(con, core_name)
+    # target_coverage arrived with the coverage KPI and is absent from databases built before it, so it is
+    # selected only when the column exists; a missing column means "this month has no coverage target"
+    has_cov = any(r[0] == "target_coverage" for r in con.execute(
+        "SELECT column_name FROM information_schema.columns WHERE table_name='fact_target'").fetchall())
+    cov_col = "target_coverage" if has_cov else "NULL"
     rows = con.execute(
         f"""SELECT month, branch, target_category, product_group, visitor_code, visitor_name,
-                   target_rial, target_coverage
+                   target_rial, {cov_col}
             FROM fact_target WHERE core=? AND month IN ({marks})""", [core_name, *months]).fetchall()
     coverage = {(ym, code): n for ym, code, n in con.execute(
         f"""SELECT year_month, visitor_code, COUNT(DISTINCT customer_code) FROM fact_sales

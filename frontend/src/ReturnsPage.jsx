@@ -31,23 +31,25 @@ function AppleCard({ title, subtitle, badge, action, children, className = '' })
   const { isDark, isSolid } = useAppearance()
   return (
     <div
-      className={`apple-card rounded-[28px] border transition-all p-6 overflow-hidden w-full max-w-full ${
+      className={`apple-card rounded-2xl sm:rounded-3xl border transition-all p-4 sm:p-6 overflow-hidden w-full max-w-full ${
         isDark
-          ? 'bg-[#1C1C1E]/85 backdrop-blur-2xl border-white/10 text-[#F5F5F7] shadow-[0_8px_30px_rgba(0,0,0,0.4)]'
+          ? 'bg-[#0B100E]/75 backdrop-blur-2xl border-emerald-500/15 text-[#F5F5F7] shadow-[0_8px_30px_rgba(0,0,0,0.45)]'
           : isSolid
           ? 'bg-white border-slate-200 text-[#1D1D1F] shadow-xs'
-          : 'bg-white/85 backdrop-blur-xl border-black/[0.04] text-[#1D1D1F] shadow-[0_8px_30px_rgb(0,0,0,0.04)]'
+          : 'bg-white/90 backdrop-blur-xl border-slate-200/80 text-[#1D1D1F] shadow-[0_8px_30px_rgb(0,0,0,0.04)]'
       } ${className}`}
     >
       {(title || subtitle || badge || action) && (
-        <div className="flex items-center justify-between mb-5 flex-wrap gap-2">
+        <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
           <div>
-            {title && <h2 className={`text-base font-bold ${isDark ? 'text-[#F5F5F7]' : 'text-[#1D1D1F]'}`}>{title}</h2>}
-            {subtitle && <p className={`text-xs mt-0.5 ${isDark ? 'text-slate-400' : 'text-[#86868B]'}`}>{subtitle}</p>}
+            {title && <h2 className={`text-sm sm:text-base font-bold ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>{title}</h2>}
+            {subtitle && <p className={`text-xs mt-0.5 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>{subtitle}</p>}
           </div>
           <div className="flex items-center gap-2">
             {badge && (
-              <span className="px-3 py-1 rounded-full text-xs font-medium bg-[#0071E3]/10 text-[#0071E3]">
+              <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${
+                isDark ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/25' : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+              }`}>
                 {badge}
               </span>
             )}
@@ -60,36 +62,37 @@ function AppleCard({ title, subtitle, badge, action, children, className = '' })
   )
 }
 
-function AppleKpiCard({ label, value, unit, icon: Icon, tone = 'blue' }) {
+function AppleKpiCard({ label, value, unit, icon: Icon, tone = 'teal' }) {
   const { isDark, isSolid } = useAppearance()
   const tones = {
-    blue: 'bg-blue-500/10 text-blue-600',
-    teal: 'bg-teal-500/10 text-teal-600',
-    amber: 'bg-amber-500/10 text-amber-600',
-    violet: 'bg-violet-500/10 text-violet-600',
-    pink: 'bg-pink-500/10 text-pink-600',
-    red: 'bg-rose-500/10 text-rose-600',
+    blue: isDark ? 'bg-sky-500/15 text-sky-400 border border-sky-500/25' : 'bg-sky-50 text-sky-700',
+    teal: isDark ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/25' : 'bg-emerald-50 text-emerald-700',
+    amber: isDark ? 'bg-amber-500/15 text-amber-400 border border-amber-500/25' : 'bg-amber-50 text-amber-700',
+    violet: isDark ? 'bg-purple-500/15 text-purple-400 border border-purple-500/25' : 'bg-purple-50 text-purple-700',
+    pink: isDark ? 'bg-pink-500/15 text-pink-400 border border-pink-500/25' : 'bg-pink-50 text-pink-700',
+    green: isDark ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/25' : 'bg-emerald-50 text-emerald-700',
+    red: isDark ? 'bg-rose-500/15 text-rose-400 border border-rose-500/25' : 'bg-rose-50 text-rose-700',
   }
   return (
     <motion.div
-      whileHover={{ y: -3 }}
-      className={`apple-kpi-card rounded-3xl border transition-all p-5 flex flex-col justify-between text-right ${
+      whileHover={{ y: -2 }}
+      className={`apple-kpi-card rounded-2xl border transition-all p-3 sm:p-4 flex flex-col justify-between text-right ${
         isDark
-          ? 'bg-[#1C1C1E]/85 backdrop-blur-2xl border-white/10 text-[#F5F5F7] shadow-[0_4px_20px_rgba(0,0,0,0.3)] hover:shadow-[0_12px_30px_rgba(0,0,0,0.5)]'
+          ? 'bg-[#0B100E]/80 backdrop-blur-xl border-emerald-500/15 text-[#F5F5F7] shadow-[0_4px_20px_rgba(0,0,0,0.35)] hover:border-emerald-500/30'
           : isSolid
           ? 'bg-white border-slate-200 text-[#1D1D1F] shadow-xs hover:shadow-md'
-          : 'bg-white/85 backdrop-blur-xl border-black/[0.04] text-[#1D1D1F] shadow-[0_4px_20px_rgb(0,0,0,0.03)] hover:shadow-[0_12px_30px_rgb(0,0,0,0.07)]'
+          : 'bg-white/90 backdrop-blur-xl border-slate-200/80 text-[#1D1D1F] shadow-[0_4px_20px_rgb(0,0,0,0.03)] hover:shadow-[0_8px_25px_rgb(0,0,0,0.06)]'
       }`}
     >
-      <div className="flex items-center justify-between mb-3">
-        <span className={`text-xs font-medium ${isDark ? 'text-slate-400' : 'text-[#86868B]'}`}>{label}</span>
-        <div className={`w-8 h-8 rounded-2xl flex items-center justify-center shrink-0 ${tones[tone] || tones.blue}`}>
-          {Icon ? <Icon size={16} /> : null}
+      <div className="flex items-center justify-between mb-2">
+        <span className={`text-[11px] sm:text-xs font-medium truncate ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>{label}</span>
+        <div className={`w-7 h-7 sm:w-8 sm:h-8 rounded-xl flex items-center justify-center shrink-0 ${tones[tone] || tones.teal}`}>
+          {Icon ? <Icon size={14} className="sm:w-4 sm:h-4" /> : null}
         </div>
       </div>
       <div>
-        <div className={`text-xl font-extrabold tracking-tight tabular-nums truncate ${isDark ? 'text-[#F5F5F7]' : 'text-[#1D1D1F]'}`}>{value}</div>
-        <div className={`text-[11px] mt-1 truncate ${isDark ? 'text-slate-400' : 'text-[#86868B]'}`}>{unit}</div>
+        <div className={`text-base sm:text-xl font-sans font-bold tracking-tight tabular-nums truncate ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>{value}</div>
+        <div className={`text-[10px] sm:text-[11px] mt-0.5 truncate ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>{unit}</div>
       </div>
     </motion.div>
   )
@@ -647,28 +650,42 @@ export function ReturnsPage({ p, arg, setArg, openCustomer, onReason }) {
   if (sum.data?.options) lastOptions.current = sum.data.options
   const reasons = lastOptions.current.reason ?? []
 
+  const { isDark } = useAppearance()
+
   return (
-    <div className="w-full max-w-[1600px] mx-auto px-6 space-y-6">
-      {/* Apple Floating Glass Filter Bar */}
-      <div className="rounded-[24px] bg-white/85 backdrop-blur-xl border border-black/[0.04] shadow-[0_4px_20px_rgb(0,0,0,0.03)] p-4 flex items-center justify-between gap-4 flex-wrap">
+    <div className="w-full max-w-[1600px] mx-auto px-4 sm:px-6 space-y-5">
+      {/* Dark Emerald Floating Glass Filter Bar */}
+      <div className={`rounded-2xl backdrop-blur-xl border p-3 sm:p-4 flex items-center justify-between gap-4 flex-wrap ${
+        isDark
+          ? 'bg-[#0B100E]/75 border-emerald-500/15 shadow-[0_4px_20px_rgba(0,0,0,0.35)]'
+          : 'bg-white/90 border-slate-200/80 shadow-xs'
+      }`}>
         <div className="flex items-center gap-3 flex-wrap">
           <div className="flex items-center gap-2">
-            <span className="text-xs font-bold text-[#86868B]">علت برگشت:</span>
+            <span className={`text-xs font-bold ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>علت برگشت:</span>
             <select
               value={reason}
               onChange={(e) => setReason(e.target.value)}
-              className="bg-[#F5F5F7] border border-black/[0.06] rounded-xl px-3 py-1.5 text-xs text-[#1D1D1F] focus:outline-none focus:ring-2 focus:ring-[#0071E3]/25"
+              className={`border rounded-xl px-3 py-1.5 text-xs focus:outline-none transition-all ${
+                isDark
+                  ? 'bg-black/30 border-emerald-500/20 text-slate-100 focus:border-emerald-500/50'
+                  : 'bg-slate-50 border-slate-200 text-slate-800 focus:border-emerald-600'
+              }`}
             >
               <option value="">همه علت‌ها</option>
               {reasons.map((x) => <option key={x} value={x}>{x}</option>)}
             </select>
           </div>
           <div className="flex items-center gap-2">
-            <span className="text-xs font-bold text-[#86868B]">وضعیت برگشت:</span>
+            <span className={`text-xs font-bold ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>وضعیت برگشت:</span>
             <select
               value={status}
               onChange={(e) => setStatus(e.target.value)}
-              className="bg-[#F5F5F7] border border-black/[0.06] rounded-xl px-3 py-1.5 text-xs text-[#1D1D1F] focus:outline-none focus:ring-2 focus:ring-[#0071E3]/25"
+              className={`border rounded-xl px-3 py-1.5 text-xs focus:outline-none transition-all ${
+                isDark
+                  ? 'bg-black/30 border-emerald-500/20 text-slate-100 focus:border-emerald-500/50'
+                  : 'bg-slate-50 border-slate-200 text-slate-800 focus:border-emerald-600'
+              }`}
             >
               <option value="">همه وضعیت‌ها</option>
               <option value="full">برگشتی کامل</option>
@@ -677,7 +694,11 @@ export function ReturnsPage({ p, arg, setArg, openCustomer, onReason }) {
           </div>
           {(reason || status) && (
             <button
-              className="text-xs font-semibold text-rose-600 hover:text-rose-700 px-3 py-1 rounded-xl bg-rose-50 hover:bg-rose-100 transition-colors"
+              className={`text-xs font-semibold px-3 py-1 rounded-xl transition-colors ${
+                isDark
+                  ? 'bg-rose-500/15 text-rose-400 hover:bg-rose-500/25 border border-rose-500/20'
+                  : 'bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200'
+              }`}
               type="button"
               onClick={() => { setReason(''); setStatus('') }}
             >
@@ -685,7 +706,9 @@ export function ReturnsPage({ p, arg, setArg, openCustomer, onReason }) {
             </button>
           )}
         </div>
-        <span className="px-3 py-1 rounded-full text-xs font-medium bg-[#0071E3]/10 text-[#0071E3]">
+        <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${
+          isDark ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/25' : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+        }`}>
           حواله‌های پخش
         </span>
       </div>
@@ -710,12 +733,12 @@ export function ReturnsPage({ p, arg, setArg, openCustomer, onReason }) {
             {s.quality?.negative_return_orders > 0 && <Note tone="err">{fa(s.quality.negative_return_orders)} حواله مبلغ برگشتی منفی دارد؛ جمع‌ها را با احتیاط بخوانید.</Note>}
             {!t.orders ? <AppleCard><div className="text-center py-10 text-xs text-[#86868B]" role="status">برای این فیلترها حواله‌ای وجود ندارد.</div></AppleCard> : (
               <>
-                {/* 4 Apple Bento KPI Cards */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 w-full">
+                {/* 4 Compact Dark Emerald KPI Cards */}
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3 w-full">
                   <AppleKpiCard label="تعداد حواله کل" value={fa(t.orders)} unit="حواله صادرشده" icon={FileText} tone="blue" />
                   <AppleKpiCard label="حواله‌های برگشتی" value={fa(t.returned_orders)} unit={`${pct(t.returned_order_percent, 2)} از کل حواله‌ها`} icon={Undo2} tone="red" />
                   <AppleKpiCard label="مبلغ کل برگشتی" value={rial(t.return_rial)} unit="ریال" icon={CircleDollarSign} tone="amber" />
-                  <AppleKpiCard label="درصد مبلغ برگشتی" value={pct(t.return_percent, 2)} unit={`مشتریان دارای برگشت: ${fa(t.returned_customers)}`} icon={Users} tone="violet" />
+                  <AppleKpiCard label="درصد مبلغ برگشتی" value={pct(t.return_percent, 2)} unit={`مشتریان دارای برگشت: ${fa(t.returned_customers)}`} icon={Users} tone="teal" />
                 </div>
 
                 {/* Analysis Bento Card */}
@@ -724,14 +747,16 @@ export function ReturnsPage({ p, arg, setArg, openCustomer, onReason }) {
                   subtitle="مبلغ برگشتی بر اساس بعد انتخابی · ریال"
                   badge={VIEWS.find(([k]) => k === view)?.[1]}
                   action={
-                    <div className="flex items-center gap-1 p-1 bg-[#E8E8ED]/80 rounded-2xl flex-wrap">
+                    <div className={`flex items-center gap-1 p-1 rounded-xl flex-wrap ${isDark ? 'bg-black/30' : 'bg-slate-100'}`}>
                       {VIEWS.map(([k, label]) => (
                         <button
                           key={k}
                           type="button"
                           onClick={() => setView(k)}
-                          className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all ${
-                            view === k ? 'bg-[#0071E3] text-white shadow-sm' : 'text-[#1D1D1F] hover:bg-black/[0.05]'
+                          className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                            view === k
+                              ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-xs'
+                              : isDark ? 'text-slate-300 hover:text-white hover:bg-white/5' : 'text-slate-700 hover:bg-white'
                           }`}
                         >
                           {label}

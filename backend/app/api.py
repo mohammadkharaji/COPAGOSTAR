@@ -203,6 +203,7 @@ def _core(core: str) -> str:
 
 # Query-parameter name -> fact_sales column. Only these may be used as filters (allow-list; values are bound params).
 DIMS = {"sales_type": "sales_type", "region": "region", "state": "state", "city": "city_name", "branch": "branch",
+        "office": "account_class",
         "brand": "brand", "group": "group_name", "grade": "grade", "visitor": "visitor",
         "main_group": "main_group", "sub_group": "sub_group", "product": "product_name"}
 
@@ -410,8 +411,15 @@ VISITOR_SALES = f"({SALES_ONLY} AND (guild IS NULL OR guild <> '{PERSONNEL_GUILD
 
 
 GEO_KEYS = ("region", "state", "city")
+# Geo values outside Tehran province that should never be offered under Tehran branch filters
+TEHRAN_EXCLUDED_GEO = {
+    "region": ("استان مرکزی", "استان البرز", "شهرستان اصفهان", "شهرستان بویر احمد", "شهرستان خفر", "شهرستان نظرآباد"),
+    "city": ("استان البرز", "شهرستان ساوه", "کرج", "یاسوج", "نظر آباد"),
+    "state": ("استان البرز", "شهرستان ساوه", "کرج", "یاسوج", "نظر آباد"),
+}
 # Option lists narrowed by other selected filters: geography by branch and each other; sub group only by its main group.
 NARROWED_BY = {**{k: ("branch", *(g for g in GEO_KEYS if g != k)) for k in GEO_KEYS},
+               "office": ("branch",),
                "main_group": ("brand",), "sub_group": ("brand", "main_group"), "product": ("brand", "main_group", "sub_group")}
 
 
@@ -423,11 +431,20 @@ def filters(request: Request, core: str = DEFAULT_CORE):
     scope, sargs = rbac.scope_clause()
     con = _con()
     try:
+        branches_param = request.query_params.getlist("branch")
+        principal = rbac.require()
+        tehran_active = "شعبه تهران" in branches_param or (principal.scope_mode == "branch" and "شعبه تهران" in principal.branches)
         out = {}
         for key, col in DIMS.items():
             if key == "visitor":
                 continue
             where, args = "", []
+            # Personal purchases (خرید پرسنلی) are excluded from filter options
+            where += f" AND (guild IS NULL OR guild <> '{PERSONNEL_GUILD}')"
+            if tehran_active and key in TEHRAN_EXCLUDED_GEO:
+                ex = TEHRAN_EXCLUDED_GEO[key]
+                where += f" AND {col} NOT IN ({','.join('?' * len(ex))})"
+                args += list(ex)
             if key in NARROWED_BY:
                 for dep in NARROWED_BY[key]:
                     vals = [v for v in request.query_params.getlist(dep) if v]
@@ -459,6 +476,9 @@ def filters(request: Request, core: str = DEFAULT_CORE):
                 [name, *sargs]).fetchall()]
             if districts:
                 out["state"] = sorted(set(out.get("state", []) + districts), key=lambda x: str(x))
+        if tehran_active and out.get("state"):
+            ex_set = set(TEHRAN_EXCLUDED_GEO.get("state", ()))
+            out["state"] = [s for s in out["state"] if s not in ex_set]
         out["month"] = [r[0] for r in con.execute(
             f"SELECT DISTINCT year_month FROM fact_sales WHERE core=? AND year_month IS NOT NULL{scope} ORDER BY 1",
             [name, *sargs]).fetchall()]
