@@ -357,25 +357,30 @@ def core_clause(col: str = "core") -> tuple[str, list]:
 
 # Open to every logged-in user: the app shell (sidebar, filter bar, data freshness, calendar, sync state). Anything about
 # sales numbers in them is still limited to the user's cores and branches.
-SHELL = {"/api/auth/me", "/api/auth/logout", "/api/admin/me/password", "/api/health", "/api/meta", "/api/data-health", "/api/calendar",
-         "/api/sync-status", "/api/filters", "/api/bi-sync/status"}
+SHELL = {"/api/auth/me", "/api/auth/logout", "/api/admin/me/password", "/api/health", "/api/meta",
+         "/api/calendar", "/api/sync-status", "/api/filters", "/api/bi-sync/status"}
+# Pages only an admin role may hold. `health` reads /api/data-health, which exposes data-quality and row counts across
+# the whole dataset; it is not a per-core report, so it cannot be narrowed by scope and is admin-only instead.
+ADMIN_ONLY_PAGES = frozenset({"health"})
 # Endpoint -> pages that may use it (several pages share some endpoints, e.g. /overview is also on the visitor page).
 EXACT = {
     "/api/overview": ("overview", "visitor"), "/api/monthly": ("monthly", "overview"), "/api/growth": ("growth", "overview"),
     "/api/trend": ("trend",), "/api/pace": ("overview",), "/api/pareto": ("pareto",), "/api/visitors": ("visitor",),
     "/api/breakdown": ("overview", "branch", "product", "profile"),
     "/api/invoice-bands": ("invoice",), "/api/invoice-lines": ("invoice",), "/api/quantity": ("quantity",), "/api/quantity-monthly": ("quantity",), "/api/quantity-split": ("quantity",),
+    "/api/tickets": ("tickets",), "/api/chat": ("chat",), "/api/data-health": ("health",),
 }
 PREFIX = (("/api/visitor", ("visitor",)), ("/api/customer", ("customer",)), ("/api/profile", ("profile",)),
           ("/api/returns", ("returns",)), ("/api/target", ("target",)), ("/api/inactive-customers", ("inactive",)),
           ("/api/potential-customers", ("potential",)), ("/api/analytics/customer-metrics", ("customer_metrics", "overview")),
           ("/api/analytics/product-metrics", ("product", "overview")), ("/api/club/b2b", ("club_b2b",)),
-          ("/api/club/visitor", ("club_visitor",)), ("/api/club/me", ("club_b2b", "club_visitor")), ("/api/club/visitor/team", ("club_visitor",)))
+          ("/api/club/visitor", ("club_visitor",)), ("/api/club/me", ("club_b2b", "club_visitor")), ("/api/club/visitor/team", ("club_visitor",)),
+          ("/api/tickets", ("tickets",)))
 
 
 def access_for(method: str, path: str) -> tuple[str, tuple[str, ...]]:
     """('shell' | 'admin' | 'pages', pages). Anything not listed is admin-only (fail closed)."""
-    if path in SHELL or path == "/api/tickets" or path.startswith("/api/tickets/"):
+    if path in SHELL:
         return "shell", ()
     if path == "/api/admin" or path.startswith("/api/admin/") or (path == "/api/sync" and method != "GET"):
         return "admin", ()

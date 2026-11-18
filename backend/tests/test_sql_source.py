@@ -111,6 +111,9 @@ def test_extract_recent_writes_previous_and_current_month(tmp_path, monkeypatch)
     monkeypatch.setattr(sql_source, "connect", lambda: _FakeConn())
     monkeypatch.setattr(sql_source, "fetch_table", lambda cur, t, s, y: seen.append((t, y)) or [])
     monkeypatch.setattr(sql_source, "recent_months", lambda today: ["140504", "140505"])
+    # extract_month always reads returns from the workbook; the sibling tests mock this, this one used to hit the real
+    # file (gitignored, 184 MB) and so only passed on a machine that happened to have it.
+    monkeypatch.setattr(sql_source, "_workbook_returns_dax", lambda ym: ("\x1f".join(COLUMN_MAP), ""))
     _write_existing(tmp_path / "sr_kg_140504.tsv", [])
     _write_existing(tmp_path / "sr_kg_140505.tsv", [])
     results = sql_source.extract_recent(tmp_path)

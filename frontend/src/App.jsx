@@ -55,9 +55,9 @@ export default function App({ onLogout }) {
   // What this user may open comes from /auth/me (pages, cores, is_admin); the backend enforces the same rules.
   const me = useApi('/auth/me', {})
   const principal = me.data
-  // `chat` is admin-only on the backend (not listed in rbac.EXACT/SHELL, so access_for() fails closed), so the
-  // sidebar entry is offered to admins only — otherwise the page would load and every question would 403.
-  const allowedPages = useMemo(() => [...(principal?.pages ?? []), 'tickets', ...(principal?.is_admin ? ['chat'] : [])], [principal])
+  // `tickets` and `chat` are ordinary pages now: rbac.EXACT lists them, so /auth/me already carries them
+  // for every role whose `pages` include them. No client-side exception is needed.
+  const allowedPages = useMemo(() => principal?.pages ?? [], [principal])
   const allowedCores = useMemo(() => Object.keys(CORES).filter((k) => principal?.cores?.includes(k)), [principal])
   const visibleCores = useMemo(() => Object.fromEntries(allowedCores.map((k) => [k, CORES[k]])), [allowedCores])
   const isAdmin = Boolean(principal?.is_admin)
@@ -117,11 +117,14 @@ export default function App({ onLogout }) {
     return () => window.removeEventListener('hashchange', on)
   }, [])
   useEffect(() => {
-    Promise.all([get('/health'), get('/meta'), get('/data-health')])
-      .then(([h, m, q]) => { setHealth(h); setMeta(m); setQuality(q); setError(null) })
+    // /data-health is admin-only (rbac.ADMIN_ONLY_PAGES); asking for it as a normal user 403s and would take the
+    // whole Promise.all down, so it is fetched separately and its failure stays local to the health page.
+    Promise.all([get('/health'), get('/meta')])
+      .then(([h, m]) => { setHealth(h); setMeta(m); setError(null) })
       .catch(() => setError('اتصال به API برقرار نیست. بک‌اند باید روی پورت ۸۰۰۰ اجرا باشد.'))
+    if (isAdmin) get('/data-health').then(setQuality).catch(() => setQuality(null))
     get('/calendar').then(setCal).catch(() => setCal(null))
-  }, [ver])
+  }, [ver, isAdmin])
   const startSync = () => {
     if (!isAdmin) return
     postJson('/admin/bi-sync/trigger', {})

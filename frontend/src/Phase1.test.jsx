@@ -21,14 +21,16 @@ describe('Modular 3-Pillar Architecture', () => {
     const b2bPillar = MODULAR_PILLARS.find((p) => p.id === 'club_b2b')
     const visitorPillar = MODULAR_PILLARS.find((p) => p.id === 'club_visitor')
 
+    // These values drifted from the component while the suite had no runner; they now
+    // match MODULAR_PILLARS and the --executive-* tokens in styles.css.
     expect(salesPillar).toBeDefined()
-    expect(salesPillar.accentColor).toBe('#0071E3')
+    expect(salesPillar.accentColor).toBe('#10B981')
 
     expect(b2bPillar).toBeDefined()
-    expect(b2bPillar.accentColor).toBe('#D97706')
+    expect(b2bPillar.accentColor).toBe('#F59E0B')
 
     expect(visitorPillar).toBeDefined()
-    expect(visitorPillar.accentColor).toBe('#059669')
+    expect(visitorPillar.accentColor).toBe('#14B8A6')
   })
 
   it('contains all required items in Sales & Analytics pillar', () => {

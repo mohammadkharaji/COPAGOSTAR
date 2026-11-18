@@ -86,6 +86,9 @@ def _role_fields(pages, cores, scope_mode, is_admin) -> dict:
            "scope_mode": scope_mode, "is_admin": bool(is_admin)}
     if not out["is_admin"] and not (out["pages"] and out["cores"]):
         raise HTTPException(400, "نقش غیرمدیر باید دست‌کم یک صفحه و یک هسته داشته باشد")
+    denied = sorted(set(out["pages"]) & rbac.ADMIN_ONLY_PAGES)
+    if denied and not out["is_admin"]:
+        raise HTTPException(400, f"صفحهٔ {', '.join(denied)} فقط برای نقش مدیر است")
     return out
 
 
