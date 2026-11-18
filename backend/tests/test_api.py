@@ -30,8 +30,9 @@ def make_row(src, inv, cust, rv, qty, disc="0", d2="0", settle="0", vcode="", vn
     return "\x1f".join(d[c] for c in COLS)
 
 
-PRODUCT_COLS = ["Product[UniqueProductCode]", "Product[گروه کالای اصلی]", "Product[ProductGroup]", "Product[ProductCategory]",
-                "Product[TargetCategory]", "Product[Brand]", "Product[ProductType]"]
+PRODUCT_COLS = ["Product[UniqueProductCode]", "Product[ProductCode]", "Product[گروه کالای اصلی]",
+                "Product[ProductGroup]", "Product[ProductCategory]", "Product[TargetCategory]", "Product[Brand]",
+                "Product[ProductType]"]
 
 
 def product_tsv(*products):
@@ -40,7 +41,7 @@ def product_tsv(*products):
     for p in products:
         code, main, sub, *target = p
         target = target[0] if target else ""
-        rows.append("\x1f".join([code, main, "", sub, target, "", ""]) + "\x1e")
+        rows.append("\x1f".join([code, code, main, "", sub, target, "", ""]) + "\x1e")
     return "\x1f".join(PRODUCT_COLS) + "\x1e" + "".join(rows)
 
 
