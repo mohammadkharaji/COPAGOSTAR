@@ -87,7 +87,7 @@ function downloadCsv(name, columns, rows) {
 }
 
 // columns: { label, render, value?, unit? } — value is the raw sortable/exportable number (or text); unit is added to the CSV header.
-export function Table({ columns, rows, onRow, highlight, name = 'گزارش', pageSize, footer }) {
+export function Table({ columns, rows, onRow, highlight, rowClassName, name = 'گزارش', pageSize, footer }) {
   const [q, setQ] = useState('')
   const [sort, setSort] = useState(null)
   const [page, setPage] = useState(0)
@@ -154,7 +154,7 @@ export function Table({ columns, rows, onRow, highlight, name = 'گزارش', pa
           </thead>
           <tbody>
             {visible.map((r, i) => (
-              <tr key={i} className={`transition-colors ${highlight?.(r) ? 'sel' : ''}`} onClick={onRow ? () => onRow(r) : undefined} style={onRow ? undefined : { cursor: 'default' }}>
+              <tr key={i} className={`transition-colors ${rowClassName ? rowClassName(r, i) : ''} ${highlight?.(r) ? 'sel' : ''}`} onClick={onRow ? () => onRow(r) : undefined} style={onRow ? undefined : { cursor: 'default' }}>
                 {columns.map((c) => <td key={c.label} className="whitespace-nowrap">{c.render(r)}</td>)}
               </tr>
             ))}

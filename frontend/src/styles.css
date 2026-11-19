@@ -566,6 +566,53 @@ tbody tr:hover, tbody tr.sel { background: #fbf3e0; }
   background: rgba(255, 255, 255, 0.04) !important;
 }
 
+/* Podium Table Rows (Top 3 Ranks Highlight) */
+.table-wrap tr.podium-gold td {
+  background: rgba(245, 158, 11, 0.08) !important;
+}
+.table-wrap tr.podium-gold:hover td {
+  background: rgba(245, 158, 11, 0.15) !important;
+}
+.table-wrap tr.podium-silver td {
+  background: rgba(14, 165, 233, 0.08) !important;
+}
+.table-wrap tr.podium-silver:hover td {
+  background: rgba(14, 165, 233, 0.15) !important;
+}
+.table-wrap tr.podium-bronze td {
+  background: rgba(16, 185, 129, 0.08) !important;
+}
+.table-wrap tr.podium-bronze:hover td {
+  background: rgba(16, 185, 129, 0.15) !important;
+}
+
+[data-appearance="dark"] .table-wrap tr.podium-gold td,
+.dark .table-wrap tr.podium-gold td {
+  background: rgba(245, 158, 11, 0.09) !important;
+}
+[data-appearance="dark"] .table-wrap tr.podium-gold:hover td,
+.dark .table-wrap tr.podium-gold:hover td {
+  background: rgba(245, 158, 11, 0.18) !important;
+}
+
+[data-appearance="dark"] .table-wrap tr.podium-silver td,
+.dark .table-wrap tr.podium-silver td {
+  background: rgba(14, 165, 233, 0.08) !important;
+}
+[data-appearance="dark"] .table-wrap tr.podium-silver:hover td,
+.dark .table-wrap tr.podium-silver:hover td {
+  background: rgba(14, 165, 233, 0.16) !important;
+}
+
+[data-appearance="dark"] .table-wrap tr.podium-bronze td,
+.dark .table-wrap tr.podium-bronze td {
+  background: rgba(16, 185, 129, 0.08) !important;
+}
+[data-appearance="dark"] .table-wrap tr.podium-bronze:hover td,
+.dark .table-wrap tr.podium-bronze:hover td {
+  background: rgba(16, 185, 129, 0.16) !important;
+}
+
 /* Appearance Modes */
 [data-appearance="dark"], .dark {
   --exec-ink: #F5F5F7;
