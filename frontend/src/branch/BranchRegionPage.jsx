@@ -66,7 +66,7 @@ const PALETTE = [
 /**
  * Custom Glassmorphic Dark/Light Territory Tooltip
  */
-function BranchChartTooltip({ active, payload, label, isDark }) {
+function BranchChartTooltip({ active, payload, label, isDark, onNavigate, isVisitor }) {
   if (!active || !payload?.length) return null
 
   const row = payload[0]?.payload
@@ -75,7 +75,7 @@ function BranchChartTooltip({ active, payload, label, isDark }) {
   return (
     <div
       dir="rtl"
-      className={`rounded-2xl p-3.5 shadow-2xl backdrop-blur-xl transition-all border text-right min-w-[220px] ${
+      className={`rounded-2xl p-3.5 shadow-2xl backdrop-blur-xl transition-all border text-right min-w-[230px] pointer-events-auto ${
         isDark
           ? 'bg-[#0F1412]/95 border-white/10 text-slate-100 shadow-[0_16px_40px_rgba(0,0,0,0.6)]'
           : 'bg-white/95 border-slate-200 text-slate-900 shadow-xl'
@@ -137,6 +137,21 @@ function BranchChartTooltip({ active, payload, label, isDark }) {
               {pct(row.return_percent, 1)}
             </span>
           </div>
+        )}
+
+        {isVisitor && (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation()
+              onNavigate?.(row.key || row.name)
+            }}
+            className="w-full mt-2.5 pt-2 border-t border-emerald-500/20 flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-xl bg-gradient-to-r from-emerald-500/20 to-teal-500/20 hover:from-emerald-500/35 hover:to-teal-500/35 text-emerald-300 font-bold text-xs transition-all cursor-pointer shadow-xs border border-emerald-500/30"
+          >
+            <UserCheck size={14} className="text-emerald-400" />
+            <span>مشاهده پروفایل {row.name}</span>
+            <ChevronLeft size={13} />
+          </button>
         )}
       </div>
     </div>
@@ -565,7 +580,15 @@ export default function BranchRegionPage({ p, openProfile, openVisitor }) {
 
                 <div className="h-72 sm:h-80 w-full mt-2" dir="ltr">
                   <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={chartData} margin={{ top: 12, right: 12, left: 0, bottom: chartData.length > 8 ? 20 : 0 }}>
+                    <BarChart
+                      data={chartData}
+                      margin={{ top: 12, right: 12, left: 0, bottom: chartData.length > 8 ? 20 : 0 }}
+                      onClick={(state) => {
+                        const k = state?.activePayload?.[0]?.payload?.key || state?.activeLabel
+                        if (k) handleItemNavigation(k)
+                      }}
+                      className="cursor-pointer"
+                    >
                       <defs>
                         <linearGradient id="emeraldTerritoryBar" x1="0" y1="0" x2="0" y2="1">
                           <stop offset="0%" stopColor="#10B981" />
@@ -588,14 +611,38 @@ export default function BranchRegionPage({ p, openProfile, openVisitor }) {
                       <XAxis
                         dataKey="name"
                         reversed
-                        tickFormatter={(v) => String(v).slice(0, 12)}
                         tickLine={false}
                         axisLine={false}
                         interval={0}
                         angle={chartData.length > 7 ? -25 : 0}
                         textAnchor={chartData.length > 7 ? 'end' : 'middle'}
                         height={chartData.length > 7 ? 45 : 30}
-                        tick={{ fill: isDark ? '#94A3B8' : '#64748B', fontSize: 11, fontFamily: 'Vazirmatn' }}
+                        tick={(props) => {
+                          const { x, y, payload } = props
+                          const val = payload.value
+                          const isVisitor = sel ? activeChild === 'visitor' : by === 'visitor'
+                          return (
+                            <g transform={`translate(${x},${y})`}>
+                              <text
+                                x={0}
+                                y={0}
+                                dy={16}
+                                textAnchor={chartData.length > 7 ? 'end' : 'middle'}
+                                transform={chartData.length > 7 ? 'rotate(-25)' : undefined}
+                                fill={isDark ? '#94A3B8' : '#64748B'}
+                                fontSize={11}
+                                fontFamily="Vazirmatn"
+                                className={isVisitor ? 'cursor-pointer hover:font-bold hover:fill-emerald-400 transition-colors' : 'cursor-pointer'}
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  handleItemNavigation(val)
+                                }}
+                              >
+                                {String(val).slice(0, 14)}
+                              </text>
+                            </g>
+                          )
+                        }}
                       />
                       <YAxis
                         orientation="right"
@@ -606,7 +653,7 @@ export default function BranchRegionPage({ p, openProfile, openVisitor }) {
                         tick={{ fill: isDark ? '#94A3B8' : '#64748B', fontSize: 11, fontFamily: 'Vazirmatn' }}
                       />
                       <Tooltip
-                        content={<BranchChartTooltip isDark={isDark} />}
+                        content={<BranchChartTooltip isDark={isDark} onNavigate={handleItemNavigation} isVisitor={sel ? activeChild === 'visitor' : by === 'visitor'} />}
                         cursor={{ fill: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.03)', radius: 8 }}
                       />
                       <Bar
@@ -621,12 +668,23 @@ export default function BranchRegionPage({ p, openProfile, openVisitor }) {
                         }
                         radius={[8, 8, 2, 2]}
                         maxBarSize={36}
-                        onClick={(b) => {
-                          const k = b?.payload?.key
+                        onClick={(entry) => {
+                          const k = entry?.payload?.key || entry?.key || entry?.name
                           if (k) handleItemNavigation(k)
                         }}
                         cursor="pointer"
-                      />
+                      >
+                        {chartData.map((d) => (
+                          <Cell
+                            key={d.key}
+                            cursor="pointer"
+                            onClick={(e) => {
+                              e?.stopPropagation?.()
+                              handleItemNavigation(d.key)
+                            }}
+                          />
+                        ))}
+                      </Bar>
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
@@ -678,7 +736,14 @@ export default function BranchRegionPage({ p, openProfile, openVisitor }) {
                           stroke="none"
                         >
                           {donutTop.map((s, i) => (
-                            <Cell key={s.name} fill={PALETTE[i % PALETTE.length]} />
+                            <Cell
+                              key={s.name}
+                              fill={PALETTE[i % PALETTE.length]}
+                              cursor={s.name !== 'سایر واحدها' ? 'pointer' : 'default'}
+                              onClick={() => {
+                                if (s.name !== 'سایر واحدها') handleItemNavigation(s.name)
+                              }}
+                            />
                           ))}
                         </Pie>
                         <Tooltip
@@ -711,7 +776,15 @@ export default function BranchRegionPage({ p, openProfile, openVisitor }) {
                     isDark ? 'border-white/[0.06]' : 'border-slate-100'
                   }`}>
                     {donutTop.map((s, i) => (
-                      <li key={s.name} className="flex items-center justify-between gap-2 text-xs w-full px-1">
+                      <li
+                        key={s.name}
+                        onClick={() => {
+                          if (s.name !== 'سایر واحدها') handleItemNavigation(s.name)
+                        }}
+                        className={`flex items-center justify-between gap-2 text-xs w-full px-1 py-1 rounded-lg transition-colors ${
+                          s.name !== 'سایر واحدها' ? 'cursor-pointer hover:bg-white/[0.05]' : ''
+                        }`}
+                      >
                         <div className="flex items-center gap-2 min-w-0 flex-1">
                           <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: PALETTE[i % PALETTE.length] }} />
                           <span className={`text-xs font-medium truncate ${isDark ? 'text-slate-200' : 'text-slate-800'}`}>
