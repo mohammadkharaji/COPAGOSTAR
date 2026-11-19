@@ -2900,21 +2900,20 @@ function VisitorProfile({ p, code, back, openCustomer, openReturns }) {
           <>
             {/* Executive Visitor Hero Card */}
             <div
-              className={`rounded-2xl sm:rounded-3xl border transition-all p-4 sm:p-6 overflow-hidden relative ${
+              className={`rounded-2xl sm:rounded-3xl border transition-all p-5 sm:p-6 overflow-hidden relative ${
                 isDark
-                  ? 'bg-[#0B100E]/85 backdrop-blur-2xl border-emerald-500/20 shadow-[0_12px_40px_rgba(0,0,0,0.5)]'
+                  ? 'bg-[#0B100E]/90 backdrop-blur-2xl border-emerald-500/20 shadow-[0_12px_40px_rgba(0,0,0,0.5)]'
                   : 'bg-white/95 backdrop-blur-xl border-slate-200/90 shadow-[0_8px_30px_rgb(0,0,0,0.04)]'
               }`}
             >
-              {isDark && (
-                <div className="absolute top-0 right-0 left-0 h-1 bg-gradient-to-r from-emerald-500 via-teal-400 to-emerald-600 opacity-70" />
-              )}
+              <div className="absolute top-0 right-0 left-0 h-1.5 bg-gradient-to-r from-emerald-500 via-teal-400 to-emerald-600 opacity-80" />
 
-              <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-5">
-                {/* Right: Visitor Avatar, Name & Tags */}
-                <div className="flex items-start sm:items-center gap-3.5 sm:gap-4 min-w-0">
+              {/* Header: Visitor Name, Badges & Quick Stats */}
+              <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 pb-5 border-b border-white/5">
+                {/* Right: Avatar + Visitor Name */}
+                <div className="flex items-center gap-3.5 sm:gap-4.5 flex-1 min-w-0">
                   <div className="relative shrink-0">
-                    <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-700 flex items-center justify-center text-white shadow-lg shadow-emerald-900/40 text-xl font-black">
+                    <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-700 flex items-center justify-center text-white shadow-xl shadow-emerald-900/30 text-2xl font-black">
                       <UserRound size={28} className="text-white" />
                     </div>
                     {j.rank && j.rank <= 3 && (
@@ -2924,16 +2923,13 @@ function VisitorProfile({ p, code, back, openCustomer, openReturns }) {
                     )}
                   </div>
 
-                  <div className="space-y-1.5 min-w-0">
-                    <div className="flex items-center gap-2 sm:gap-2.5 flex-wrap">
+                  <div className="space-y-1.5 flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold ${
                         isDark ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/25' : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
                       }`}>
                         پروفایل ویزیتور
                       </span>
-                      <h1 className={`text-xl sm:text-2xl font-black tracking-tight truncate ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                        {j.name || 'نامشخص'}
-                      </h1>
                       {j.rank && (
                         <span className={`px-3 py-0.5 rounded-full text-xs font-extrabold flex items-center gap-1.5 ${
                           j.rank <= 3
@@ -2947,52 +2943,33 @@ function VisitorProfile({ p, code, back, openCustomer, openReturns }) {
                         </span>
                       )}
                     </div>
-
-                    {/* Metadata Badges */}
-                    <div className={`flex items-center gap-2 sm:gap-3 text-xs flex-wrap ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
-                      <div className="flex items-center gap-1.5">
-                        <span className={isDark ? 'text-slate-400' : 'text-slate-500'}>کد ویزیتور:</span>
-                        <span className={`font-mono font-bold px-2 py-0.5 rounded-md ${isDark ? 'bg-white/5 text-slate-200' : 'bg-slate-100 text-slate-800'}`} dir="ltr">
-                          {j.code}
-                        </span>
-                      </div>
-
-                      <div className="flex items-center gap-1.5">
-                        <span className={isDark ? 'text-slate-400' : 'text-slate-500'}>شعبه:</span>
-                        <span className="font-semibold text-emerald-400">
-                          {j.all_branches?.join('، ') || '—'}
-                        </span>
-                      </div>
-
-                      <div className="hidden sm:flex items-center gap-1.5">
-                        <span className={isDark ? 'text-slate-400' : 'text-slate-500'}>بازه فروش:</span>
-                        <span className="tabular-nums font-medium">
-                          {j.first_sale ?? '—'} تا {j.last_sale ?? '—'}
-                        </span>
-                      </div>
-
-                      <div className="flex items-center gap-1.5">
-                        <span className={isDark ? 'text-slate-400' : 'text-slate-500'}>روزهای فعال:</span>
-                        <span className={`font-bold tabular-nums px-2 py-0.5 rounded-md ${isDark ? 'bg-emerald-500/10 text-emerald-300' : 'bg-emerald-50 text-emerald-700'}`}>
-                          {fa(j.active_days)} روز
-                        </span>
-                      </div>
-                    </div>
+                    <h1 className={`text-xl sm:text-2xl lg:text-3xl font-black tracking-tight ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                      {j.name || 'نامشخص'}
+                    </h1>
                   </div>
                 </div>
 
-                {/* Left: Quick Key Metric Chips & Back Button */}
-                <div className="flex items-center gap-3 w-full lg:w-auto justify-between lg:justify-end shrink-0 border-t lg:border-t-0 pt-3 lg:pt-0 border-white/5">
-                  <div className="flex items-center gap-2.5 text-right">
-                    <div className={`p-2.5 sm:p-3 rounded-2xl border text-right ${isDark ? 'bg-black/35 border-white/10' : 'bg-slate-50 border-slate-200'}`}>
+                {/* Left: Quick Financial Status Pills + Back Button */}
+                <div className="flex items-center gap-3 shrink-0 flex-wrap">
+                  <div className={`px-4 py-2.5 rounded-2xl border ${isDark ? 'bg-black/40 border-white/10' : 'bg-slate-50 border-slate-200'} flex items-center gap-3`}>
+                    <div className="w-9 h-9 rounded-xl bg-emerald-500/15 text-emerald-400 flex items-center justify-center shrink-0">
+                      <CircleDollarSign size={20} />
+                    </div>
+                    <div>
                       <span className={`text-[10px] block font-medium ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>فروش عادی دوره</span>
-                      <span className={`text-base sm:text-lg font-black tabular-nums ${isDark ? 'text-emerald-400' : 'text-emerald-700'}`}>
-                        {billions(j.sales_rial).toFixed(1)} <span className="text-[10px] font-normal">میلیارد ریال</span>
+                      <span className={`text-base font-black tabular-nums ${isDark ? 'text-emerald-400' : 'text-emerald-700'}`}>
+                        {billions(j.sales_rial).toFixed(1)} <span className="text-xs font-normal">میلیارد ریال</span>
                       </span>
                     </div>
-                    <div className={`p-2.5 sm:p-3 rounded-2xl border text-right ${isDark ? 'bg-black/35 border-white/10' : 'bg-slate-50 border-slate-200'}`}>
+                  </div>
+
+                  <div className={`px-4 py-2.5 rounded-2xl border ${isDark ? 'bg-black/40 border-white/10' : 'bg-slate-50 border-slate-200'} flex items-center gap-3`}>
+                    <div className="w-9 h-9 rounded-xl bg-teal-500/15 text-teal-400 flex items-center justify-center shrink-0">
+                      <Percent size={20} />
+                    </div>
+                    <div>
                       <span className={`text-[10px] block font-medium ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>سهم از کل فروش</span>
-                      <span className={`text-base sm:text-lg font-black tabular-nums ${isDark ? 'text-teal-300' : 'text-teal-700'}`}>
+                      <span className={`text-base font-black tabular-nums ${isDark ? 'text-teal-300' : 'text-teal-700'}`}>
                         {pct(j.share, 2)}
                       </span>
                     </div>
@@ -3001,14 +2978,49 @@ function VisitorProfile({ p, code, back, openCustomer, openReturns }) {
                   <button
                     type="button"
                     onClick={back}
-                    className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all shrink-0 flex items-center gap-1.5 shadow-xs ${
+                    className={`inline-flex items-center gap-1.5 px-4 py-2.5 rounded-2xl text-xs font-bold transition-all shrink-0 shadow-xs ${
                       isDark
-                        ? 'bg-white/10 hover:bg-white/15 text-slate-200 hover:text-white border border-white/10'
+                        ? 'bg-white/10 hover:bg-white/15 text-slate-100 border border-white/10'
                         : 'bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-200'
                     }`}
                   >
                     <span>← بازگشت به فهرست</span>
                   </button>
+                </div>
+              </div>
+
+              {/* Structured Metadata Grid (4 Clean Cards) */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3.5 pt-5">
+                {/* کد ویزیتور */}
+                <div className={`p-3.5 rounded-2xl border ${isDark ? 'bg-black/30 border-white/5' : 'bg-slate-50/80 border-slate-200'}`}>
+                  <span className={`text-[11px] block font-medium mb-1.5 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>کد ویزیتور</span>
+                  <span className={`text-xs sm:text-sm font-mono font-bold block ${isDark ? 'text-emerald-400' : 'text-emerald-700'}`} dir="ltr">
+                    {j.code}
+                  </span>
+                </div>
+
+                {/* شعبه */}
+                <div className={`p-3.5 rounded-2xl border ${isDark ? 'bg-black/30 border-white/5' : 'bg-slate-50/80 border-slate-200'}`}>
+                  <span className={`text-[11px] block font-medium mb-1.5 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>شعبه‌های فعال</span>
+                  <span className={`text-xs sm:text-sm font-bold block truncate ${isDark ? 'text-teal-300' : 'text-teal-700'}`} title={j.all_branches?.join('، ')}>
+                    {j.all_branches?.join('، ') || '—'}
+                  </span>
+                </div>
+
+                {/* بازه فروش */}
+                <div className={`p-3.5 rounded-2xl border ${isDark ? 'bg-black/30 border-white/5' : 'bg-slate-50/80 border-slate-200'}`}>
+                  <span className={`text-[11px] block font-medium mb-1.5 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>بازه ثبت فروش</span>
+                  <span className={`text-xs sm:text-sm font-medium block tabular-nums ${isDark ? 'text-slate-200' : 'text-slate-800'}`}>
+                    {j.first_sale ?? '—'} تا {j.last_sale ?? '—'}
+                  </span>
+                </div>
+
+                {/* روزهای فعال */}
+                <div className={`p-3.5 rounded-2xl border ${isDark ? 'bg-black/30 border-white/5' : 'bg-slate-50/80 border-slate-200'}`}>
+                  <span className={`text-[11px] block font-medium mb-1.5 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>روزهای فروش فعال</span>
+                  <span className={`text-xs sm:text-sm font-bold block ${isDark ? 'text-amber-400' : 'text-amber-700'}`}>
+                    {fa(j.active_days)} روز کاری
+                  </span>
                 </div>
               </div>
             </div>
