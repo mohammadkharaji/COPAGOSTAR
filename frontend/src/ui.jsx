@@ -18,8 +18,8 @@ export function Kpi({ label, value, unit, tone, hint }) {
 export function ChartTip({ active, payload, label, labelFn, unit, valueFn }) {
   if (!active || !payload?.length) return null
   return (
-    <div className="tip">
-      <b>{labelFn ? labelFn(label) : label}</b>
+    <div className="tip backdrop-blur-xl border border-white/10 dark:bg-[#1C1C1E]/95 dark:text-white bg-slate-900/95 text-white">
+      <b className="block mb-1 font-bold">{labelFn ? labelFn(label) : label}</b>
       {payload.map((p) => {
         let displayVal
         if (valueFn) {
@@ -34,7 +34,12 @@ export function ChartTip({ active, payload, label, labelFn, unit, valueFn }) {
           displayVal = fa(p.value)
         }
         return (
-          <div key={p.dataKey}><i style={{ background: p.color || p.fill }} />{p.name}: {displayVal} {unit}</div>
+          <div key={p.dataKey} className="flex items-center gap-1.5 py-0.5 text-xs">
+            <i style={{ background: p.color || p.fill }} className="w-2 h-2 rounded-xs inline-block ml-1.5 shrink-0" />
+            <span className="font-medium text-slate-200">{p.name}:</span>
+            <span className="font-bold tabular-nums text-white">{displayVal}</span>
+            {unit && <span className="text-[11px] text-slate-300 font-normal">{unit}</span>}
+          </div>
         )
       })}
     </div>

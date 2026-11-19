@@ -1573,7 +1573,7 @@ export function CustomerPage({ core, code, setCode, openReturns }) {
 /* ---------- آنالیز رشد و پروفایل شعبه/برند ---------- */
 const GROWTH_LABELS = { month: 'ماهانه', season: 'فصلی', half: '۶ماهه' }
 const PROFILE_LABELS_FULL = { branch: 'شعبه', brand: 'برند', group: 'لاین', product: 'کالا' }
-const PROFILE_SPLITS = { branch: 'شعبه', brand: 'برند', group: 'لاین', grade: 'گرید مشتری', sales_type: 'کانال فروش', region: 'منطقه' }
+const PROFILE_SPLITS = { branch: 'شعبه', brand: 'برند', group: 'لاین', grade: 'گرید مشتری', region: 'منطقه' }
 
 /* ---------- آنالیز رشد و افت (Executive Dark Bento Design) ---------- */
 export { default as GrowthPage } from './growth/GrowthAnalysis'
@@ -1685,8 +1685,8 @@ function ProfileCommon({ j, back, openCustomer, openVisitor }) {
         </AppleCard>
       </div>
 
-      {/* 5 Donut Charts in 3 Columns */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 w-full items-stretch">
+      {/* Donut Charts Bento Grid */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4.5 w-full items-stretch">
         {Object.entries(PROFILE_SPLITS)
           .filter(([key]) => key !== j.by)
           .map(([key, label]) => (
@@ -1819,29 +1819,42 @@ function SplitPie({ title, rows }) {
       {!top.length ? (
         <div className={`text-center py-12 text-xs ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>داده‌ای برای این فیلترها وجود ندارد.</div>
       ) : (
-        <div className="flex flex-col lg:flex-row items-center justify-between gap-5 mt-2 flex-1">
+        <div className="flex flex-col xl:flex-row items-center justify-between gap-4 mt-2 flex-1">
           {/* Donut Chart */}
-          <div className="w-[160px] h-[160px] shrink-0 relative" dir="ltr">
+          <div className="w-[140px] h-[140px] sm:w-[150px] sm:h-[150px] shrink-0 relative" dir="ltr">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie
                   data={top}
                   dataKey="value"
                   nameKey="name"
-                  innerRadius="56%"
-                  outerRadius="86%"
+                  innerRadius="58%"
+                  outerRadius="88%"
                   paddingAngle={2}
                   stroke="none"
                 >
                   {top.map((_, i) => <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />)}
                 </Pie>
-                <Tooltip formatter={(v, n) => [`${fa(v)} ریال (${pct(v / total, 1)})`, n]} />
+                <Tooltip
+                  formatter={(v, n) => [`${fa(v)} ریال (${pct(v / total, 1)})`, n]}
+                  contentStyle={{
+                    background: isDark ? '#1C1C1E' : '#FFFFFF',
+                    borderRadius: '12px',
+                    border: isDark ? '1px solid rgba(255,255,255,0.12)' : '1px solid #E2E8F0',
+                    color: isDark ? '#F1F5F9' : '#0F172A',
+                    fontSize: '12px',
+                    direction: 'rtl',
+                    fontFamily: 'Vazirmatn, sans-serif',
+                    boxShadow: '0 12px 30px rgba(0,0,0,0.35)',
+                  }}
+                  itemStyle={{ color: isDark ? '#F1F5F9' : '#0F172A' }}
+                />
               </PieChart>
             </ResponsiveContainer>
           </div>
 
-          {/* Legend List */}
-          <ul className="flex-1 min-w-0 w-full space-y-2 max-h-[220px] overflow-y-auto pr-1">
+          {/* Legend List with dedicated safe padding and sleek scrollbar */}
+          <ul className="flex-1 min-w-0 w-full space-y-1.5 max-h-[200px] overflow-y-auto px-2 pl-3.5 pr-1 exec-hover-scrollbar">
             {top.map((s, i) => (
               <li key={s.name} className="flex items-center justify-between gap-2 text-xs py-0.5">
                 <div className="flex items-center gap-2 min-w-0 flex-1">
@@ -1853,7 +1866,7 @@ function SplitPie({ title, rows }) {
                     {s.name}
                   </span>
                 </div>
-                <span className={`font-bold tabular-nums text-[12px] shrink-0 ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>
+                <span className={`font-bold tabular-nums text-[12px] shrink-0 min-w-[42px] text-left ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>
                   {pct(s.value / total, 1)}
                 </span>
               </li>
@@ -2071,11 +2084,10 @@ function VisitorProfile({ p, code, back, openCustomer, openReturns }) {
             </div>
 
             {/* SplitPies Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 w-full">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 w-full">
               <SplitPie title="سهم شعبه‌ها" rows={j.branches} />
               <SplitPie title="سهم برندها" rows={j.brands} />
               <SplitPie title="سهم گرید مشتری" rows={j.grades} />
-              <SplitPie title="سهم کانال فروش" rows={j.sales_types} />
             </div>
 
             {/* Tables Row: Top Customers + Top Products */}

@@ -688,11 +688,20 @@ def visitor_profile(code: str, request: Request, core: str = DEFAULT_CORE, start
     name = _core(core)
     rng, args = _range(start, end)
     dim, dargs = _dims(request)
-    base = f"core=? AND visitor_code=?{rng}{dim}"
-    bargs = [name, code, *args, *dargs]
     scope, sargs = rbac.scope_clause()
     con = _con()
     try:
+        # Resolve visitor_code if code is passed as visitor name or code
+        vrow = con.execute(
+            f"SELECT visitor_code FROM fact_sales WHERE core=? AND (visitor_code=? OR visitor=?){scope} "
+            f"AND visitor_code IS NOT NULL GROUP BY 1 ORDER BY COUNT(*) DESC LIMIT 1",
+            [name, code, code, *sargs]
+        ).fetchone()
+        if not vrow or vrow[0] is None:
+            raise HTTPException(404, "ویزیتور یافت نشد")
+        code = str(vrow[0])
+        base = f"core=? AND visitor_code=?{rng}{dim}"
+        bargs = [name, code, *args, *dargs]
         names = [r[0] for r in con.execute(
             f"SELECT visitor FROM fact_sales WHERE core=? AND visitor_code=? AND visitor IS NOT NULL{scope} "
             "GROUP BY 1 ORDER BY COUNT(*) DESC", [name, code, *sargs]).fetchall()]
@@ -840,7 +849,7 @@ def growth(request: Request, kind: str = "month", core: str = DEFAULT_CORE):
 
 PROFILE_BY = {"branch": "branch", "brand": "brand", "group": "group_name", "product": "product_name"}
 PROFILE_SPLITS = {"branch": "branch", "brand": "brand", "group": "group_name", "grade": "grade",
-                  "sales_type": "sales_type", "region": "region"}
+                  "region": "region"}
 
 
 @app.get("/api/profile/{by}/{key:path}")

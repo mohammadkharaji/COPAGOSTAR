@@ -149,7 +149,7 @@ function BranchChartTooltip({ active, payload, label, isDark }) {
  * Executive Dark Bento Redesign
  * ─────────────────────────────────────────────────────────────
  */
-export default function BranchRegionPage({ p, openProfile }) {
+export default function BranchRegionPage({ p, openProfile, openVisitor }) {
   const { isDark } = useAppearance()
   const [by, setBy] = useState('branch')
   const [sel, setSel] = useState(null) // { by: 'branch', key: 'تهران مرکز' }
@@ -159,6 +159,19 @@ export default function BranchRegionPage({ p, openProfile }) {
 
   const children = sel ? DRILL_CHILDREN[sel.by] : null
   const activeChild = sel ? (children && children.includes(childBy) ? childBy : children?.[0] || 'visitor') : null
+
+  const handleItemNavigation = (key) => {
+    if (!key) return
+    const isVisitor = sel ? activeChild === 'visitor' : by === 'visitor'
+    if (isVisitor) {
+      if (openVisitor) openVisitor(String(key))
+      else if (openProfile) openProfile('visitor', String(key))
+    } else if (!sel && (by === 'branch' || by === 'region')) {
+      setSel({ by, key: String(key) })
+    } else if (openProfile) {
+      openProfile(by === 'branch' ? 'branch' : 'brand', String(key))
+    }
+  }
 
   // Fetch breakdown rows
   const query = useMemo(() => {
@@ -400,11 +413,15 @@ export default function BranchRegionPage({ p, openProfile }) {
                   </span>
                 </div>
                 <div className="my-2">
-                  <div className={`text-lg sm:text-xl font-black tracking-tight truncate ${
-                    isDark ? 'text-amber-400' : 'text-amber-700'
-                  }`}>
+                  <button
+                    type="button"
+                    onClick={() => topPerformer?.key && handleItemNavigation(topPerformer.key)}
+                    className={`text-lg sm:text-xl font-black tracking-tight truncate text-right block max-w-full ${
+                      (sel ? activeChild === 'visitor' : by === 'visitor') ? 'cursor-pointer hover:underline' : ''
+                    } ${isDark ? 'text-amber-400' : 'text-amber-700'}`}
+                  >
                     {topPerformer ? (by === 'state' ? cleanDistrictLabel(topPerformer.key) : topPerformer.key) : '—'}
-                  </div>
+                  </button>
                   <div className={`text-xs font-bold tabular-nums font-sans mt-0.5 truncate ${
                     isDark ? 'text-slate-200' : 'text-slate-800'
                   }`}>
@@ -606,13 +623,7 @@ export default function BranchRegionPage({ p, openProfile }) {
                         maxBarSize={36}
                         onClick={(b) => {
                           const k = b?.payload?.key
-                          if (k) {
-                            if (!sel && (by === 'branch' || by === 'region')) {
-                              setSel({ by, key: String(k) })
-                            } else if (openProfile && by === 'branch') {
-                              openProfile('branch', String(k))
-                            }
-                          }
+                          if (k) handleItemNavigation(k)
                         }}
                         cursor="pointer"
                       />
@@ -625,7 +636,9 @@ export default function BranchRegionPage({ p, openProfile }) {
                 }`}>
                   <span>کل فروش ۱۵ واحد برتر: {billions1(chartData.reduce((s, x) => s + (x.sum_rial_vat || 0), 0))} م. ریال</span>
                   <span className="text-emerald-400 font-bold">
-                    💡 برای دریل‌داون روی میله‌ها یا ردیف‌های جدول کلیک کنید
+                    💡 {(sel ? activeChild === 'visitor' : by === 'visitor')
+                      ? 'برای مشاهده پروفایل هر ویزیتور روی میله‌ها یا نام آن در جدول کلیک کنید'
+                      : 'برای دریل‌داون روی میله‌ها یا ردیف‌های جدول کلیک کنید'}
                   </span>
                 </div>
               </div>
@@ -784,13 +797,7 @@ export default function BranchRegionPage({ p, openProfile }) {
                           <td className="py-3 px-3 font-bold">
                             <button
                               type="button"
-                              onClick={() => {
-                                if (!sel && (by === 'branch' || by === 'region')) {
-                                  setSel({ by, key: String(x.key) })
-                                } else if (openProfile && isBranch) {
-                                  openProfile('branch', String(x.key))
-                                }
-                              }}
+                              onClick={() => handleItemNavigation(x.key)}
                               className={`text-right hover:underline cursor-pointer flex items-center gap-1.5 ${
                                 isDark ? 'text-slate-100 hover:text-emerald-400' : 'text-slate-900 hover:text-emerald-700'
                               }`}
@@ -839,17 +846,17 @@ export default function BranchRegionPage({ p, openProfile }) {
                             )}
                           </td>
                           <td className="py-3 px-3 text-center">
-                            {openProfile && (
+                            {(openProfile || openVisitor) && (
                               <button
                                 type="button"
-                                onClick={() => openProfile(by === 'branch' ? 'branch' : 'brand', String(x.key))}
+                                onClick={() => handleItemNavigation(x.key)}
                                 className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all cursor-pointer ${
                                   isDark
                                     ? 'bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20'
                                     : 'bg-emerald-50 text-emerald-800 hover:bg-emerald-100'
                                 }`}
                               >
-                                <span>پروفایل</span>
+                                <span>پروفایل {(sel ? activeChild === 'visitor' : by === 'visitor') ? 'ویزیتور' : ''}</span>
                                 <ChevronLeft size={11} />
                               </button>
                             )}

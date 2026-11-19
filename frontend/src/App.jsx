@@ -159,7 +159,13 @@ export default function App({ onLogout }) {
     return `${page}${arg ? `/${encodeURIComponent(arg)}` : ''}${qs ? `?${qs}` : ''}`
   }
   const go = (page, arg = '') => { location.hash = buildHash(page, arg) }
-  const openProfile = (by, key) => go('profile', `${by}~${key}`)
+  const openProfile = (by, key) => {
+    if (by === 'visitor') {
+      go('visitor', key)
+    } else {
+      go('profile', `${by}~${key}`)
+    }
+  }
   const p = useMemo(() => ({ core, ...(month ? monthRange(month) : {}), ...dims, v: ver }), [core, month, dims, ver])
   const partial = Boolean(health && health.status !== 'ready')
   const setDim = (k, v) => setDims((d) => {
@@ -239,7 +245,7 @@ export default function App({ onLogout }) {
       {page === 'monthly' && <MonthlyTrendPage p={p} />}
       {page === 'target' && <TargetPage key={core} core={core} />}
       {page === 'growth' && <GrowthPage p={p} />}
-      {page === 'branch' && <BranchRegionPage p={p} openProfile={openProfile} />}
+      {page === 'branch' && <BranchRegionPage p={p} openProfile={openProfile} openVisitor={(c) => go('visitor', c)} />}
       {page === 'product' && <ProductBrandPage p={p} openProfile={openProfile} />}
       {page === 'profile' && <ProfilePage p={p} arg={arg} openProfile={openProfile} back={() => go('profile')} openCustomer={(c) => go('customer', c)} openVisitor={(c) => go('visitor', c)} />}
       {page === 'pareto' && <ParetoPage p={p} openCustomer={(c) => go('customer', c)} openVisitor={(c) => go('visitor', c)} openProfile={openProfile} />}
