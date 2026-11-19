@@ -13,11 +13,16 @@ import {
   BarChart3,
   PieChart as PieIcon,
   TrendingUp,
+  TrendingDown,
   Store,
   Layers,
   Sparkles,
   ArrowUpRight,
   Filter,
+  ChevronDown,
+  ChevronUp,
+  RotateCcw,
+  ShieldAlert,
 } from 'lucide-react'
 import { motion } from 'motion/react'
 import { useApi } from './api'
@@ -29,14 +34,16 @@ import { Table, pct, rial } from './ui'
 
 const PAGE_SIZE = 50
 const VIEWS = [
-  ['month', 'ماه', Calendar],
-  ['branch', 'شعبه', Store],
-  ['reason', 'علت برگشت', CircleAlert],
+  ['month', 'تحلیل ماهانه و روند', Calendar],
+  ['branch', 'تفکیک شعب', Store],
+  ['reason', 'علت‌های برگشت', CircleAlert],
 ]
+
 const STATUS = {
   full: { label: 'برگشتی کامل', Icon: CircleAlert, color: '#dc2626' },
   partial: { label: 'برگشتی جزئی', Icon: CircleMinus, color: '#d97706' },
 }
+
 const IGNORED_LABELS = {
   sales_type: 'کانال فروش',
   region: 'منطقه',
@@ -48,6 +55,7 @@ const IGNORED_LABELS = {
   main_group: 'گروه کالای اصلی',
   sub_group: 'زیرگروه کالای اصلی',
 }
+
 const SCOPE_LABELS = { customer: 'مشتری', visitor: 'ویزیتور' }
 
 export const returnsArg = (by, keys) => `${by}~${[].concat(keys).join('|')}`
@@ -59,76 +67,24 @@ function parseScope(arg) {
   return SCOPE_LABELS[by] && keys.length ? { by, keys } : null
 }
 
-function AppleCard({ title, subtitle, badge, action, children, className = '' }) {
-  const { isDark, isSolid } = useAppearance()
-  return (
-    <div
-      className={`apple-card rounded-2xl sm:rounded-3xl border transition-all p-4 sm:p-6 overflow-hidden w-full max-w-full ${
-        isDark
-          ? 'bg-[#0B100E]/80 backdrop-blur-2xl border-emerald-500/15 text-[#F5F5F7] shadow-[0_8px_30px_rgba(0,0,0,0.45)]'
-          : isSolid
-          ? 'bg-white border-slate-200 text-[#1D1D1F] shadow-xs'
-          : 'bg-white/90 backdrop-blur-xl border-slate-200/80 text-[#1D1D1F] shadow-[0_8px_30px_rgb(0,0,0,0.04)]'
-      } ${className}`}
-    >
-      {(title || subtitle || badge || action) && (
-        <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
-          <div>
-            {title && <h2 className={`text-sm sm:text-base font-bold ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>{title}</h2>}
-            {subtitle && <p className={`text-xs mt-0.5 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>{subtitle}</p>}
-          </div>
-          <div className="flex items-center gap-2 flex-wrap">
-            {badge && (
-              <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${
-                isDark ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/25' : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-              }`}>
-                {badge}
-              </span>
-            )}
-            {action}
-          </div>
-        </div>
-      )}
-      {children}
-    </div>
-  )
-}
-
-function AppleKpiCard({ label, value, unit, icon: Icon, tone = 'teal' }) {
-  const { isDark, isSolid } = useAppearance()
-  const tones = {
-    blue: isDark ? 'bg-sky-500/15 text-sky-400 border border-sky-500/25' : 'bg-sky-50 text-sky-700',
-    teal: isDark ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/25' : 'bg-emerald-50 text-emerald-700',
-    amber: isDark ? 'bg-amber-500/15 text-amber-400 border border-amber-500/25' : 'bg-amber-50 text-amber-700',
-    violet: isDark ? 'bg-purple-500/15 text-purple-400 border border-purple-500/25' : 'bg-purple-50 text-purple-700',
-    pink: isDark ? 'bg-pink-500/15 text-pink-400 border border-pink-500/25' : 'bg-pink-50 text-pink-700',
-    green: isDark ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/25' : 'bg-emerald-50 text-emerald-700',
-    red: isDark ? 'bg-rose-500/15 text-rose-400 border border-rose-500/25' : 'bg-rose-50 text-rose-700',
-  }
-  return (
-    <motion.div
-      whileHover={{ y: -2 }}
-      className={`apple-kpi-card rounded-2xl border transition-all p-3.5 sm:p-4 flex flex-col justify-between text-right ${
-        isDark
-          ? 'bg-[#0B100E]/85 backdrop-blur-xl border-emerald-500/15 text-[#F5F5F7] shadow-[0_4px_20px_rgba(0,0,0,0.35)] hover:border-emerald-500/30'
-          : isSolid
-          ? 'bg-white border-slate-200 text-[#1D1D1F] shadow-xs hover:shadow-md'
-          : 'bg-white/90 backdrop-blur-xl border-slate-200/80 text-[#1D1D1F] shadow-[0_4px_20px_rgb(0,0,0,0.03)] hover:shadow-[0_8px_25px_rgb(0,0,0,0.06)]'
-      }`}
-    >
-      <div className="flex items-center justify-between mb-2">
-        <span className={`text-[11px] sm:text-xs font-semibold ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>{label}</span>
-        <div className={`w-7 h-7 sm:w-8 sm:h-8 rounded-xl flex items-center justify-center shrink-0 ${tones[tone] || tones.teal}`}>
-          {Icon ? <Icon size={14} className="sm:w-4 sm:h-4" /> : null}
-        </div>
-      </div>
-      <div>
-        <div className={`text-base sm:text-xl font-sans font-bold tracking-tight tabular-nums whitespace-nowrap ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>{value}</div>
-        <div className={`text-[10px] sm:text-[11px] mt-0.5 truncate ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>{unit}</div>
-      </div>
-    </motion.div>
-  )
-}
+const DONUT_COLORS = [
+  '#10B981', // Emerald
+  '#F43F5E', // Rose
+  '#F59E0B', // Amber
+  '#06B6D4', // Cyan
+  '#8B5CF6', // Purple
+  '#EC4899', // Pink
+  '#6366F1', // Indigo
+  '#14B8A6', // Teal
+  '#D97706', // Warm Amber
+  '#64748B', // Slate
+  '#84CC16', // Lime
+  '#E11D48', // Deep Rose
+  '#3B82F6', // Sky Blue
+  '#A855F7', // Violet
+  '#059669', // Dark Emerald
+  '#475569', // Charcoal Slate
+]
 
 function StatusBadge({ s }) {
   const m = STATUS[s]
@@ -146,7 +102,7 @@ function StatusBadge({ s }) {
 function Note({ children, tone }) {
   const isErr = tone === 'err'
   return (
-    <div className={`rounded-2xl p-4 text-xs font-medium flex items-center gap-2.5 flex-wrap ${
+    <div className={`rounded-2xl p-3.5 text-xs font-medium flex items-center gap-2.5 flex-wrap ${
       isErr ? 'bg-rose-500/10 border border-rose-500/20 text-rose-800 dark:text-rose-300' : 'bg-emerald-500/10 border border-emerald-500/20 text-emerald-400'
     }`} role={isErr ? 'alert' : 'status'}>
       <Info size={16} aria-hidden="true" className="shrink-0" />
@@ -167,24 +123,50 @@ const orderCols = (extra = []) => [
 ]
 const customerCol = { label: 'مشتری', render: (r) => (r.customer_code ? `${r.customer_code} · ${r.customer_name ?? ''}` : '—'), value: (r) => `${r.customer_code ?? ''} ${r.customer_name ?? ''}` }
 
-const DONUT_COLORS = [
-  '#10B981', // Emerald
-  '#F43F5E', // Rose
-  '#F59E0B', // Amber
-  '#06B6D4', // Cyan
-  '#8B5CF6', // Purple
-  '#EC4899', // Pink
-  '#6366F1', // Indigo
-  '#14B8A6', // Teal
-  '#D97706', // Warm Amber
-  '#64748B', // Slate
-  '#84CC16', // Lime
-  '#E11D48', // Deep Rose
-  '#3B82F6', // Sky Blue
-  '#A855F7', // Violet
-  '#059669', // Dark Emerald
-  '#475569', // Charcoal Slate
+const aggCols = (first) => [
+  first,
+  { label: 'تعداد حواله', render: (r) => fa(r.orders), value: (r) => r.orders },
+  { label: 'حواله برگشتی', render: (r) => fa(r.returned_orders), value: (r) => r.returned_orders },
+  { label: 'مبلغ حواله (ریال)', render: (r) => rial(r.order_rial), value: (r) => r.order_rial },
+  { label: 'مبلغ برگشتی (ریال)', render: (r) => <span className="font-bold text-rose-600 dark:text-rose-400">{rial(r.return_rial)}</span>, value: (r) => r.return_rial },
+  { label: 'درصد برگشتی', render: (r) => <span className="font-bold text-amber-600 dark:text-amber-400">{pct(r.return_percent, 2)}</span>, value: (r) => r.return_percent * 100, unit: '٪' },
 ]
+
+/* Glass Card Container */
+function AppleCard({ title, subtitle, badge, action, children, className = '' }) {
+  const { isDark, isSolid } = useAppearance()
+  return (
+    <div
+      className={`rounded-3xl border transition-all p-5 sm:p-6 w-full max-w-full ${
+        isDark
+          ? 'bg-[#0B100E]/85 backdrop-blur-2xl border-emerald-500/15 text-[#F5F5F7] shadow-[0_8px_30px_rgba(0,0,0,0.45)]'
+          : isSolid
+          ? 'bg-white border-slate-200 text-[#1D1D1F] shadow-xs'
+          : 'bg-white/95 backdrop-blur-xl border-slate-200/90 text-[#1D1D1F] shadow-[0_8px_30px_rgb(0,0,0,0.04)]'
+      } ${className}`}
+    >
+      {(title || subtitle || badge || action) && (
+        <div className="flex items-center justify-between mb-5 flex-wrap gap-3 pb-3 border-b border-black/[0.04] dark:border-white/[0.06]">
+          <div>
+            {title && <h2 className={`text-sm sm:text-base font-bold ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>{title}</h2>}
+            {subtitle && <p className={`text-xs mt-0.5 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>{subtitle}</p>}
+          </div>
+          <div className="flex items-center gap-2 flex-wrap">
+            {badge && (
+              <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${
+                isDark ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/25' : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+              }`}>
+                {badge}
+              </span>
+            )}
+            {action}
+          </div>
+        </div>
+      )}
+      {children}
+    </div>
+  )
+}
 
 /* Dedicated Pixel-Perfect Tooltip for Donut Chart */
 function DonutChartTip({ active, payload, total }) {
@@ -219,236 +201,6 @@ function DonutChartTip({ active, payload, total }) {
             <span className="font-medium text-slate-200 tabular-nums">{fa(d.payload.orders)} حواله</span>
           </div>
         )}
-      </div>
-    </div>
-  )
-}
-
-function AppleDonutBreakdown({
-  rows = [],
-  nameKey,
-  labelFn = (v) => String(v ?? '—'),
-  selected = '',
-  onPick,
-  title = 'تفکیک و سهم برگشتی',
-}) {
-  const [hovered, setHovered] = useState(null)
-  const { isDark } = useAppearance()
-
-  const data = useMemo(() => {
-    return rows
-      .map((r) => ({
-        name: labelFn(r[nameKey]),
-        rawName: r[nameKey],
-        value: r.return_rial ?? 0,
-        orders: r.orders ?? 0,
-        returnedOrders: r.returned_orders ?? 0,
-        returnPercent: r.return_percent ?? 0,
-      }))
-      .filter((r) => r.value > 0)
-      .sort((a, b) => b.value - a.value)
-  }, [rows, nameKey, labelFn])
-
-  const total = useMemo(() => data.reduce((sum, r) => sum + r.value, 0), [data])
-  const maxVal = useMemo(() => (data.length ? data[0].value : 1), [data])
-
-  const activeItem = hovered || (selected ? data.find((d) => d.rawName === selected) : null)
-  const activeValue = activeItem ? activeItem.value : total
-  const activePercent = total > 0 ? (activeValue / total) * 100 : 0
-
-  if (!data.length) {
-    return <div className="text-center py-8 text-xs text-[#86868B]">داده‌ای برای نمایش نمودار وجود ندارد.</div>
-  }
-
-  return (
-    <div className="space-y-4">
-      <div className={`grid grid-cols-1 lg:grid-cols-12 gap-6 items-center border rounded-3xl p-5 md:p-6 transition-all ${
-        isDark
-          ? 'bg-[#0E1512]/80 border-emerald-500/15 shadow-[0_4px_25px_rgba(0,0,0,0.35)]'
-          : 'bg-[#F9FAFB] border-slate-200/80 shadow-xs'
-      }`}>
-        
-        {/* Signature Apple Donut with Central Metrics */}
-        <div className="lg:col-span-5 flex flex-col items-center justify-center relative min-h-[300px]">
-          <div className="w-full h-[280px] relative flex items-center justify-center" dir="ltr">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={data}
-                  dataKey="value"
-                  nameKey="name"
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={78}
-                  outerRadius={118}
-                  paddingAngle={data.length > 1 ? 3 : 0}
-                  cornerRadius={6}
-                  stroke="none"
-                  onMouseEnter={(_, idx) => setHovered(data[idx])}
-                  onMouseLeave={() => setHovered(null)}
-                  onClick={(d) => {
-                    const v = d?.payload?.rawName ?? d?.rawName
-                    if (onPick && v != null) {
-                      onPick(selected === v ? '' : v)
-                    }
-                  }}
-                  style={{ cursor: onPick ? 'pointer' : 'default' }}
-                >
-                  {data.map((d, i) => {
-                    const isSelected = selected && d.rawName === selected
-                    const isHovered = hovered && hovered.rawName === d.rawName
-                    const isMuted = (selected && !isSelected) || (hovered && !isHovered)
-                    return (
-                      <Cell
-                        key={d.rawName ?? i}
-                        fill={DONUT_COLORS[i % DONUT_COLORS.length]}
-                        opacity={isMuted ? 0.35 : 1}
-                        style={{
-                          transition: 'all 0.25s ease',
-                          filter: (isSelected || isHovered) ? 'drop-shadow(0 4px 10px rgba(0,0,0,0.25))' : 'none',
-                        }}
-                      />
-                    )
-                  })}
-                </Pie>
-                <Tooltip content={<DonutChartTip total={total} />} />
-              </PieChart>
-            </ResponsiveContainer>
-
-            {/* Central Metric Typography (Inside Donut Hole) */}
-            <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none text-center px-4">
-              <div className="w-28 h-28 rounded-full flex flex-col items-center justify-center backdrop-blur-xs bg-white/[0.03] dark:bg-black/30 border border-white/5 shadow-inner">
-                <span className="text-[11px] font-semibold text-[#86868B] dark:text-[#98989D] max-w-[100px] truncate mb-0.5">
-                  {activeItem ? activeItem.name : 'مجموع برگشتی'}
-                </span>
-                <span className="text-xl md:text-2xl font-black text-[#1D1D1F] dark:text-white tabular-nums tracking-tight">
-                  {billions1(activeValue)}
-                </span>
-                <span className="text-[10px] font-bold mt-0.5">
-                  {activeItem ? (
-                    <span className="text-rose-500 dark:text-rose-400 font-extrabold px-1.5 py-0.2 rounded-md bg-rose-500/10">
-                      {pct(activePercent / 100, 1)} از کل
-                    </span>
-                  ) : (
-                    <span className="text-[#86868B] dark:text-[#98989D]">میلیارد ریال</span>
-                  )}
-                </span>
-              </div>
-            </div>
-          </div>
-
-          {selected && onPick && (
-            <button
-              type="button"
-              onClick={() => onPick('')}
-              className="mt-2 text-xs font-bold text-emerald-500 hover:text-emerald-400 underline cursor-pointer transition-colors"
-            >
-              پاک کردن فیلتر ({data.find((d) => d.rawName === selected)?.name})
-            </button>
-          )}
-        </div>
-
-        {/* Left: Ranked Interactive Breakdown List with Podium Accents */}
-        <div className="lg:col-span-7 flex flex-col h-full justify-center">
-          <div className="flex items-center justify-between mb-3 px-1">
-            <span className="text-xs sm:text-sm font-bold text-[#1D1D1F] dark:text-[#F5F5F7]">
-              {title}
-            </span>
-            <span className="text-[11px] text-[#86868B] dark:text-[#98989D] tabular-nums font-semibold bg-black/[0.04] dark:bg-white/[0.06] px-2.5 py-0.5 rounded-full">
-              {fa(data.length)} مورد
-            </span>
-          </div>
-
-          <div className="max-h-[300px] overflow-y-auto space-y-2 pr-1 exec-hover-scrollbar">
-            {data.map((d, i) => {
-              const color = DONUT_COLORS[i % DONUT_COLORS.length]
-              const isSelected = selected === d.rawName
-              const isHovered = hovered?.rawName === d.rawName
-              const share = total > 0 ? (d.value / total) * 100 : 0
-              const barWidth = maxVal > 0 ? (d.value / maxVal) * 100 : 0
-
-              return (
-                <div
-                  key={d.rawName ?? i}
-                  onMouseEnter={() => setHovered(d)}
-                  onMouseLeave={() => setHovered(null)}
-                  onClick={() => onPick && onPick(isSelected ? '' : d.rawName)}
-                  className={`group relative overflow-hidden rounded-2xl px-3.5 py-2.5 text-xs transition-all border ${
-                    onPick ? 'cursor-pointer' : 'cursor-default'
-                  } ${
-                    isSelected
-                      ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-400 font-bold shadow-sm'
-                      : isHovered
-                      ? 'bg-black/[0.05] dark:bg-white/[0.08] border-black/[0.08] dark:border-white/10 text-[#1D1D1F] dark:text-white'
-                      : 'bg-white/80 dark:bg-black/25 border-black/[0.03] dark:border-white/[0.05] text-[#1D1D1F] dark:text-[#E5E5EA]'
-                  }`}
-                >
-                  {/* Subtle Translucent Gradient Progress Bar */}
-                  <div
-                    className="absolute inset-y-0 right-0 pointer-events-none transition-all duration-300 rounded-2xl"
-                    style={{
-                      width: `${barWidth}%`,
-                      background: `linear-gradient(to left, ${color}30, ${color}0a)`,
-                    }}
-                  />
-
-                  <div className="relative flex items-center justify-between gap-3">
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      {/* Rank badge with podium highlight */}
-                      {i === 0 ? (
-                        <span className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-black bg-amber-500/20 text-amber-600 dark:text-amber-300 border border-amber-400/40 shrink-0 tabular-nums shadow-xs shadow-amber-500/20">
-                          #{fa(1)}
-                        </span>
-                      ) : i === 1 ? (
-                        <span className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-black bg-sky-500/20 text-sky-600 dark:text-sky-300 border border-sky-400/40 shrink-0 tabular-nums shadow-xs shadow-sky-500/20">
-                          #{fa(2)}
-                        </span>
-                      ) : i === 2 ? (
-                        <span className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-black bg-emerald-500/20 text-emerald-600 dark:text-emerald-300 border border-emerald-400/40 shrink-0 tabular-nums shadow-xs shadow-emerald-500/20">
-                          #{fa(3)}
-                        </span>
-                      ) : (
-                        <span className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold bg-black/[0.05] dark:bg-white/10 text-[#86868B] shrink-0 tabular-nums">
-                          {fa(i + 1)}
-                        </span>
-                      )}
-
-                      {/* Color dot */}
-                      <span
-                        className="w-2.5 h-2.5 rounded-full shrink-0 shadow-2xs"
-                        style={{ backgroundColor: color }}
-                      />
-                      {/* Name */}
-                      <span className="font-semibold truncate max-w-[150px] sm:max-w-[210px]" title={d.name}>
-                        {d.name}
-                      </span>
-                    </div>
-
-                    <div className="flex items-center gap-3 shrink-0 tabular-nums">
-                      {/* Value in Rial */}
-                      <span className="font-bold text-[#1D1D1F] dark:text-white whitespace-nowrap">
-                        {rial(d.value)}
-                        <span className="text-[10px] font-normal text-[#86868B] mr-1">ریال</span>
-                      </span>
-                      {/* Share badge */}
-                      <span
-                        className="px-2 py-0.5 rounded-full text-[10px] font-black min-w-[46px] text-center border"
-                        style={{
-                          backgroundColor: `${color}18`,
-                          color: color,
-                          borderColor: `${color}35`,
-                        }}
-                      >
-                        {pct(share / 100, 1)}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-        </div>
-
       </div>
     </div>
   )
@@ -489,6 +241,234 @@ function MonthlyTrendTip({ active, payload, total }) {
   )
 }
 
+/* Redesigned Donut Breakdown with Podium Ranks */
+function AppleDonutBreakdown({
+  rows = [],
+  nameKey,
+  labelFn = (v) => String(v ?? '—'),
+  selected = '',
+  onPick,
+  title = 'تفکیک و سهم برگشتی',
+}) {
+  const [hovered, setHovered] = useState(null)
+  const { isDark } = useAppearance()
+
+  const data = useMemo(() => {
+    return rows
+      .map((r) => ({
+        name: labelFn(r[nameKey]),
+        rawName: r[nameKey],
+        value: r.return_rial ?? 0,
+        orders: r.orders ?? 0,
+        returnedOrders: r.returned_orders ?? 0,
+        returnPercent: r.return_percent ?? 0,
+      }))
+      .filter((r) => r.value > 0)
+      .sort((a, b) => b.value - a.value)
+  }, [rows, nameKey, labelFn])
+
+  const total = useMemo(() => data.reduce((sum, r) => sum + r.value, 0), [data])
+  const maxVal = useMemo(() => (data.length ? data[0].value : 1), [data])
+
+  const activeItem = hovered || (selected ? data.find((d) => d.rawName === selected) : null)
+  const activeValue = activeItem ? activeItem.value : total
+  const activePercent = total > 0 ? (activeValue / total) * 100 : 0
+
+  if (!data.length) {
+    return <div className="text-center py-8 text-xs text-[#86868B]">داده‌ای برای نمایش نمودار وجود ندارد.</div>
+  }
+
+  return (
+    <div className={`grid grid-cols-1 lg:grid-cols-12 gap-6 items-center border rounded-3xl p-5 md:p-6 transition-all ${
+      isDark
+        ? 'bg-[#0E1512]/90 border-emerald-500/15 shadow-[0_4px_25px_rgba(0,0,0,0.35)]'
+        : 'bg-[#F9FAFB] border-slate-200/90 shadow-xs'
+    }`}>
+      {/* Signature Apple Donut with Central Metrics */}
+      <div className="lg:col-span-5 flex flex-col items-center justify-center relative min-h-[300px]">
+        <div className="w-full h-[280px] relative flex items-center justify-center" dir="ltr">
+          <ResponsiveContainer width="100%" height="100%">
+            <PieChart>
+              <Pie
+                data={data}
+                dataKey="value"
+                nameKey="name"
+                cx="50%"
+                cy="50%"
+                innerRadius={78}
+                outerRadius={118}
+                paddingAngle={data.length > 1 ? 3 : 0}
+                cornerRadius={6}
+                stroke="none"
+                onMouseEnter={(_, idx) => setHovered(data[idx])}
+                onMouseLeave={() => setHovered(null)}
+                onClick={(d) => {
+                  const v = d?.payload?.rawName ?? d?.rawName
+                  if (onPick && v != null) {
+                    onPick(selected === v ? '' : v)
+                  }
+                }}
+                style={{ cursor: onPick ? 'pointer' : 'default' }}
+              >
+                {data.map((d, i) => {
+                  const isSelected = selected && d.rawName === selected
+                  const isHovered = hovered && hovered.rawName === d.rawName
+                  const isMuted = (selected && !isSelected) || (hovered && !isHovered)
+                  return (
+                    <Cell
+                      key={d.rawName ?? i}
+                      fill={DONUT_COLORS[i % DONUT_COLORS.length]}
+                      opacity={isMuted ? 0.35 : 1}
+                      style={{
+                        transition: 'all 0.25s ease',
+                        filter: (isSelected || isHovered) ? 'drop-shadow(0 4px 12px rgba(0,0,0,0.3))' : 'none',
+                      }}
+                    />
+                  )
+                })}
+              </Pie>
+              <Tooltip content={<DonutChartTip total={total} />} />
+            </PieChart>
+          </ResponsiveContainer>
+
+          {/* Central Metric Hole */}
+          <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none text-center px-4">
+            <div className="w-28 h-28 rounded-full flex flex-col items-center justify-center backdrop-blur-xs bg-white/[0.04] dark:bg-black/40 border border-white/5 shadow-inner">
+              <span className="text-[11px] font-semibold text-[#86868B] dark:text-[#98989D] max-w-[100px] truncate mb-0.5">
+                {activeItem ? activeItem.name : 'مجموع برگشتی'}
+              </span>
+              <span className="text-xl md:text-2xl font-black text-[#1D1D1F] dark:text-white tabular-nums tracking-tight">
+                {billions1(activeValue)}
+              </span>
+              <span className="text-[10px] font-bold mt-0.5">
+                {activeItem ? (
+                  <span className="text-rose-500 dark:text-rose-400 font-extrabold px-1.5 py-0.2 rounded-md bg-rose-500/10">
+                    {pct(activePercent / 100, 1)} از کل
+                  </span>
+                ) : (
+                  <span className="text-[#86868B] dark:text-[#98989D]">میلیارد ریال</span>
+                )}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {selected && onPick && (
+          <button
+            type="button"
+            onClick={() => onPick('')}
+            className="mt-2 text-xs font-bold text-emerald-500 hover:text-emerald-400 underline cursor-pointer transition-colors"
+          >
+            پاک کردن فیلتر انتخاب ({data.find((d) => d.rawName === selected)?.name})
+          </button>
+        )}
+      </div>
+
+      {/* Left: Ranked Breakdown List with Podium Medals */}
+      <div className="lg:col-span-7 flex flex-col h-full justify-center">
+        <div className="flex items-center justify-between mb-3 px-1">
+          <span className="text-xs sm:text-sm font-bold text-[#1D1D1F] dark:text-[#F5F5F7]">
+            {title}
+          </span>
+          <span className="text-[11px] text-[#86868B] dark:text-[#98989D] tabular-nums font-semibold bg-black/[0.04] dark:bg-white/[0.06] px-2.5 py-0.5 rounded-full">
+            {fa(data.length)} مورد
+          </span>
+        </div>
+
+        <div className="max-h-[300px] overflow-y-auto space-y-2 pr-1 exec-hover-scrollbar">
+          {data.map((d, i) => {
+            const color = DONUT_COLORS[i % DONUT_COLORS.length]
+            const isSelected = selected === d.rawName
+            const isHovered = hovered?.rawName === d.rawName
+            const share = total > 0 ? (d.value / total) * 100 : 0
+            const barWidth = maxVal > 0 ? (d.value / maxVal) * 100 : 0
+
+            return (
+              <div
+                key={d.rawName ?? i}
+                onMouseEnter={() => setHovered(d)}
+                onMouseLeave={() => setHovered(null)}
+                onClick={() => onPick && onPick(isSelected ? '' : d.rawName)}
+                className={`group relative overflow-hidden rounded-2xl px-3.5 py-2.5 text-xs transition-all border ${
+                  onPick ? 'cursor-pointer' : 'cursor-default'
+                } ${
+                  isSelected
+                    ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-400 font-bold shadow-sm'
+                    : isHovered
+                    ? 'bg-black/[0.05] dark:bg-white/[0.08] border-black/[0.08] dark:border-white/10 text-[#1D1D1F] dark:text-white'
+                    : 'bg-white/80 dark:bg-black/30 border-black/[0.04] dark:border-white/[0.05] text-[#1D1D1F] dark:text-[#E5E5EA]'
+                }`}
+              >
+                {/* Glowing Translucent Gradient Track */}
+                <div
+                  className="absolute inset-y-0 right-0 pointer-events-none transition-all duration-300 rounded-2xl"
+                  style={{
+                    width: `${barWidth}%`,
+                    background: `linear-gradient(to left, ${color}30, ${color}08)`,
+                  }}
+                />
+
+                <div className="relative flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    {/* Rank badge with podium highlight */}
+                    {i === 0 ? (
+                      <span className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-black bg-amber-500/20 text-amber-600 dark:text-amber-300 border border-amber-400/40 shrink-0 tabular-nums shadow-xs shadow-amber-500/20">
+                        #{fa(1)}
+                      </span>
+                    ) : i === 1 ? (
+                      <span className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-black bg-sky-500/20 text-sky-600 dark:text-sky-300 border border-sky-400/40 shrink-0 tabular-nums shadow-xs shadow-sky-500/20">
+                        #{fa(2)}
+                      </span>
+                    ) : i === 2 ? (
+                      <span className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-black bg-emerald-500/20 text-emerald-600 dark:text-emerald-300 border border-emerald-400/40 shrink-0 tabular-nums shadow-xs shadow-emerald-500/20">
+                        #{fa(3)}
+                      </span>
+                    ) : (
+                      <span className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold bg-black/[0.05] dark:bg-white/10 text-[#86868B] shrink-0 tabular-nums">
+                        {fa(i + 1)}
+                      </span>
+                    )}
+
+                    {/* Color dot */}
+                    <span
+                      className="w-2.5 h-2.5 rounded-full shrink-0 shadow-2xs"
+                      style={{ backgroundColor: color }}
+                    />
+                    {/* Name */}
+                    <span className="font-semibold truncate max-w-[150px] sm:max-w-[210px]" title={d.name}>
+                      {d.name}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-3 shrink-0 tabular-nums">
+                    {/* Value in Rial */}
+                    <span className="font-bold text-[#1D1D1F] dark:text-white whitespace-nowrap">
+                      {rial(d.value)}
+                      <span className="text-[10px] font-normal text-[#86868B] mr-1">ریال</span>
+                    </span>
+                    {/* Share badge */}
+                    <span
+                      className="px-2 py-0.5 rounded-full text-[10px] font-black min-w-[46px] text-center border"
+                      style={{
+                        backgroundColor: `${color}18`,
+                        color: color,
+                        borderColor: `${color}35`,
+                      }}
+                    >
+                      {pct(share / 100, 1)}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/* Monthly Trend Bar Chart Component with 3 Bento Cards */
 function MonthlyReturnTrend({ rows = [] }) {
   const { isDark } = useAppearance()
 
@@ -518,11 +498,11 @@ function MonthlyReturnTrend({ rows = [] }) {
 
   return (
     <div className="space-y-4">
-      {/* 3 Executive Highlight KPI Bento Cards */}
+      {/* 3 Executive Highlight KPI Bento Cards - Always 3 Columns on md+ */}
       {stats && (
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
           {/* Card 1: Peak Month */}
-          <div className={`p-4 rounded-2xl border transition-all flex items-center justify-between ${
+          <div className={`p-4 rounded-3xl border transition-all flex items-center justify-between ${
             isDark
               ? 'bg-rose-500/[0.08] border-rose-500/25 shadow-xs'
               : 'bg-rose-50/80 border-rose-200 shadow-xs'
@@ -532,22 +512,22 @@ function MonthlyReturnTrend({ rows = [] }) {
                 <TrendingUp size={13} />
                 <span>ماه اوج برگشتی</span>
               </div>
-              <div className="text-base font-black text-rose-950 dark:text-rose-100 mt-1 tabular-nums">
+              <div className="text-base sm:text-lg font-black text-rose-950 dark:text-rose-100 mt-1 tabular-nums">
                 {stats.peak.fullMonth}
               </div>
               <div className="text-[11px] text-rose-700/80 dark:text-rose-300/80 mt-0.5 tabular-nums">
-                {pct(stats.peak.returnRial / (stats.total || 1), 1)} از کل دوره
+                {pct(stats.peak.returnRial / (stats.total || 1), 1)} از کل دوره ۱۸ ماهه
               </div>
             </div>
             <div className="text-left">
-              <span className="text-xs sm:text-sm font-black text-rose-700 dark:text-rose-300 tabular-nums px-3 py-1.5 rounded-xl bg-rose-500/15 border border-rose-500/20 inline-block shadow-2xs">
+              <span className="text-xs sm:text-sm font-black text-rose-700 dark:text-rose-300 tabular-nums px-3 py-1.5 rounded-xl bg-rose-500/15 border border-rose-500/25 inline-block shadow-2xs whitespace-nowrap">
                 {billions1(stats.peak.returnRial)} م.ر
               </span>
             </div>
           </div>
 
           {/* Card 2: Average Monthly */}
-          <div className={`p-4 rounded-2xl border transition-all flex items-center justify-between ${
+          <div className={`p-4 rounded-3xl border transition-all flex items-center justify-between ${
             isDark
               ? 'bg-amber-500/[0.08] border-amber-500/25 shadow-xs'
               : 'bg-amber-50/80 border-amber-200 shadow-xs'
@@ -557,7 +537,7 @@ function MonthlyReturnTrend({ rows = [] }) {
                 <BarChart3 size={13} />
                 <span>میانگین ماهانه برگشتی</span>
               </div>
-              <div className="text-base font-black text-amber-950 dark:text-amber-100 mt-1 tabular-nums">
+              <div className="text-base sm:text-lg font-black text-amber-950 dark:text-amber-100 mt-1 tabular-nums">
                 {billions1(stats.avg)} میلیارد ریال
               </div>
               <div className="text-[11px] text-amber-700/80 dark:text-amber-300/80 mt-0.5 tabular-nums">
@@ -565,14 +545,14 @@ function MonthlyReturnTrend({ rows = [] }) {
               </div>
             </div>
             <div className="text-left">
-              <span className="text-xs sm:text-sm font-black text-amber-700 dark:text-amber-300 tabular-nums px-3 py-1.5 rounded-xl bg-amber-500/15 border border-amber-500/20 inline-block shadow-2xs">
+              <span className="text-xs sm:text-sm font-black text-amber-700 dark:text-amber-300 tabular-nums px-3 py-1.5 rounded-xl bg-amber-500/15 border border-amber-500/25 inline-block shadow-2xs whitespace-nowrap">
                 {fa(chartData.length)} ماه
               </span>
             </div>
           </div>
 
           {/* Card 3: Latest Month */}
-          <div className={`p-4 rounded-2xl border transition-all flex items-center justify-between ${
+          <div className={`p-4 rounded-3xl border transition-all flex items-center justify-between ${
             isDark
               ? 'bg-sky-500/[0.08] border-sky-500/25 shadow-xs'
               : 'bg-sky-50/80 border-sky-200 shadow-xs'
@@ -582,19 +562,19 @@ function MonthlyReturnTrend({ rows = [] }) {
                 <Calendar size={13} />
                 <span>آخرین ماه ثبت‌شده</span>
               </div>
-              <div className="text-base font-black text-sky-950 dark:text-sky-100 mt-1 tabular-nums">
+              <div className="text-base sm:text-lg font-black text-sky-950 dark:text-sky-100 mt-1 tabular-nums">
                 {stats.latest.fullMonth}
               </div>
               <div className="text-[11px] text-sky-700/80 dark:text-sky-300/80 mt-0.5 tabular-nums">
                 {stats.avg > 0 ? (
-                  stats.latest.returnRial > stats.avg
-                    ? `${pct((stats.latest.returnRial - stats.avg) / stats.avg, 0)} بالاتر از میانگین`
-                    : `${pct((stats.avg - stats.latest.returnRial) / stats.avg, 0)} پایین‌تر از میانگین`
-                ) : 'آخرین داده'}
+                  stats.latest.returnRial < stats.avg
+                    ? `${pct((stats.avg - stats.latest.returnRial) / stats.avg, 0)} پایین‌تر از میانگین (بهبود)`
+                    : `${pct((stats.latest.returnRial - stats.avg) / stats.avg, 0)} بالاتر از میانگین`
+                ) : 'آخرین داده ثبت‌شده'}
               </div>
             </div>
             <div className="text-left">
-              <span className="text-xs sm:text-sm font-black text-sky-700 dark:text-sky-300 tabular-nums px-3 py-1.5 rounded-xl bg-sky-500/15 border border-sky-500/20 inline-block shadow-2xs">
+              <span className="text-xs sm:text-sm font-black text-sky-700 dark:text-sky-300 tabular-nums px-3 py-1.5 rounded-xl bg-sky-500/15 border border-sky-500/25 inline-block shadow-2xs whitespace-nowrap">
                 {billions1(stats.latest.returnRial)} م.ر
               </span>
             </div>
@@ -606,13 +586,13 @@ function MonthlyReturnTrend({ rows = [] }) {
       <div className={`rounded-3xl border p-5 transition-all ${
         isDark
           ? 'bg-[#0E1512]/90 border-emerald-500/15 shadow-[0_4px_25px_rgba(0,0,0,0.35)]'
-          : 'bg-[#F9FAFB] border-slate-200/80 shadow-xs'
+          : 'bg-[#F9FAFB] border-slate-200/90 shadow-xs'
       }`}>
         <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
           <div className="flex items-center gap-2">
             <span className="w-2.5 h-2.5 rounded-full bg-rose-500 shadow-xs shadow-rose-500/50" />
             <span className="text-xs sm:text-sm font-bold text-[#1D1D1F] dark:text-[#F5F5F7]">
-              روند مبلغ برگشتی به تفکیک ماه (ریال)
+              روند زمانی مبلغ برگشتی به تفکیک ماه (ریال)
             </span>
           </div>
           <span className="text-xs text-[#86868B] dark:text-[#98989D] tabular-nums font-medium bg-black/[0.04] dark:bg-white/[0.06] px-2.5 py-1 rounded-xl">
@@ -676,37 +656,24 @@ function MonthlyReturnTrend({ rows = [] }) {
   )
 }
 
-const aggCols = (first) => [
-  first,
-  { label: 'تعداد حواله', render: (r) => fa(r.orders), value: (r) => r.orders },
-  { label: 'حواله برگشتی', render: (r) => fa(r.returned_orders), value: (r) => r.returned_orders },
-  { label: 'مبلغ حواله (ریال)', render: (r) => rial(r.order_rial), value: (r) => r.order_rial },
-  { label: 'مبلغ برگشتی (ریال)', render: (r) => <span className="font-bold text-rose-600 dark:text-rose-400">{rial(r.return_rial)}</span>, value: (r) => r.return_rial },
-  { label: 'درصد برگشتی', render: (r) => <span className="font-bold text-amber-600 dark:text-amber-400">{pct(r.return_percent, 2)}</span>, value: (r) => r.return_percent * 100, unit: '٪' },
-]
-
 function ViewPanel({ view, s, reason, setReason }) {
   const [monthMode, setMonthMode] = useState('trend')
   const [selectedBranch, setSelectedBranch] = useState('')
+  const [showTable, setShowTable] = useState(false)
   const { isDark } = useAppearance()
 
   if (view === 'month') {
     return (
-      <div className="space-y-4">
-        {/* Toggle between Trend Bar Chart and Donut Share */}
+      <div className="space-y-5">
+        {/* Sub-toolbar: Switcher + Toggle Table */}
         <div className="flex items-center justify-between pb-1 flex-wrap gap-2">
-          <div className="flex items-center gap-2">
-            <span className={`text-xs font-bold ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-              حالت نمایش ماهانه:
-            </span>
-          </div>
-          <div className={`inline-flex items-center gap-1 p-1 rounded-xl border ${
-            isDark ? 'bg-black/30 border-white/10' : 'bg-slate-100 border-slate-200'
+          <div className={`inline-flex items-center gap-1 p-1 rounded-2xl border ${
+            isDark ? 'bg-black/40 border-white/10' : 'bg-slate-100 border-slate-200'
           }`}>
             <button
               type="button"
               onClick={() => setMonthMode('trend')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                 monthMode === 'trend'
                   ? (isDark ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 shadow-xs' : 'bg-white text-emerald-700 border border-slate-200 shadow-xs')
                   : 'text-slate-400 hover:text-slate-200'
@@ -718,7 +685,7 @@ function ViewPanel({ view, s, reason, setReason }) {
             <button
               type="button"
               onClick={() => setMonthMode('donut')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                 monthMode === 'donut'
                   ? (isDark ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 shadow-xs' : 'bg-white text-emerald-700 border border-slate-200 shadow-xs')
                   : 'text-slate-400 hover:text-slate-200'
@@ -728,6 +695,19 @@ function ViewPanel({ view, s, reason, setReason }) {
               <span>سهم ماهانه (دونات)</span>
             </button>
           </div>
+
+          <button
+            type="button"
+            onClick={() => setShowTable((v) => !v)}
+            className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-semibold border transition-all cursor-pointer ${
+              showTable
+                ? (isDark ? 'bg-white/15 text-white border-white/20' : 'bg-slate-200 text-slate-800 border-slate-300')
+                : (isDark ? 'bg-white/5 text-slate-400 hover:text-white border-white/10' : 'bg-slate-100 text-slate-600 hover:bg-slate-200 border-slate-200')
+            }`}
+          >
+            <span>{showTable ? 'بستن جدول جزئیات' : 'نمایش جدول داده‌های ماهانه'}</span>
+            {showTable ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+          </button>
         </div>
 
         {monthMode === 'trend' ? (
@@ -736,14 +716,18 @@ function ViewPanel({ view, s, reason, setReason }) {
           <AppleDonutBreakdown rows={s.months} nameKey="year_month" labelFn={monthName} title="سهم مبلغ برگشتی به تفکیک ماه" />
         )}
 
-        <Table name="برگشتی-ماهانه" rows={s.months} columns={aggCols({ label: 'ماه', render: (r) => monthName(r.year_month), value: (r) => r.year_month })} />
+        {showTable && (
+          <div className="pt-2">
+            <Table name="برگشتی-ماهانه" rows={s.months} columns={aggCols({ label: 'ماه', render: (r) => monthName(r.year_month), value: (r) => r.year_month })} />
+          </div>
+        )}
       </div>
     )
   }
 
   if (view === 'branch') {
     return (
-      <div className="space-y-4">
+      <div className="space-y-5">
         <AppleDonutBreakdown
           rows={s.branches}
           nameKey="branch"
@@ -765,7 +749,7 @@ function ViewPanel({ view, s, reason, setReason }) {
 
   const total = s.total.return_rial
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
       <AppleDonutBreakdown
         rows={s.reasons}
         nameKey="reason"
@@ -841,6 +825,7 @@ function ReturnsTable({ q, openCustomer }) {
   )
 }
 
+/* Master Executive Returns Page */
 export function ReturnsPage({ p, arg, setArg, openCustomer, onReason }) {
   const [view, setView] = useState('month')
   const reason = p.reason ?? ''
@@ -856,13 +841,124 @@ export function ReturnsPage({ p, arg, setArg, openCustomer, onReason }) {
   const { isDark } = useAppearance()
 
   return (
-    <div className="w-full max-w-[1600px] mx-auto px-4 sm:px-6 space-y-5">
-      {/* Dark Emerald Floating Glass Filter Bar */}
+    <div className="w-full max-w-[1600px] mx-auto px-4 sm:px-6 space-y-6">
+      
+      {/* 1. Master Executive Hero Card */}
+      {sum.data?.total && (
+        <div className={`relative overflow-hidden rounded-3xl border p-6 sm:p-8 transition-all ${
+          isDark
+            ? 'bg-gradient-to-br from-[#121916] via-[#0B100E] to-[#0A0D0C] border-emerald-500/20 shadow-[0_12px_40px_rgba(0,0,0,0.55)]'
+            : 'bg-gradient-to-br from-white via-rose-50/20 to-emerald-50/30 border-slate-200/90 shadow-md'
+        }`}>
+          {/* Subtle Ambient Radial Glow */}
+          <div className="absolute top-0 right-1/4 w-96 h-96 bg-rose-500/10 rounded-full blur-3xl pointer-events-none" />
+          <div className="absolute bottom-0 left-1/4 w-96 h-96 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
+
+          <div className="relative z-10 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6">
+            {/* Right: Giant Hero Metric */}
+            <div className="space-y-3">
+              <div className="flex items-center gap-2.5 flex-wrap">
+                <span className="w-2.5 h-2.5 rounded-full bg-rose-500 animate-pulse" />
+                <span className="text-xs font-bold text-rose-500 dark:text-rose-400">
+                  وضعیت جامع برگشتی حواله‌های پخش
+                </span>
+                <span className="text-[11px] px-2.5 py-0.5 rounded-full bg-black/[0.04] dark:bg-white/10 text-[#86868B] dark:text-[#98989D]">
+                  مستقل از ردیف‌های مرجوعی فروش (SR)
+                </span>
+              </div>
+
+              <div>
+                <div className="text-xs text-[#86868B] dark:text-[#98989D] font-medium mb-1">
+                  مبلغ کل حواله‌های برگشتی ثبت‌شده
+                </div>
+                <div className="flex items-baseline gap-3 flex-wrap">
+                  <span className="text-3xl sm:text-4xl lg:text-5xl font-black tabular-nums tracking-tight text-[#1D1D1F] dark:text-white">
+                    {rial(sum.data.total.return_rial)}
+                  </span>
+                  <span className="text-sm sm:text-base font-bold text-[#86868B] dark:text-[#98989D]">
+                    ریال
+                  </span>
+                  <span className="text-xs sm:text-sm font-extrabold px-3 py-1 rounded-full bg-rose-500/15 text-rose-600 dark:text-rose-300 border border-rose-500/25 tabular-nums">
+                    {billions1(sum.data.total.return_rial)} میلیارد ریال
+                  </span>
+                </div>
+              </div>
+
+              {/* 3 Frosted Sub-Pills */}
+              <div className="flex items-center gap-2.5 flex-wrap pt-1">
+                <div className="px-3.5 py-1.5 rounded-xl bg-black/[0.04] dark:bg-white/[0.05] border border-black/[0.05] dark:border-white/[0.08] text-xs flex items-center gap-2">
+                  <span className="text-[#86868B] dark:text-[#98989D]">کل حواله‌ها:</span>
+                  <span className="font-bold text-[#1D1D1F] dark:text-white tabular-nums">{fa(sum.data.total.orders)}</span>
+                </div>
+                <div className="px-3.5 py-1.5 rounded-xl bg-rose-500/[0.08] border border-rose-500/20 text-xs flex items-center gap-2">
+                  <span className="text-rose-600 dark:text-rose-400">حواله برگشتی:</span>
+                  <span className="font-black text-rose-700 dark:text-rose-300 tabular-nums">
+                    {fa(sum.data.total.returned_orders)} ({pct(sum.data.total.returned_order_percent, 2)})
+                  </span>
+                </div>
+                <div className="px-3.5 py-1.5 rounded-xl bg-black/[0.04] dark:bg-white/[0.05] border border-black/[0.05] dark:border-white/[0.08] text-xs flex items-center gap-2">
+                  <span className="text-[#86868B] dark:text-[#98989D]">مشتریان برگشتی:</span>
+                  <span className="font-bold text-[#1D1D1F] dark:text-white tabular-nums">{fa(sum.data.total.returned_customers)} مشتری</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Left: Return Rate Badge / Quality Status */}
+            <div className="flex flex-col sm:flex-row lg:flex-col items-start lg:items-end gap-3 shrink-0">
+              <div className="p-4 rounded-2xl bg-black/[0.03] dark:bg-white/[0.04] border border-black/[0.06] dark:border-white/[0.08] text-right min-w-[200px]">
+                <div className="text-[11px] font-bold text-[#86868B] dark:text-[#98989D] mb-1">
+                  نرخ ریالی برگشتی
+                </div>
+                <div className="text-2xl sm:text-3xl font-black text-amber-500 dark:text-amber-400 tabular-nums">
+                  {pct(sum.data.total.return_percent, 2)}
+                </div>
+                <div className="text-[10px] text-[#86868B] dark:text-[#98989D] mt-0.5">
+                  از کل ارزش ریالی حواله‌ها
+                </div>
+              </div>
+
+              {sum.data?.quality?.negative_return_orders > 0 && (
+                <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-700 dark:text-amber-300 text-[11px] font-semibold">
+                  <ShieldAlert size={14} className="shrink-0" />
+                  <span>{fa(sum.data.quality.negative_return_orders)} حواله با ثبت منفی (محاسبه شد)</span>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 2. Unified Glass Floating Toolbar (Dimension Switcher + Filters) */}
       <div className={`rounded-2xl backdrop-blur-xl border p-3.5 sm:p-4 flex items-center justify-between gap-4 flex-wrap transition-all ${
         isDark
-          ? 'bg-[#0B100E]/80 border-emerald-500/15 shadow-[0_4px_20px_rgba(0,0,0,0.35)]'
-          : 'bg-white/90 border-slate-200/80 shadow-xs'
+          ? 'bg-[#0B100E]/85 border-emerald-500/15 shadow-[0_4px_20px_rgba(0,0,0,0.35)]'
+          : 'bg-white/95 border-slate-200/90 shadow-xs'
       }`}>
+        {/* Right: Dimension Segmented Control */}
+        <div className={`inline-flex items-center gap-1 p-1 rounded-2xl border transition-all ${
+          isDark ? 'bg-black/40 border-emerald-500/20' : 'bg-slate-100/90 border-slate-200'
+        }`}>
+          {VIEWS.map(([k, label, Icon]) => {
+            const active = view === k
+            return (
+              <button
+                key={k}
+                type="button"
+                onClick={() => setView(k)}
+                className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                  active
+                    ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-sm shadow-emerald-500/20'
+                    : isDark ? 'text-slate-400 hover:text-slate-100 hover:bg-white/5' : 'text-slate-600 hover:text-slate-900 hover:bg-white'
+                }`}
+              >
+                <Icon size={14} />
+                <span>{label}</span>
+              </button>
+            )
+          })}
+        </div>
+
+        {/* Left: Filters */}
         <div className="flex items-center gap-3 flex-wrap">
           <div className="flex items-center gap-2">
             <Filter size={14} className={isDark ? 'text-emerald-400' : 'text-emerald-600'} />
@@ -870,7 +966,7 @@ export function ReturnsPage({ p, arg, setArg, openCustomer, onReason }) {
             <select
               value={reason}
               onChange={(e) => setReason(e.target.value)}
-              className={`border rounded-xl px-3 py-1.5 text-xs focus:outline-none transition-all ${
+              className={`border rounded-xl px-3 py-1.5 text-xs focus:outline-none transition-all cursor-pointer ${
                 isDark
                   ? 'bg-black/40 border-emerald-500/25 text-slate-100 focus:border-emerald-500/60'
                   : 'bg-slate-50 border-slate-200 text-slate-800 focus:border-emerald-600'
@@ -880,12 +976,13 @@ export function ReturnsPage({ p, arg, setArg, openCustomer, onReason }) {
               {reasons.map((x) => <option key={x} value={x}>{x}</option>)}
             </select>
           </div>
+
           <div className="flex items-center gap-2">
-            <span className={`text-xs font-bold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>وضعیت برگشت:</span>
+            <span className={`text-xs font-bold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>وضعیت:</span>
             <select
               value={status}
               onChange={(e) => setStatus(e.target.value)}
-              className={`border rounded-xl px-3 py-1.5 text-xs focus:outline-none transition-all ${
+              className={`border rounded-xl px-3 py-1.5 text-xs focus:outline-none transition-all cursor-pointer ${
                 isDark
                   ? 'bg-black/40 border-emerald-500/25 text-slate-100 focus:border-emerald-500/60'
                   : 'bg-slate-50 border-slate-200 text-slate-800 focus:border-emerald-600'
@@ -896,6 +993,7 @@ export function ReturnsPage({ p, arg, setArg, openCustomer, onReason }) {
               <option value="partial">برگشتی جزئی</option>
             </select>
           </div>
+
           {(reason || status) && (
             <button
               className={`text-xs font-bold px-3 py-1.5 rounded-xl transition-colors cursor-pointer ${
@@ -910,11 +1008,6 @@ export function ReturnsPage({ p, arg, setArg, openCustomer, onReason }) {
             </button>
           )}
         </div>
-        <span className={`px-3 py-1 rounded-full text-xs font-bold ${
-          isDark ? 'bg-emerald-500/15 text-emerald-300 border border-emerald-500/25' : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-        }`}>
-          حواله‌های پخش (مستقل از SR)
-        </span>
       </div>
 
       {scope && (
@@ -929,74 +1022,42 @@ export function ReturnsPage({ p, arg, setArg, openCustomer, onReason }) {
       {sum.data && (() => {
         const s = sum.data
         if (s.available === false) return <Note>{s.reason}</Note>
-        const t = s.total
         const ignored = (s.ignored_filters ?? []).map((k) => IGNORED_LABELS[k] ?? k)
         return (
           <>
             {ignored.length > 0 && <Note>فیلتر {ignored.join('، ')} روی حواله پخش قابل اعمال نیست و نادیده گرفته شد.</Note>}
-            {s.quality?.negative_return_orders > 0 && <Note tone="err">{fa(s.quality.negative_return_orders)} حواله مبلغ برگشتی منفی دارد؛ جمع‌ها را با احتیاط بخوانید.</Note>}
-            {!t.orders ? <AppleCard><div className="text-center py-10 text-xs text-[#86868B]" role="status">برای این فیلترها حواله‌ای وجود ندارد.</div></AppleCard> : (
-              <>
-                {/* 4 Compact Executive Dark Emerald KPI Cards */}
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3.5 w-full">
-                  <AppleKpiCard label="تعداد حواله کل" value={fa(t.orders)} unit="حواله صادرشده" icon={FileText} tone="blue" />
-                  <AppleKpiCard label="حواله‌های برگشتی" value={fa(t.returned_orders)} unit={`${pct(t.returned_order_percent, 2)} از کل حواله‌ها`} icon={Undo2} tone="red" />
-                  <AppleKpiCard label="مبلغ کل برگشتی" value={rial(t.return_rial)} unit="ریال" icon={CircleDollarSign} tone="amber" />
-                  <AppleKpiCard label="درصد مبلغ برگشتی" value={pct(t.return_percent, 2)} unit={`مشتریان برگشتی: ${fa(t.returned_customers)}`} icon={Users} tone="teal" />
-                </div>
+            
+            {/* 3. Main Dimensional Analysis Section */}
+            <AppleCard
+              title={
+                view === 'month' ? 'تحلیل روند زمانی و سهم ماهانه برگشتی' :
+                view === 'branch' ? 'تحلیل و رتبه‌بندی برگشتی بر تفکیک شعب' :
+                'تحلیل سهم و رتبه‌بندی علت‌های برگشت حواله'
+              }
+              subtitle="مبالغ به ریال · مبالغ بدون پروموشن و مرجوعی داخلی"
+            >
+              <ViewPanel view={view} s={s} reason={reason} setReason={setReason} />
+            </AppleCard>
 
-                {/* Analysis Bento Card */}
-                <AppleCard
-                  title="تحلیل ابعادی برگشتی حواله"
-                  subtitle="مبلغ و سهم برگشتی بر پایهٔ بعد انتخابی (ماه، شعبه، علت برگشت) · ریال"
-                  action={
-                    <div className={`inline-flex items-center gap-1 p-1 rounded-2xl border transition-all ${
-                      isDark ? 'bg-black/40 border-emerald-500/20' : 'bg-slate-100/90 border-slate-200'
-                    }`}>
-                      {VIEWS.map(([k, label, Icon]) => {
-                        const active = view === k
-                        return (
-                          <button
-                            key={k}
-                            type="button"
-                            onClick={() => setView(k)}
-                            className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                              active
-                                ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-sm shadow-emerald-500/20'
-                                : isDark ? 'text-slate-400 hover:text-slate-100 hover:bg-white/5' : 'text-slate-600 hover:text-slate-900 hover:bg-white'
-                            }`}
-                          >
-                            <Icon size={13} />
-                            <span>{label}</span>
-                          </button>
-                        )
-                      })}
-                    </div>
-                  }
-                >
-                  <ViewPanel view={view} s={s} reason={reason} setReason={setReason} />
+            {/* 4. Top Return Customers and Visitors */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 w-full items-start">
+              {scope?.by !== 'customer' && s.customers.length > 0 && (
+                <AppleCard title="مشتریان با بیشترین برگشتی" subtitle="۱۵ مشتری برتر بر پایه مبلغ برگشتی">
+                  <Table name="برگشتی-مشتریان" rows={s.customers} onRow={openCustomer ? (x) => x.code && openCustomer(x.code) : undefined}
+                    columns={aggCols({ label: 'مشتری', render: (x) => `${x.code} · ${x.name ?? ''}`, value: (x) => `${x.code} ${x.name ?? ''}` })} />
                 </AppleCard>
-
-                {/* Top Return Customers and Visitors */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 w-full items-start">
-                  {scope?.by !== 'customer' && s.customers.length > 0 && (
-                    <AppleCard title="مشتریان با بیشترین برگشتی" subtitle="۱۵ مشتری برتر بر اساس مبلغ برگشتی">
-                      <Table name="برگشتی-مشتریان" rows={s.customers} onRow={openCustomer ? (x) => x.code && openCustomer(x.code) : undefined}
-                        columns={aggCols({ label: 'مشتری', render: (x) => `${x.code} · ${x.name ?? ''}`, value: (x) => `${x.code} ${x.name ?? ''}` })} />
-                    </AppleCard>
-                  )}
-                  {scope?.by !== 'visitor' && s.visitors.length > 0 && (
-                    <AppleCard title="ویزیتورها" subtitle="۱۵ ویزیتور برتر بر پایهٔ نام ویزیتور">
-                      <Table name="برگشتی-ویزیتورها" rows={s.visitors} columns={aggCols({ label: 'ویزیتور', render: (x) => x.visitor, value: (x) => String(x.visitor) })} />
-                    </AppleCard>
-                  )}
-                </div>
-              </>
-            )}
+              )}
+              {scope?.by !== 'visitor' && s.visitors.length > 0 && (
+                <AppleCard title="ویزیتورهای دارای برگشتی" subtitle="۱۵ ویزیتور برتر بر پایه مبلغ برگشتی">
+                  <Table name="برگشتی-ویزیتورها" rows={s.visitors} columns={aggCols({ label: 'ویزیتور', render: (x) => x.visitor, value: (x) => String(x.visitor) })} />
+                </AppleCard>
+              )}
+            </div>
           </>
         )
       })()}
 
+      {/* 5. Detailed Orders Table */}
       <AppleCard title="فهرست حواله‌های برگشتی" subtitle="جدیدترین حواله‌ها اول">
         <ReturnsTable key={JSON.stringify(q)} q={q} openCustomer={openCustomer} />
       </AppleCard>
@@ -1039,10 +1100,22 @@ export function ReturnsProfileCard({ data, onOpen, entity }) {
       {!t.orders ? <div className="text-center py-8 text-xs text-[#86868B]" role="status">برای این {entity} حواله‌ای ثبت نشده است.</div> : (
         <div className="space-y-5">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 w-full">
-            <AppleKpiCard label="تعداد حواله" value={fa(t.orders)} unit="حواله" icon={FileText} tone="blue" />
-            <AppleKpiCard label="حواله برگشتی" value={fa(t.returned_orders)} unit={`${pct(t.returned_order_percent, 2)} از حواله‌ها`} icon={Undo2} tone="red" />
-            <AppleKpiCard label="مبلغ برگشتی" value={rial(t.return_rial)} unit="ریال" icon={CircleDollarSign} tone="amber" />
-            <AppleKpiCard label="درصد برگشتی" value={pct(t.return_percent, 2)} unit="مبلغ برگشتی ÷ مبلغ حواله" icon={Users} tone="teal" />
+            <div className="p-3.5 rounded-2xl border bg-black/[0.03] dark:bg-white/[0.04] border-black/[0.05] dark:border-white/[0.06]">
+              <div className="text-[11px] text-[#86868B]">تعداد حواله</div>
+              <div className="text-lg font-bold tabular-nums text-[#1D1D1F] dark:text-white mt-1">{fa(t.orders)}</div>
+            </div>
+            <div className="p-3.5 rounded-2xl border bg-rose-500/10 border-rose-500/20">
+              <div className="text-[11px] text-rose-600 dark:text-rose-400">حواله برگشتی</div>
+              <div className="text-lg font-bold tabular-nums text-rose-700 dark:text-rose-300 mt-1">{fa(t.returned_orders)}</div>
+            </div>
+            <div className="p-3.5 rounded-2xl border bg-amber-500/10 border-amber-500/20">
+              <div className="text-[11px] text-amber-600 dark:text-amber-400">مبلغ برگشتی</div>
+              <div className="text-lg font-bold tabular-nums text-amber-700 dark:text-amber-300 mt-1">{rial(t.return_rial)}</div>
+            </div>
+            <div className="p-3.5 rounded-2xl border bg-emerald-500/10 border-emerald-500/20">
+              <div className="text-[11px] text-emerald-600 dark:text-emerald-400">درصد برگشتی</div>
+              <div className="text-lg font-bold tabular-nums text-emerald-700 dark:text-emerald-300 mt-1">{pct(t.return_percent, 2)}</div>
+            </div>
           </div>
           {data.reasons?.length > 0 && (
             <Table name="برگشتی-علت‌ها" rows={data.reasons} columns={[
