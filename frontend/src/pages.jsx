@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, Legend, Line, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { motion } from 'motion/react'
-import { CircleDollarSign, Calendar, TrendingUp, Users, Award, BarChart3, Activity, FileText, Send, UserRound, UserCheck, Layers, Store, ShoppingBag, RotateCcw, CheckCircle2, RefreshCw, Server, Clock, Database } from 'lucide-react'
+import { CircleDollarSign, Calendar, TrendingUp, TrendingDown, Users, Award, BarChart3, PieChart as PieIcon, Activity, FileText, Send, UserRound, UserCheck, Layers, Store, ShoppingBag, Package, RotateCcw, CheckCircle2, RefreshCw, Server, Clock, Database, ChevronDown, ChevronUp } from 'lucide-react'
 import { postJson, useApi } from './api'
 import { useAppearance } from './AppearanceContext'
 import { dayLabel, fa, fa2, monthLabel, monthName } from './format'
@@ -37,38 +37,183 @@ function Bars({ data, x, bars, tickFn, unit = 'میلیارد ریال', tall, o
 /* ---------- تحلیل تعداد کالا (خالص از مرجوعی - Dark Emerald Matte) ---------- */
 const pctChange = (v) => (v == null ? '—' : `${v > 0 ? '▲' : '▼'} ${fa(Math.abs(v * 100).toFixed(1))}٪`)
 
-function QuantityMonthCompare({ p }) {
+/* Tooltip for Quantity Monthly Growth Trend */
+function QuantityMonthTip({ active, payload }) {
+  if (!active || !payload?.length) return null
+  const d = payload[0]?.payload
+  if (!d) return null
+  return (
+    <div className="backdrop-blur-xl border border-white/10 dark:bg-[#141A18]/95 bg-slate-900/95 text-white rounded-2xl p-3.5 shadow-2xl min-w-[220px] text-right pointer-events-none select-none z-50">
+      <div className="flex items-center justify-between gap-2 pb-2 mb-2 border-b border-white/10">
+        <span className="font-bold text-xs text-white">{d.label}</span>
+        {d.growth != null && (
+          <span className={`text-[10px] font-black px-2 py-0.5 rounded-full border tabular-nums ${
+            d.growth >= 0
+              ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30'
+              : 'bg-rose-500/20 text-rose-300 border-rose-500/30'
+          }`}>
+            {d.growth > 0 ? `+${fa(d.growth)}٪` : `${fa(d.growth)}٪`}
+          </span>
+        )}
+      </div>
+      <div className="space-y-1.5 text-xs">
+        <div className="flex items-center justify-between text-slate-300 gap-2">
+          <span className="text-[11px]">تعداد خالص کالا:</span>
+          <span className="font-bold text-emerald-400 tabular-nums whitespace-nowrap">{fa(d.net_qty)} <span className="text-[10px] text-slate-400 font-normal">عدد</span></span>
+        </div>
+        {d.net_rial > 0 && (
+          <div className="flex items-center justify-between text-slate-300 text-[11px] gap-2">
+            <span>فروش خالص:</span>
+            <span className="font-extrabold text-amber-300 tabular-nums whitespace-nowrap">{billions(d.net_rial).toFixed(1)} میلیارد ریال</span>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+/* Tooltip for Top Products Bar Chart */
+function ProductBarTip({ active, payload, totalTopQty }) {
+  if (!active || !payload?.length) return null
+  const d = payload[0]?.payload
+  if (!d) return null
+  const share = totalTopQty > 0 ? pct(d.net_qty / totalTopQty, 1) : '—'
+  return (
+    <div className="backdrop-blur-xl border border-white/10 dark:bg-[#141A18]/95 bg-slate-900/95 text-white rounded-2xl p-3.5 shadow-2xl min-w-[240px] text-right pointer-events-none select-none z-50">
+      <div className="font-bold text-xs text-white pb-2 mb-2 border-b border-white/10 truncate">
+        {d.product}
+      </div>
+      <div className="space-y-1.5 text-xs">
+        <div className="flex items-center justify-between text-slate-300 gap-2">
+          <span className="text-[11px]">تعداد خالص:</span>
+          <span className="font-bold text-emerald-400 tabular-nums whitespace-nowrap">{fa(d.net_qty)} <span className="text-[10px] text-slate-400 font-normal">عدد</span></span>
+        </div>
+        <div className="flex items-center justify-between text-slate-300 text-[11px] gap-2">
+          <span>سهم از ۲۰ برتر:</span>
+          <span className="font-bold text-sky-300 tabular-nums">{share}</span>
+        </div>
+        <div className="flex items-center justify-between text-slate-300 text-[11px] gap-2">
+          <span>فروش خالص:</span>
+          <span className="font-bold text-white tabular-nums">{rial(d.net_rial)} ریال</span>
+        </div>
+        {d.invoices > 0 && (
+          <div className="flex items-center justify-between text-slate-400 text-[11px] pt-1 border-t border-white/5">
+            <span>تعداد فاکتورها:</span>
+            <span className="font-medium text-slate-200 tabular-nums">{fa(d.invoices)} فاکتور</span>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+/* Executive Quantity Hero Card */
+function QuantityHeroCard({ p }) {
+  const { isDark } = useAppearance()
   const m = useApi('/quantity-monthly', p)
   const months = Array.isArray(m.data) ? m.data : []
   const last = months[months.length - 1]
   const prev = months[months.length - 2]
   const change = last?.change_percent
   const delta = last && prev ? last.net_qty - prev.net_qty : null
-  const tone = change == null ? 'teal' : change < 0 ? 'red' : 'green'
+  const isPositive = delta != null && delta >= 0
+  const avgUnitPrice = last && last.net_qty ? Math.round(last.net_rial / last.net_qty) : null
+
+  if (!last) return null
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 w-full">
-      <AppleKpiCard
-        label={last ? `ماه جاری (${monthLabel(last.month)})` : 'ماه جاری'}
-        value={last ? fa(last.net_qty) : '—'}
-        unit="تعداد خالص کالا"
-        icon={ShoppingBag}
-        tone="teal"
-      />
-      <AppleKpiCard
-        label={prev ? `ماه قبل (${monthLabel(prev.month)})` : 'ماه قبل'}
-        value={prev ? fa(prev.net_qty) : '—'}
-        unit="تعداد خالص کالا"
-        icon={Calendar}
-        tone="blue"
-      />
-      <AppleKpiCard
-        label="تغییر نسبت به ماه قبل"
-        value={pctChange(change)}
-        unit={delta == null ? 'بدون داده پیشین' : `${delta > 0 ? 'افزایش' : 'کاهش'} ${fa(Math.abs(delta))} عدد`}
-        icon={TrendingUp}
-        tone={tone}
-      />
+    <div className={`relative overflow-hidden rounded-3xl border p-6 sm:p-7 transition-all ${
+      isDark
+        ? 'bg-gradient-to-br from-[#101714] via-[#0B100E] to-[#0A0D0C] border-emerald-500/20 shadow-[0_12px_40px_rgba(0,0,0,0.5)]'
+        : 'bg-gradient-to-br from-white via-emerald-50/25 to-teal-50/20 border-slate-200/90 shadow-md'
+    }`}>
+      {/* Soft Ambient Radial Glow */}
+      <div className="absolute top-0 right-1/4 w-80 h-80 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute bottom-0 left-1/4 w-80 h-80 bg-teal-500/10 rounded-full blur-3xl pointer-events-none" />
+
+      <div className="relative z-10 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6">
+        {/* Right side: Giant Hero Metric */}
+        <div className="space-y-3">
+          <div className="flex items-center gap-2.5 flex-wrap">
+            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
+            <span className="text-xs font-bold text-emerald-500 dark:text-emerald-400">
+              تحلیل تیراژ و حجم فروش کالا · خالص از مرجوعی
+            </span>
+            <span className="text-[11px] px-2.5 py-0.5 rounded-full bg-black/[0.04] dark:bg-white/10 text-[#86868B] dark:text-[#98989D]">
+              بدون احتساب پروموشن
+            </span>
+          </div>
+
+          <div>
+            <div className="text-xs text-[#86868B] dark:text-[#98989D] font-medium mb-1">
+              تعداد کل کالای فروخته‌شده ماه جاری ({monthLabel(last.month)})
+            </div>
+            <div className="flex items-baseline gap-3 flex-wrap">
+              <span className="text-3xl sm:text-4xl lg:text-5xl font-black tabular-nums tracking-tight text-[#1D1D1F] dark:text-white">
+                {fa(last.net_qty)}
+              </span>
+              <span className="text-sm sm:text-base font-bold text-[#86868B] dark:text-[#98989D]">
+                عدد کالا
+              </span>
+              {last.net_rial > 0 && (
+                <span className="text-xs sm:text-sm font-extrabold px-3 py-1 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-300 border border-emerald-500/25 tabular-nums">
+                  ارزش معادل: {billions(last.net_rial).toFixed(1)} میلیارد ریال
+                </span>
+              )}
+            </div>
+          </div>
+
+          {/* 3 Frosted Sub-Pills */}
+          <div className="flex items-center gap-2.5 flex-wrap pt-1">
+            <div className="px-3.5 py-1.5 rounded-xl bg-black/[0.04] dark:bg-white/[0.05] border border-black/[0.05] dark:border-white/[0.08] text-xs flex items-center gap-2">
+              <span className="text-[#86868B] dark:text-[#98989D]">ماه قبل ({prev ? monthLabel(prev.month) : '—'}):</span>
+              <span className="font-bold text-[#1D1D1F] dark:text-white tabular-nums">{prev ? `${fa(prev.net_qty)} عدد` : '—'}</span>
+            </div>
+
+            <div className={`px-3.5 py-1.5 rounded-xl border text-xs flex items-center gap-2 ${
+              isPositive
+                ? 'bg-emerald-500/15 border-emerald-500/25 text-emerald-600 dark:text-emerald-300'
+                : 'bg-rose-500/15 border-rose-500/25 text-rose-600 dark:text-rose-300'
+            }`}>
+              <span>تغییر ماهانه:</span>
+              <span className="font-black tabular-nums">
+                {pctChange(change)} {delta != null && `(${delta > 0 ? '+' : ''}${fa(delta)} عدد)`}
+              </span>
+            </div>
+
+            {avgUnitPrice != null && (
+              <div className="px-3.5 py-1.5 rounded-xl bg-black/[0.04] dark:bg-white/[0.05] border border-black/[0.05] dark:border-white/[0.08] text-xs flex items-center gap-2">
+                <span className="text-[#86868B] dark:text-[#98989D]">میانگین قیمت هر واحد:</span>
+                <span className="font-bold text-[#1D1D1F] dark:text-white tabular-nums">{rial(avgUnitPrice)} ریال</span>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Left side: Trend Indicator Bento Card */}
+        <div className="flex flex-col sm:flex-row lg:flex-col items-start lg:items-end gap-3 shrink-0">
+          <div className="p-4 rounded-2xl bg-black/[0.03] dark:bg-white/[0.04] border border-black/[0.06] dark:border-white/[0.08] text-right min-w-[210px]">
+            <div className="flex items-center justify-between gap-2 mb-1">
+              <span className="text-[11px] font-bold text-[#86868B] dark:text-[#98989D]">
+                تغییر نسبت به ماه قبل
+              </span>
+              <div className={`w-6 h-6 rounded-lg flex items-center justify-center ${
+                isPositive ? 'bg-emerald-500/20 text-emerald-400' : 'bg-rose-500/20 text-rose-400'
+              }`}>
+                {isPositive ? <TrendingUp size={14} /> : <TrendingDown size={14} />}
+              </div>
+            </div>
+            <div className={`text-2xl sm:text-3xl font-black tabular-nums ${
+              isPositive ? 'text-emerald-500 dark:text-emerald-400' : 'text-rose-500 dark:text-rose-400'
+            }`}>
+              {pctChange(change)}
+            </div>
+            <div className="text-[10px] text-[#86868B] dark:text-[#98989D] mt-0.5">
+              {delta == null ? 'بدون داده پیشین' : `${delta > 0 ? 'افزایش' : 'کاهش'} ${fa(Math.abs(delta))} قلم کالا`}
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   )
 }
@@ -81,29 +226,68 @@ function QuantityGrowth({ p }) {
     label: monthLabel(x.month),
     growth: x.change_percent == null ? null : Number((x.change_percent * 100).toFixed(1)),
   }))
+
+  const peak = useMemo(() => {
+    if (!data.length) return null
+    return [...data].sort((a, b) => (b.net_qty || 0) - (a.net_qty || 0))[0]
+  }, [data])
+
+  const avgQty = useMemo(() => {
+    if (!data.length) return 0
+    return data.reduce((s, x) => s + (x.net_qty || 0), 0) / data.length
+  }, [data])
+
   return (
     <AppleCard
-      title="روند رشد ماهانه تعداد"
-      subtitle="تعداد خالص هر ماه و درصد تغییر نسبت به ماه قبل"
-      badge="روند ماهانه"
+      title="روند رشد ماهانه تعداد و تیراژ فروش"
+      subtitle="تعداد خالص هر ماه و درصد تغییر ماهانه نسبت به ماه قبل"
+      action={
+        <div className="flex items-center gap-2 flex-wrap">
+          {peak && (
+            <span className="text-xs px-2.5 py-1 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-300 border border-amber-500/20 font-semibold tabular-nums">
+              اوج تیراژ: {peak.label} ({fa(peak.net_qty)})
+            </span>
+          )}
+          {avgQty > 0 && (
+            <span className="text-xs px-2.5 py-1 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-300 border border-emerald-500/20 font-semibold tabular-nums">
+              میانگین: {fa(Math.round(avgQty))} عدد
+            </span>
+          )}
+        </div>
+      }
     >
       <div className="h-80 w-full mt-2" dir="ltr">
         <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={data} margin={{ top: 8, right: 24, left: 8, bottom: 0 }}>
+          <BarChart data={data} margin={{ top: 15, right: 24, left: 8, bottom: 0 }}>
             <defs>
               <linearGradient id="emeraldQtyBar" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#10B981" stopOpacity={0.9} />
-                <stop offset="100%" stopColor="#059669" stopOpacity={0.7} />
+                <stop offset="0%" stopColor="#10B981" stopOpacity={0.95} />
+                <stop offset="100%" stopColor="#047857" stopOpacity={0.75} />
+              </linearGradient>
+              <linearGradient id="peakQtyBar" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#34D399" stopOpacity={1} />
+                <stop offset="100%" stopColor="#059669" stopOpacity={0.9} />
               </linearGradient>
             </defs>
             <CartesianGrid vertical={false} stroke={isDark ? 'rgba(255,255,255,0.06)' : '#E5E5EA'} strokeDasharray="3 3" />
             <XAxis dataKey="label" tickLine={false} axisLine={false} tick={{ fill: isDark ? '#94A3B8' : '#86868B', fontSize: 12, fontFamily: 'Vazirmatn' }} />
             <YAxis yAxisId="qty" orientation="right" tickFormatter={(v) => fa(v)} tickLine={false} axisLine={false} width={80} tick={{ fill: isDark ? '#94A3B8' : '#86868B', fontSize: 12, fontFamily: 'Vazirmatn' }} />
             <YAxis yAxisId="pct" orientation="left" tickFormatter={(v) => `${v}٪`} tickLine={false} axisLine={false} width={56} tick={{ fill: isDark ? '#94A3B8' : '#86868B', fontSize: 12, fontFamily: 'Vazirmatn' }} />
-            <Tooltip content={<ChartTip unit="عدد" />} cursor={{ fill: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.03)' }} />
+            <Tooltip content={<QuantityMonthTip />} cursor={{ fill: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.03)' }} />
             <Legend wrapperStyle={{ fontFamily: 'Vazirmatn', paddingTop: '10px' }} />
-            <Bar yAxisId="qty" dataKey="net_qty" name="تعداد خالص" fill="url(#emeraldQtyBar)" radius={[6, 6, 0, 0]} maxBarSize={36} />
-            <Line yAxisId="pct" dataKey="growth" name="رشد ٪" stroke="#38BDF8" strokeWidth={2.5} dot={{ r: 4, fill: '#38BDF8' }} connectNulls={false} />
+            <Bar yAxisId="qty" dataKey="net_qty" name="تعداد خالص" fill="url(#emeraldQtyBar)" radius={[8, 8, 2, 2]} maxBarSize={36}>
+              {data.map((d) => {
+                const isPeak = peak && d.month === peak.month
+                return (
+                  <Cell
+                    key={d.month}
+                    fill={isPeak ? 'url(#peakQtyBar)' : 'url(#emeraldQtyBar)'}
+                    style={{ filter: isPeak ? 'drop-shadow(0 0 10px rgba(16,185,129,0.5))' : 'none' }}
+                  />
+                )
+              })}
+            </Bar>
+            <Line yAxisId="pct" dataKey="growth" name="رشد ٪ نسبت به ماه قبل" stroke="#38BDF8" strokeWidth={2.5} dot={{ r: 4, fill: '#38BDF8', stroke: isDark ? '#0F172A' : '#FFFFFF', strokeWidth: 2 }} connectNulls={false} />
           </BarChart>
         </ResponsiveContainer>
       </div>
@@ -115,20 +299,42 @@ export const QuantityPage = ({ p }) => {
   const { isDark } = useAppearance()
   const r = useApi('/quantity', { ...p, limit: 20 })
   const data = (Array.isArray(r.data) ? r.data : []).map((x) => ({ ...x, short: x.product }))
+  const totalTopQty = useMemo(() => data.reduce((s, x) => s + (x.net_qty || 0), 0), [data])
+
   return (
-    <div className="w-full max-w-[1600px] mx-auto space-y-5">
-      <QuantityMonthCompare p={p} />
+    <div className="w-full max-w-[1600px] mx-auto space-y-6">
+      {/* 1. Master Executive Hero Card */}
+      <QuantityHeroCard p={p} />
+
+      {/* 2. Monthly Growth Trend Card */}
       <QuantityGrowth p={p} />
 
+      {/* 3. Top 20 Products Chart with Podium Highlighting */}
       <AppleCard
-        title="تحلیل تعداد کالا (۲۰ کالای برتر)"
-        subtitle="بر اساس تعداد خالص (فروش منهای مرجوعی فروش، بدون پروموشن)"
-        badge="۲۰ برتر"
+        title="تحلیل تیراژ ۲۰ کالای برتر"
+        subtitle="بر اساس تعداد خالص فروش (فروش منهای مرجوعی، بدون پروموشن)"
+        action={
+          <span className="text-xs px-2.5 py-1 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/25 font-bold tabular-nums">
+            مجموع ۲۰ برتر: {fa(totalTopQty)} عدد
+          </span>
+        }
       >
         <div className="h-[520px] w-full mt-2" dir="ltr">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={data} layout="vertical" margin={{ top: 8, right: 24, left: 8, bottom: 0 }}>
               <defs>
+                <linearGradient id="goldQtyBar" x1="1" y1="0" x2="0" y2="0">
+                  <stop offset="0%" stopColor="#F59E0B" />
+                  <stop offset="100%" stopColor="#D97706" />
+                </linearGradient>
+                <linearGradient id="silverQtyBar" x1="1" y1="0" x2="0" y2="0">
+                  <stop offset="0%" stopColor="#38BDF8" />
+                  <stop offset="100%" stopColor="#0284C7" />
+                </linearGradient>
+                <linearGradient id="bronzeQtyBar" x1="1" y1="0" x2="0" y2="0">
+                  <stop offset="0%" stopColor="#34D399" />
+                  <stop offset="100%" stopColor="#059669" />
+                </linearGradient>
                 <linearGradient id="emeraldQtyHBar" x1="1" y1="0" x2="0" y2="0">
                   <stop offset="0%" stopColor="#10B981" />
                   <stop offset="100%" stopColor="#047857" />
@@ -136,26 +342,150 @@ export const QuantityPage = ({ p }) => {
               </defs>
               <CartesianGrid horizontal={false} stroke={isDark ? 'rgba(255,255,255,0.06)' : '#E5E5EA'} strokeDasharray="3 3" />
               <XAxis type="number" tickFormatter={(v) => fa(v)} tickLine={false} axisLine={false} tick={{ fill: isDark ? '#94A3B8' : '#86868B', fontSize: 12, fontFamily: 'Vazirmatn' }} />
-              <YAxis type="category" dataKey="short" width={220} tickLine={false} axisLine={false} interval={0} tick={{ fill: isDark ? '#E2E8F0' : '#1D1D1F', fontSize: 11, fontFamily: 'Vazirmatn' }} />
-              <Tooltip content={<ChartTip unit="عدد" />} cursor={{ fill: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.03)' }} />
-              <Bar dataKey="net_qty" name="تعداد خالص" fill="url(#emeraldQtyHBar)" radius={[0, 6, 6, 0]} maxBarSize={22} />
+              <YAxis type="category" dataKey="short" width={240} tickLine={false} axisLine={false} interval={0} tick={{ fill: isDark ? '#E2E8F0' : '#1D1D1F', fontSize: 11, fontFamily: 'Vazirmatn' }} />
+              <Tooltip content={<ProductBarTip totalTopQty={totalTopQty} />} cursor={{ fill: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.03)' }} />
+              <Bar dataKey="net_qty" name="تعداد خالص" radius={[0, 6, 6, 0]} maxBarSize={22}>
+                {data.map((d, i) => (
+                  <Cell
+                    key={d.product || i}
+                    fill={
+                      i === 0 ? 'url(#goldQtyBar)' :
+                      i === 1 ? 'url(#silverQtyBar)' :
+                      i === 2 ? 'url(#bronzeQtyBar)' :
+                      'url(#emeraldQtyHBar)'
+                    }
+                    style={{
+                      filter: i === 0 ? 'drop-shadow(0 0 8px rgba(245,158,11,0.4))' : 'none',
+                    }}
+                  />
+                ))}
+              </Bar>
             </BarChart>
           </ResponsiveContainer>
         </div>
       </AppleCard>
 
+      {/* 4. Ranked Table with Podium Colors */}
       <AppleCard
         title="جدول رتبه‌بندی تعداد کالا"
-        subtitle="رتبه، تعداد خالص، فروش خالص، تعداد فاکتور و ریال به ازای هر واحد"
+        subtitle="رتبه، تعداد خالص، سهم از ۲۰ کالا، فروش خالص، تعداد فاکتور و ریال به ازای هر واحد"
         badge={`${data.length} ردیف`}
       >
-        <Table name="تعداد-کالا" rows={data} columns={[
-          { label: 'کالا', render: (r) => <span className={`font-semibold ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>{r.product}</span>, value: (r) => r.product },
-          { label: 'تعداد خالص', render: (r) => <span className={`tabular-nums font-bold ${isDark ? 'text-emerald-400' : 'text-emerald-600'}`}>{fa(r.net_qty)}</span>, value: (r) => r.net_qty },
-          { label: 'فروش خالص (ریال)', render: (r) => <span className={`tabular-nums font-medium ${isDark ? 'text-slate-200' : 'text-slate-800'}`}>{fa(r.net_rial)}</span>, value: (r) => r.net_rial },
-          { label: 'فاکتور', render: (r) => <span className="tabular-nums">{fa(r.invoices)}</span>, value: (r) => r.invoices },
-          { label: 'ریال به ازای واحد', render: (r) => <span className={`tabular-nums ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>{fa(r.rial_per_unit)}</span>, value: (r) => r.rial_per_unit },
-        ]} />
+        <Table
+          name="تعداد-کالا"
+          rows={data}
+          rowClassName={(x, i) => {
+            if (i === 0) return 'podium-gold border-r-4 border-r-amber-400'
+            if (i === 1) return 'podium-silver border-r-4 border-r-sky-400'
+            if (i === 2) return 'podium-bronze border-r-4 border-r-emerald-400'
+            return ''
+          }}
+          columns={[
+            {
+              label: 'رتبه',
+              render: (_, i) => {
+                if (i === 0) {
+                  return (
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-black bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-400/40 shadow-xs shadow-amber-500/10">
+                      <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
+                      #{fa(1)}
+                    </span>
+                  )
+                }
+                if (i === 1) {
+                  return (
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-black bg-sky-500/20 text-sky-700 dark:text-sky-300 border border-sky-400/40 shadow-xs shadow-sky-500/10">
+                      <span className="w-1.5 h-1.5 rounded-full bg-sky-400" />
+                      #{fa(2)}
+                    </span>
+                  )
+                }
+                if (i === 2) {
+                  return (
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-black bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border border-emerald-400/40 shadow-xs shadow-emerald-500/10">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                      #{fa(3)}
+                    </span>
+                  )
+                }
+                return <span className="tabular-nums text-slate-400 font-medium px-2">{fa(i + 1)}</span>
+              },
+              value: (_, i) => i + 1,
+            },
+            {
+              label: 'کالا',
+              render: (r, i) => {
+                if (i === 0) {
+                  return (
+                    <div className="flex items-center gap-2">
+                      <span className={`font-bold ${isDark ? 'text-amber-300' : 'text-amber-800'}`}>{r.product}</span>
+                      <span className="text-[10px] font-black px-1.5 py-0.5 rounded-md bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-400/30">پیشتاز تیراژ</span>
+                    </div>
+                  )
+                }
+                if (i === 1) {
+                  return (
+                    <div className="flex items-center gap-2">
+                      <span className={`font-bold ${isDark ? 'text-sky-300' : 'text-sky-800'}`}>{r.product}</span>
+                      <span className="text-[10px] font-black px-1.5 py-0.5 rounded-md bg-sky-500/20 text-sky-700 dark:text-sky-300 border border-sky-400/30">رتبه ۲</span>
+                    </div>
+                  )
+                }
+                if (i === 2) {
+                  return (
+                    <div className="flex items-center gap-2">
+                      <span className={`font-bold ${isDark ? 'text-emerald-300' : 'text-emerald-800'}`}>{r.product}</span>
+                      <span className="text-[10px] font-black px-1.5 py-0.5 rounded-md bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border border-emerald-400/30">رتبه ۳</span>
+                    </div>
+                  )
+                }
+                return <span className={`font-semibold ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>{r.product}</span>
+              },
+              value: (r) => r.product,
+            },
+            {
+              label: 'تعداد خالص',
+              render: (r, i) => {
+                const colorClass =
+                  i === 0 ? (isDark ? 'text-amber-400 font-black' : 'text-amber-700 font-black') :
+                  i === 1 ? (isDark ? 'text-sky-400 font-black' : 'text-sky-700 font-black') :
+                  i === 2 ? (isDark ? 'text-emerald-400 font-black' : 'text-emerald-700 font-black') :
+                  (isDark ? 'text-emerald-400 font-bold' : 'text-emerald-700 font-bold')
+                return <span className={`tabular-nums ${colorClass}`}>{fa(r.net_qty)}</span>
+              },
+              value: (r) => r.net_qty,
+            },
+            {
+              label: 'سهم از ۲۰ برتر',
+              render: (r, i) => {
+                const share = totalTopQty > 0 ? (r.net_qty / totalTopQty) * 100 : 0
+                const colorClass =
+                  i === 0 ? (isDark ? 'text-amber-300 font-bold' : 'text-amber-700 font-bold') :
+                  i === 1 ? (isDark ? 'text-sky-300 font-bold' : 'text-sky-700 font-bold') :
+                  i === 2 ? (isDark ? 'text-emerald-300 font-bold' : 'text-emerald-700 font-bold') :
+                  'font-medium'
+                return <span className={`tabular-nums ${colorClass}`}>{pct(share / 100, 1)}</span>
+              },
+              value: (r) => totalTopQty > 0 ? (r.net_qty / totalTopQty) * 100 : 0,
+              unit: '٪',
+            },
+            {
+              label: 'فروش خالص (ریال)',
+              render: (r) => <span className={`tabular-nums font-medium ${isDark ? 'text-slate-200' : 'text-slate-800'}`}>{rial(r.net_rial)}</span>,
+              value: (r) => r.net_rial,
+            },
+            {
+              label: 'تعداد فاکتور',
+              render: (r) => <span className="tabular-nums">{fa(r.invoices)}</span>,
+              value: (r) => r.invoices,
+            },
+            {
+              label: 'ریال به ازای واحد',
+              render: (r) => <span className={`tabular-nums ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>{rial(Math.round(r.rial_per_unit))}</span>,
+              value: (r) => r.rial_per_unit,
+            },
+          ]}
+        />
       </AppleCard>
     </div>
   )
