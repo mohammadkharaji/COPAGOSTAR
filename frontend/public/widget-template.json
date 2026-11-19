@@ -1,0 +1,168 @@
+{
+  "type": "AdaptiveCard",
+  "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+  "version": "1.5",
+  "rtl": true,
+  "body": [
+    {
+      "type": "Container",
+      "style": "emphasis",
+      "bleed": true,
+      "items": [
+        {
+          "type": "ColumnSet",
+          "columns": [
+            {
+              "type": "Column",
+              "width": "auto",
+              "items": [
+                {
+                  "type": "Image",
+                  "url": "/logo.jpg",
+                  "size": "Small",
+                  "style": "Person"
+                }
+              ]
+            },
+            {
+              "type": "Column",
+              "width": "stretch",
+              "items": [
+                {
+                  "type": "TextBlock",
+                  "text": "نبض فروش | کوپا گستر",
+                  "weight": "Bolder",
+                  "size": "Medium",
+                  "color": "Accent"
+                },
+                {
+                  "type": "TextBlock",
+                  "text": "${if(role_view == 'visitor', plan_name, 'پایش کلان فروش')}",
+                  "size": "Small",
+                  "isSubtle": true,
+                  "spacing": "None"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "Container",
+      "$when": "${role_view == 'visitor'}",
+      "items": [
+        {
+          "type": "ColumnSet",
+          "columns": [
+            {
+              "type": "Column",
+              "width": "stretch",
+              "items": [
+                {
+                  "type": "TextBlock",
+                  "text": "امتیاز کل",
+                  "size": "Small",
+                  "isSubtle": true
+                },
+                {
+                  "type": "TextBlock",
+                  "text": "${formatNumber(total_score, 1)}",
+                  "size": "ExtraLarge",
+                  "weight": "Bolder",
+                  "color": "Good"
+                }
+              ]
+            },
+            {
+              "type": "Column",
+              "width": "auto",
+              "items": [
+                {
+                  "type": "TextBlock",
+                  "text": "رتبه کشوری",
+                  "size": "Small",
+                  "isSubtle": true
+                },
+                {
+                  "type": "TextBlock",
+                  "text": "${if(rank_national != null, rank_national, '—')}",
+                  "size": "Large",
+                  "weight": "Bolder"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "FactSet",
+          "facts": [
+            {
+              "title": "حلقه فروش ریالی",
+              "value": "${rings.rial}%"
+            },
+            {
+              "title": "حلقه پوشش مشتریان",
+              "value": "${rings.coverage}%"
+            },
+            {
+              "title": "حلقه سبد فروشی",
+              "value": "${rings.basket}%"
+            },
+            {
+              "title": "پاداش تخمینی",
+              "value": "${formatNumber(prize_amount, 0)} ریال"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "Container",
+      "$when": "${role_view == 'executive'}",
+      "items": [
+        {
+          "type": "TextBlock",
+          "text": "فروش خالص جاری (با مالیات)",
+          "size": "Small",
+          "isSubtle": true
+        },
+        {
+          "type": "TextBlock",
+          "text": "${formatNumber(net_rial_vat, 0)} ریال",
+          "size": "Large",
+          "weight": "Bolder",
+          "color": "Good"
+        },
+        {
+          "type": "FactSet",
+          "facts": [
+            {
+              "title": "درصد تحقق تارگت",
+              "value": "${if(target_achievement_pct != null, target_achievement_pct + '%', 'ثبت نشده')}"
+            },
+            {
+              "title": "پیش‌بینی پایان ماه",
+              "value": "${formatNumber(eom_forecast_rial, 0)} ریال"
+            },
+            {
+              "title": "مشتریان فعال",
+              "value": "${active_customers_count}"
+            },
+            {
+              "title": "آخرین همگام‌سازی BI",
+              "value": "${if(latest_bi_sync != null, latest_bi_sync, 'به‌روز')}"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "actions": [
+    {
+      "type": "Action.OpenUrl",
+      "title": "باز کردن داشبورد کامل",
+      "url": "https://copagostar.internal/#widget"
+    }
+  ]
+}

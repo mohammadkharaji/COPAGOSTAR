@@ -33,6 +33,12 @@ function Gate() {
   return <App key={session} onLogout={signOut} />
 }
 
+if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch(() => {})
+  })
+}
+
 createRoot(document.getElementById('root')).render(
   <AppearanceProvider>
     <Gate />

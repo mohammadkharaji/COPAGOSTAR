@@ -1,0 +1,73 @@
+{
+  "name": "نبض فروش | پایش هوشمند فروش",
+  "short_name": "نبض فروش",
+  "description": "پایش لحظه‌ای فروش، رصد تارگت، پیش‌بینی ماه و کارنامه باشگاه قدرت فروش کوپا گستر",
+  "start_url": "/#widget",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "dir": "rtl",
+  "lang": "fa",
+  "background_color": "#0B111E",
+  "theme_color": "#0071E3",
+  "categories": ["business", "finance", "productivity"],
+  "icons": [
+    {
+      "src": "/logo.jpg",
+      "sizes": "192x192",
+      "type": "image/jpeg",
+      "purpose": "any"
+    },
+    {
+      "src": "/logo.jpg",
+      "sizes": "512x512",
+      "type": "image/jpeg",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "نبض لحظه‌ای (ویجت)",
+      "short_name": "ویجت",
+      "url": "/#widget",
+      "icons": [{ "src": "/logo.jpg", "sizes": "192x192" }]
+    },
+    {
+      "name": "داشبورد کلان",
+      "short_name": "داشبورد",
+      "url": "/#overview",
+      "icons": [{ "src": "/logo.jpg", "sizes": "192x192" }]
+    },
+    {
+      "name": "باشگاه ویزیتورها",
+      "short_name": "باشگاه",
+      "url": "/#club_visitor",
+      "icons": [{ "src": "/logo.jpg", "sizes": "192x192" }]
+    }
+  ],
+  "widgets": [
+    {
+      "name": "ویجت نبض فروش",
+      "short_name": "نبض فروش",
+      "description": "ویجت تطبیقی پایش فروش و کارنامه باشگاه",
+      "tag": "sales-pulse-widget",
+      "template": "sales-pulse-template",
+      "ms_ac_template": "/widget-template.json",
+      "data": "/api/mobile/widget-pulse",
+      "type": "application/json",
+      "screenshots": [
+        {
+          "src": "/logo.jpg",
+          "sizes": "512x512",
+          "label": "نمای ویجت هوشمند نبض فروش"
+        }
+      ],
+      "icons": [
+        {
+          "src": "/logo.jpg",
+          "sizes": "192x192"
+        }
+      ]
+    }
+  ]
+}

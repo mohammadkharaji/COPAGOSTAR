@@ -2092,6 +2092,8 @@ from . import tickets as _tickets  # noqa: E402  (support tickets; every signed-
 app.include_router(_tickets.router)
 from . import club as _club  # noqa: E402  (loyalty clubs: plans and points; rbac.PREFIX gates them)
 app.include_router(_club.router)
+from . import widget as _widget  # noqa: E402  (mobile widget & PWA pulse endpoint)
+app.include_router(_widget.router)
 
 
 # ---------- AI sales agent ----------
