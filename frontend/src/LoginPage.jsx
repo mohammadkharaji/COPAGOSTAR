@@ -1,419 +1,67 @@
-import { useState, useRef, useEffect, useCallback } from 'react'
+import { useState } from 'react'
 import { motion, AnimatePresence } from 'motion/react'
 import {
   Activity,
   AlertCircle,
-  Building2,
+  Award,
+  CheckCircle2,
+  ChevronLeft,
   Eye,
   EyeOff,
   LockKeyhole,
   LogIn,
   ShieldCheck,
+  Sparkles,
   TrendingUp,
+  UserCheck,
   UserRound,
 } from 'lucide-react'
 import { login } from './api'
+import { useAppearance } from './AppearanceContext'
+import AppearanceSwitcher from './AppearanceSwitcher'
 
-// ── Compact Feature Highlights (Inline Chips) ───────────────────
-const FEATURES = [
-  { icon: Activity, text: 'روند فروش روزانه و ماهانه', color: '#10B981' },
-  { icon: Building2, text: 'عملکرد شعبه‌ها و ویزیتورها', color: '#E4A53A' },
-  { icon: TrendingUp, text: 'تحلیل رشد، افت و پارتو', color: '#059669' },
+const PILLARS = [
+  {
+    id: 'analytics',
+    title: 'آنالیز و پایش فروش',
+    desc: 'پایش ریال خالص، فروش ناخالص، تحلیل پارتو و روند روزانه و ماهانه',
+    badge: 'هوش تجاری',
+    color: '#0071E3',
+    bg: 'from-[#0071E3]/20 to-[#6366F1]/10',
+    border: 'border-[#0071E3]/30',
+    icon: Activity,
+  },
+  {
+    id: 'customer-club',
+    title: 'باشگاه مشتریان B2B',
+    desc: 'سطوح وفاداری طلایی، نقره‌ای و برنزی، رتبه‌بندی و تنوع سبد خرید',
+    badge: 'وفاداری مشتریان',
+    color: '#F59E0B',
+    bg: 'from-[#F59E0B]/20 to-[#D97706]/10',
+    border: 'border-[#F59E0B]/30',
+    icon: Award,
+  },
+  {
+    id: 'visitor-club',
+    title: 'باشگاه ویزیتورها',
+    desc: 'تحقق تارگت ریالی، ضرایب پورسانت و چالش‌های عملکرد تیم فروش',
+    badge: 'تیم فروش',
+    color: '#10B981',
+    bg: 'from-[#10B981]/20 to-[#059669]/10',
+    border: 'border-[#10B981]/30',
+    icon: TrendingUp,
+  },
 ]
 
-/**
- * 60fps Interactive HTML5 Canvas: "نبض فروش" Live Reactive Field
- * Constellation of glowing data nodes + 3 flowing harmonic waves
- * with spring physics, cursor gravity/repulsion, and keystroke ripples.
- */
-function SalesPulseCanvas({ mouse, focusedField, typingPulseRef, isMobile }) {
-  const canvasRef = useRef(null)
-
-  useEffect(() => {
-    const canvas = canvasRef.current
-    if (!canvas) return
-    const ctx = canvas.getContext('2d')
-    if (!ctx) return
-
-    let animationFrameId
-    let width = 0
-    let height = 0
-    let dpr = window.devicePixelRatio || 1
-
-    // Node constellation
-    const nodeCount = isMobile ? 22 : 44
-    const nodes = []
-    const ripples = []
-
-    // Security mode interpolation factor (0 = default blue/saffron, 1 = security emerald/gold)
-    let currentSecurity = 0
-
-    const initNodes = (w, h) => {
-      nodes.length = 0
-      const colors = ['#10B981', '#059669', '#34D399', '#6EE7B7', '#047857']
-      for (let i = 0; i < nodeCount; i++) {
-        const ox = Math.random() * w
-        const oy = Math.random() * h
-        nodes.push({
-          x: ox,
-          y: oy,
-          originX: ox,
-          originY: oy,
-          vx: 0,
-          vy: 0,
-          radius: 1.5 + Math.random() * 2.2,
-          baseColor: colors[i % colors.length],
-          alpha: 0.35 + Math.random() * 0.45,
-          phase: Math.random() * Math.PI * 2,
-          speed: 0.5 + Math.random() * 1.2,
-        })
-      }
-    }
-
-    const resize = () => {
-      const parent = canvas.parentElement
-      if (!parent) return
-      const rect = parent.getBoundingClientRect()
-      width = rect.width
-      height = rect.height
-      dpr = window.devicePixelRatio || 1
-
-      canvas.width = Math.floor(width * dpr)
-      canvas.height = Math.floor(height * dpr)
-      canvas.style.width = `${width}px`
-      canvas.style.height = `${height}px`
-
-      ctx.setTransform(1, 0, 0, 1, 0, 0)
-      ctx.scale(dpr, dpr)
-      initNodes(width, height)
-    }
-
-    resize()
-    const ro = new ResizeObserver(() => resize())
-    ro.observe(canvas.parentElement)
-
-    // Keystroke typing pulse trigger
-    if (typingPulseRef) {
-      typingPulseRef.current = (type) => {
-        const originX = mouse.active ? mouse.x : width * 0.5
-        const originY = mouse.active ? mouse.y : height * 0.55
-
-        ripples.push({
-          x: originX,
-          y: originY,
-          radius: 6,
-          maxRadius: Math.max(width, height) * (type === 'password' ? 0.95 : 0.75),
-          speed: type === 'password' ? 9.5 : 7.5,
-          alpha: 0.9,
-          type,
-        })
-
-        // Impulse force to nearby nodes
-        for (const n of nodes) {
-          const dx = n.x - originX
-          const dy = n.y - originY
-          const dist = Math.hypot(dx, dy) || 1
-          if (dist < 260) {
-            const push = (1 - dist / 260) * 14
-            n.vx += (dx / dist) * push
-            n.vy += (dy / dist) * push
-          }
-        }
-      }
-    }
-
-    let time = 0
-
-    const render = () => {
-      time += 0.016
-      ctx.clearRect(0, 0, width, height)
-
-      // Smooth security palette interpolation
-      const targetSecurity = focusedField === 'password' ? 1 : 0
-      currentSecurity += (targetSecurity - currentSecurity) * 0.08
-
-      // ── 1. Soft Mouse Radial Trail ───────────────────────────────
-      if (mouse.active) {
-        const auraGrad = ctx.createRadialGradient(mouse.x, mouse.y, 0, mouse.x, mouse.y, 160)
-        const c1 = currentSecurity > 0.4 ? 'rgba(47, 154, 136, 0.22)' : 'rgba(56, 189, 248, 0.20)'
-        const c2 = currentSecurity > 0.4 ? 'rgba(228, 165, 58, 0.08)' : 'rgba(0, 113, 227, 0.06)'
-        auraGrad.addColorStop(0, c1)
-        auraGrad.addColorStop(0.5, c2)
-        auraGrad.addColorStop(1, 'transparent')
-        ctx.fillStyle = auraGrad
-        ctx.beginPath()
-        ctx.arc(mouse.x, mouse.y, 160, 0, Math.PI * 2)
-        ctx.fill()
-      }
-
-      // ── 2. Harmonic "Sales Pulse" Flowing Waves ──────────────────
-      const waveConfigs = [
-        // Wave 1: Saffron Gold Target Baseline
-        {
-          baseY: height * 0.44,
-          freq1: 0.009,
-          freq2: 0.004,
-          speed1: 1.1,
-          speed2: 0.6,
-          amp1: 18,
-          amp2: 10,
-          color: '#E4A53A',
-          alpha: 0.45,
-          width: 1.6,
-        },
-        // Wave 2: Primary Sales Pulse (Sky Blue <-> Security Emerald)
-        {
-          baseY: height * 0.62,
-          freq1: 0.013,
-          freq2: 0.021,
-          speed1: 1.5,
-          speed2: 0.9,
-          amp1: 28,
-          amp2: 14,
-          color: currentSecurity > 0.5 ? '#2F9A88' : '#38BDF8',
-          alpha: 0.85,
-          width: 2.8,
-          glow: true,
-        },
-        // Wave 3: Growth / Momentum (Teal / Sapphire)
-        {
-          baseY: height * 0.74,
-          freq1: 0.008,
-          freq2: 0.015,
-          speed1: 1.3,
-          speed2: 0.5,
-          amp1: 22,
-          amp2: 12,
-          color: currentSecurity > 0.5 ? '#10B981' : '#059669',
-          alpha: 0.6,
-          width: 2.0,
-        },
-      ]
-
-      for (const w of waveConfigs) {
-        ctx.save()
-        ctx.beginPath()
-        const step = 6
-
-        for (let x = 0; x <= width + step; x += step) {
-          const t1 = time * w.speed1
-          const t2 = time * w.speed2
-          let y = w.baseY + Math.sin(t1 + x * w.freq1) * w.amp1 + Math.cos(t2 + x * w.freq2) * w.amp2
-
-          // Mouse proximity wave bending
-          if (mouse.active) {
-            const dx = x - mouse.x
-            const influence = Math.exp(-(dx * dx) / (2 * 110 * 110))
-            const dy = (mouse.y - w.baseY) * influence * 0.42
-            y += dy
-          }
-
-          // Active keystroke ripples bending the wave
-          for (const rip of ripples) {
-            const dist = Math.abs(x - rip.x)
-            if (Math.abs(dist - rip.radius) < 70) {
-              const ripWave = Math.sin((dist - rip.radius) * 0.1) * (rip.alpha * 16)
-              y += ripWave
-            }
-          }
-
-          if (x === 0) {
-            ctx.moveTo(x, y)
-          } else {
-            ctx.lineTo(x, y)
-          }
-        }
-
-        ctx.strokeStyle = w.color
-        ctx.globalAlpha = w.alpha
-        ctx.lineWidth = w.width
-        ctx.lineCap = 'round'
-        ctx.lineJoin = 'round'
-
-        if (w.glow) {
-          ctx.shadowColor = w.color
-          ctx.shadowBlur = 14
-        }
-        ctx.stroke()
-        ctx.restore()
-      }
-
-      // ── 3. Constellation Nodes & Spring Physics ──────────────────
-      const maxConnDist = isMobile ? 65 : 85
-
-      // Node proximity lines
-      ctx.lineWidth = 1
-      for (let i = 0; i < nodes.length; i++) {
-        for (let j = i + 1; j < nodes.length; j++) {
-          const n1 = nodes[i]
-          const n2 = nodes[j]
-          const dx = n1.x - n2.x
-          const dy = n1.y - n2.y
-          const d = Math.hypot(dx, dy)
-          if (d < maxConnDist) {
-            const lineAlpha = (1 - d / maxConnDist) * 0.22 * (n1.alpha + n2.alpha) * 0.5
-            ctx.strokeStyle = currentSecurity > 0.5 ? '#2F9A88' : '#38BDF8'
-            ctx.globalAlpha = lineAlpha
-            ctx.beginPath()
-            ctx.moveTo(n1.x, n1.y)
-            ctx.lineTo(n2.x, n2.y)
-            ctx.stroke()
-          }
-        }
-      }
-
-      // Update & Draw Nodes
-      for (let i = 0; i < nodes.length; i++) {
-        const n = nodes[i]
-
-        // Spring force returning node to resting origin
-        const springK = 0.025
-        const damping = 0.88
-        const ax = (n.originX - n.x) * springK
-        const ay = (n.originY - n.y) * springK
-
-        // Mouse attraction/repulsion
-        if (mouse.active) {
-          const dx = mouse.x - n.x
-          const dy = mouse.y - n.y
-          const dist = Math.hypot(dx, dy)
-          const radius = 130
-          if (dist < radius && dist > 1) {
-            const factor = 1 - dist / radius
-            const pull = factor * 1.8
-            n.vx += (dx / dist) * pull * 0.6
-            n.vy += (dy / dist) * pull * 0.6
-          }
-        }
-
-        n.vx = (n.vx + ax) * damping
-        n.vy = (n.vy + ay) * damping
-        n.x += n.vx
-        n.y += n.vy
-
-        // Breathing pulse
-        const pulse = Math.sin(time * n.speed + n.phase) * 0.25 + 0.75
-        const nodeColor = currentSecurity > 0.5
-          ? (i % 2 === 0 ? '#2F9A88' : '#E4A53A')
-          : n.baseColor
-
-        ctx.save()
-        ctx.beginPath()
-        ctx.arc(n.x, n.y, n.radius * (0.85 + pulse * 0.2), 0, Math.PI * 2)
-        ctx.fillStyle = nodeColor
-        ctx.globalAlpha = n.alpha * pulse
-        ctx.shadowColor = nodeColor
-        ctx.shadowBlur = 8
-        ctx.fill()
-        ctx.restore()
-      }
-
-      // ── 4. Typing Ripples Draw & Expand ──────────────────────────
-      for (let i = ripples.length - 1; i >= 0; i--) {
-        const r = ripples[i]
-        r.radius += r.speed
-        r.alpha *= 0.94
-
-        if (r.alpha < 0.02 || r.radius > r.maxRadius) {
-          ripples.splice(i, 1)
-          continue
-        }
-
-        ctx.save()
-        ctx.beginPath()
-        ctx.arc(r.x, r.y, r.radius, 0, Math.PI * 2)
-        ctx.strokeStyle = r.type === 'password' || currentSecurity > 0.5 ? '#2F9A88' : '#38BDF8'
-        ctx.lineWidth = 2.2
-        ctx.globalAlpha = r.alpha * 0.85
-        ctx.shadowColor = r.type === 'password' ? '#059669' : '#10B981'
-        ctx.shadowBlur = 12
-        ctx.stroke()
-        ctx.restore()
-      }
-
-      animationFrameId = requestAnimationFrame(render)
-    }
-
-    render()
-
-    return () => {
-      cancelAnimationFrame(animationFrameId)
-      ro.disconnect()
-    }
-  }, [mouse.active, focusedField, isMobile])
-
-  return (
-    <canvas
-      ref={canvasRef}
-      className="absolute inset-0 w-full h-full pointer-events-none select-none"
-    />
-  )
-}
-
 export default function LoginPage({ onSuccess }) {
+  const { isDark, isSolid } = useAppearance()
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [show, setShow] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
-  const [focusedField, setFocusedField] = useState(null) // 'username' | 'password' | null
+  const [focusedField, setFocusedField] = useState(null)
 
-  // Mouse & 3D Tilt State
-  const [mouse, setMouse] = useState({ x: 0, y: 0, active: false })
-  const [tilt, setTilt] = useState({ x: 0, y: 0 })
-  const cardRef = useRef(null)
-  const typingPulseRef = useRef(null)
-
-  // Track responsive screen size
-  const [isMobile, setIsMobile] = useState(false)
-
-  useEffect(() => {
-    const checkMobile = () => setIsMobile(window.innerWidth < 1024)
-    checkMobile()
-    window.addEventListener('resize', checkMobile)
-    return () => window.removeEventListener('resize', checkMobile)
-  }, [])
-
-  // Mouse move handler for dynamic spotlight and desktop 3D parallax tilt
-  const handleMouseMove = useCallback((e) => {
-    if (!cardRef.current) return
-    const rect = cardRef.current.getBoundingClientRect()
-    const x = e.clientX - rect.left
-    const y = e.clientY - rect.top
-
-    setMouse({ x, y, active: true })
-
-    // Subtle 3D Parallax Tilt (Desktop only: max ±3deg rotateX, ±4deg rotateY)
-    if (window.innerWidth >= 1024) {
-      const centerX = rect.width / 2
-      const centerY = rect.height / 2
-      const normX = (x - centerX) / centerX
-      const normY = (y - centerY) / centerY
-
-      setTilt({
-        x: -normY * 3, // rotateX max ±3deg
-        y: normX * 4,  // rotateY max ±4deg
-      })
-    }
-  }, [])
-
-  const handleMouseLeave = useCallback(() => {
-    setMouse((prev) => ({ ...prev, active: false }))
-    setTilt({ x: 0, y: 0 })
-  }, [])
-
-  // Input keystroke handlers that trigger the canvas ripple pulse
-  const handleUsernameChange = (e) => {
-    setUsername(e.target.value)
-    typingPulseRef.current?.('username')
-  }
-
-  const handlePasswordChange = (e) => {
-    setPassword(e.target.value)
-    typingPulseRef.current?.('password')
-  }
-
-  // Untouched authentication & API logic
   const submit = async (e) => {
     e.preventDefault()
     if (busy) return
@@ -429,114 +77,129 @@ export default function LoginPage({ onSuccess }) {
     onSuccess()
   }
 
-  const isPasswordFocused = focusedField === 'password'
-
   return (
     <div
       dir="rtl"
-      className="min-h-screen w-full flex items-center justify-center p-4 sm:p-6 lg:p-10 bg-[#070C0A] relative overflow-hidden select-none font-sans antialiased text-right selection:bg-emerald-500/30"
+      className={`min-h-screen w-full flex flex-col justify-between p-4 sm:p-6 lg:p-8 relative overflow-hidden select-none font-sans antialiased text-right transition-colors duration-500 ${
+        isDark
+          ? 'bg-[#0B0C10] text-[#F5F5F7]'
+          : isSolid
+          ? 'bg-[#F1F3F5] text-[#1D1D1F]'
+          : 'bg-[#F5F5F7] text-[#1D1D1F]'
+      }`}
     >
-      {/* ── Background Atmospheric Ambient Mesh Orbs ────────────── */}
-      <div className="absolute top-[-15%] right-[-10%] w-[640px] h-[640px] rounded-full bg-gradient-to-br from-[#10B981]/20 via-[#059669]/15 to-transparent blur-[140px] pointer-events-none" />
-      <div className="absolute bottom-[-15%] left-[-10%] w-[700px] h-[700px] rounded-full bg-gradient-to-tr from-[#059669]/20 via-[#064E3B]/30 to-[#10B981]/15 blur-[150px] pointer-events-none" />
-      <div className="absolute top-[35%] left-[20%] w-[380px] h-[380px] rounded-full bg-[#10B981]/10 blur-[120px] pointer-events-none" />
-
-      {/* Subtle background tech grid */}
-      <div
-        className="absolute inset-0 opacity-[0.035] pointer-events-none"
-        style={{
-          backgroundImage: `radial-gradient(rgba(255,255,255,0.7) 1px, transparent 1px)`,
-          backgroundSize: '36px 36px',
-        }}
-      />
-
-      <div className="w-full max-w-[1040px] flex flex-col items-center relative z-10">
-        {/* ── Main Glass Card ─────────────────────────────────────── */}
-        <motion.div
-          ref={cardRef}
-          onMouseMove={handleMouseMove}
-          onMouseLeave={handleMouseLeave}
-          initial={{ opacity: 0, scale: 0.96, y: 14 }}
-          animate={{ opacity: 1, scale: 1, y: 0 }}
-          transition={{ type: 'spring', damping: 26, stiffness: 280 }}
-          className="relative z-10 w-full min-h-[560px] grid grid-cols-1 lg:grid-cols-12 rounded-[32px] sm:rounded-[40px] bg-white/[0.06] backdrop-blur-3xl border border-white/15 shadow-[0_32px_80px_rgba(0,0,0,0.55)] overflow-hidden"
-          style={{
-            perspective: 1200,
-          }}
-        >
-          {/* ── Dynamic Radial Spotlight Layer on Card Border ──────── */}
+      {/* ── Background Ambient Glowing Orbs (Disabled in Solid Mode) ──── */}
+      {!isSolid && (
+        <div className="fixed inset-0 pointer-events-none -z-10 overflow-hidden">
           <div
-            className="pointer-events-none absolute -inset-px rounded-[inherit] transition-opacity duration-500 z-30"
+            className={`absolute -top-32 -right-32 w-[600px] h-[600px] rounded-full blur-[140px] transition-all duration-700 ${
+              isDark ? 'bg-[#0071E3]/15' : 'bg-[#0071E3]/20'
+            }`}
+          />
+          <div
+            className={`absolute -bottom-32 -left-32 w-[650px] h-[650px] rounded-full blur-[150px] transition-all duration-700 ${
+              isDark ? 'bg-[#F59E0B]/12' : 'bg-[#F59E0B]/18'
+            }`}
+          />
+          <div
+            className={`absolute top-1/2 left-1/3 -translate-y-1/2 w-[450px] h-[450px] rounded-full blur-[130px] transition-all duration-700 ${
+              isDark ? 'bg-[#10B981]/10' : 'bg-[#10B981]/15'
+            }`}
+          />
+          {/* Subtle Apple-style radial texture */}
+          <div
+            className="absolute inset-0 opacity-[0.025] dark:opacity-[0.04]"
             style={{
-              opacity: mouse.active ? 1 : 0,
-              background: `radial-gradient(600px circle at ${mouse.x}px ${mouse.y}px, ${
-                isPasswordFocused
-                  ? 'rgba(47, 154, 136, 0.28)'
-                  : 'rgba(56, 189, 248, 0.22)'
-              }, transparent 40%)`,
+              backgroundImage: 'radial-gradient(rgba(0,0,0,0.8) 1px, transparent 1px)',
+              backgroundSize: '32px 32px',
             }}
           />
+        </div>
+      )}
 
-          {/* ── Form Side (lg:col-span-5) ─────────────────────────── */}
-          <div className="order-2 lg:order-1 lg:col-span-5 bg-white/95 text-[#1D1D1F] p-7 sm:p-10 lg:p-12 flex flex-col justify-between relative z-20 backdrop-blur-2xl">
+      {/* ── Top Header Navigation Bar ───────────────────────────────── */}
+      <header className="w-full max-w-6xl mx-auto flex items-center justify-between z-20 py-1">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-2xl bg-white/90 dark:bg-white/10 p-1.5 shadow-md shadow-black/5 border border-slate-200/80 dark:border-white/10 flex items-center justify-center backdrop-blur-xl">
+            <img
+              src="/login-logo.jpg"
+              alt="کوپا گستر طلایی"
+              className="w-full h-full object-contain rounded-xl"
+            />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="font-extrabold text-sm sm:text-base tracking-tight text-[#1D1D1F] dark:text-[#F5F5F7]">
+                نبض فروش
+              </span>
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#0071E3]/10 text-[#0071E3] dark:bg-[#0071E3]/20 dark:text-sky-400 border border-[#0071E3]/20">
+                کوپا گستر
+              </span>
+            </div>
+            <p className="text-[11px] text-[#86868B] dark:text-[#98989D] hidden sm:block">
+              سامانه یکپارچه هوش تجاری و تصمیم‌گیری مدیریتی
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2 sm:gap-3">
+          <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/70 dark:bg-white/5 border border-slate-200/80 dark:border-white/10 backdrop-blur-xl text-[11px] text-[#86868B] dark:text-[#98989D]">
+            <span className="relative flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+            </span>
+            <span>اتصال زنده دیتابیس</span>
+          </div>
+
+          <AppearanceSwitcher compact />
+        </div>
+      </header>
+
+      {/* ── Center Main Bento Card ──────────────────────────────────── */}
+      <main className="w-full max-w-6xl mx-auto my-auto py-6 sm:py-8 z-10 flex items-center justify-center">
+        <motion.div
+          initial={{ opacity: 0, y: 16, scale: 0.98 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          transition={{ duration: 0.45, ease: [0.23, 1, 0.32, 1] }}
+          className={`w-full grid grid-cols-1 lg:grid-cols-12 rounded-[32px] sm:rounded-[40px] overflow-hidden transition-all duration-300 ${
+            isDark
+              ? 'bg-[#1C1C1E]/80 backdrop-blur-3xl border border-white/10 shadow-[0_32px_80px_rgba(0,0,0,0.6)]'
+              : isSolid
+              ? 'bg-white border border-slate-200 shadow-xl'
+              : 'bg-white/80 backdrop-blur-3xl border border-white/80 shadow-[0_32px_80px_rgba(0,0,0,0.06)]'
+          }`}
+        >
+          {/* ── Right Side: Apple Frosted Login Form (5 Cols) ──────── */}
+          <div className="order-2 lg:order-1 lg:col-span-5 p-7 sm:p-10 lg:p-12 flex flex-col justify-between relative z-20">
             <div>
-              {/* Form State Reactive Badge */}
-              <div className="mb-4">
-                <AnimatePresence mode="wait">
-                  {isPasswordFocused ? (
-                    <motion.div
-                      key="security-mode"
-                      initial={{ opacity: 0, y: -4, scale: 0.94 }}
-                      animate={{ opacity: 1, y: 0, scale: 1 }}
-                      exit={{ opacity: 0, y: -4, scale: 0.94 }}
-                      transition={{ duration: 0.18 }}
-                      className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-[11px] font-bold bg-[#2F9A88]/15 text-[#1b6b5e] border border-[#2F9A88]/30 shadow-sm"
-                    >
-                      <span className="relative flex h-2.5 w-2.5">
-                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#2F9A88] opacity-75" />
-                        <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-[#2F9A88]" />
-                      </span>
-                      <LockKeyhole size={13} className="text-[#2F9A88]" />
-                      <span>حالت احراز هویت امن فعال است</span>
-                    </motion.div>
-                  ) : (
-                    <motion.div
-                      key="standard-mode"
-                      initial={{ opacity: 0, y: -4, scale: 0.94 }}
-                      animate={{ opacity: 1, y: 0, scale: 1 }}
-                      exit={{ opacity: 0, y: -4, scale: 0.94 }}
-                      transition={{ duration: 0.18 }}
-                      className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-emerald-500/15 text-emerald-700 border border-emerald-500/25"
-                    >
-                      <ShieldCheck size={14} />
-                      <span>ورود امن به سامانه</span>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
+              {/* Security Pill */}
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-[11px] font-bold bg-[#0071E3]/10 text-[#0071E3] dark:bg-[#0071E3]/20 dark:text-sky-400 border border-[#0071E3]/20 mb-5">
+                <ShieldCheck size={14} />
+                <span>ورود امن به پنل مدیریتی</span>
               </div>
 
-              <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-[#1D1D1F]">
+              <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-[#1D1D1F] dark:text-[#F5F5F7]">
                 خوش آمدید
               </h1>
-              <p className="text-xs sm:text-sm text-[#86868B] mt-1 mb-7 font-medium">
-                برای مشاهدهٔ گزارش‌ها وارد حساب خود شوید
+              <p className="text-xs sm:text-sm text-[#86868B] dark:text-[#98989D] mt-1.5 mb-7 font-medium leading-relaxed">
+                لطفاً مشخصات حساب کاربری مجاز خود را وارد کنید
               </p>
 
               {/* Form Element */}
               <form onSubmit={submit} className="space-y-4">
                 {/* Username Input */}
                 <div>
-                  <label className="block text-xs font-bold text-[#1D1D1F] mb-1.5">
+                  <label className="block text-xs font-bold text-[#1D1D1F] dark:text-[#F5F5F7] mb-2">
                     نام کاربری
                   </label>
                   <div className="relative flex items-center">
-                    <span className="absolute right-3.5 text-[#86868B] pointer-events-none">
-                      <UserRound size={18} />
+                    <span className="absolute right-3.5 text-[#86868B] dark:text-[#98989D] pointer-events-none transition-colors">
+                      <UserRound size={18} className={focusedField === 'username' ? 'text-[#0071E3]' : ''} />
                     </span>
                     <input
                       type="text"
                       value={username}
-                      onChange={handleUsernameChange}
+                      onChange={(e) => setUsername(e.target.value)}
                       onFocus={() => setFocusedField('username')}
                       onBlur={() => setFocusedField(null)}
                       autoComplete="username"
@@ -544,7 +207,11 @@ export default function LoginPage({ onSuccess }) {
                       spellCheck={false}
                       dir="ltr"
                       placeholder="نام کاربری"
-                      className="w-full bg-black/[0.03] border border-black/[0.06] focus:bg-white focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/20 rounded-2xl pr-11 pl-11 py-3 text-sm text-[#1D1D1F] placeholder:text-[#86868B]/50 transition-all outline-none font-medium text-left [&:-webkit-autofill]:shadow-[0_0_0_1000px_#f8fafc_inset] [&:-webkit-autofill]:[-webkit-text-fill-color:#1D1D1F]"
+                      className={`w-full rounded-2xl pr-11 pl-4 py-3.5 text-sm transition-all outline-none font-medium text-left ${
+                        isDark
+                          ? 'bg-white/5 border border-white/10 text-[#F5F5F7] placeholder:text-slate-500 focus:bg-white/10 focus:border-[#0071E3] focus:ring-4 focus:ring-[#0071E3]/20'
+                          : 'bg-black/[0.03] border border-black/[0.08] text-[#1D1D1F] placeholder:text-slate-400 focus:bg-white focus:border-[#0071E3] focus:ring-4 focus:ring-[#0071E3]/15'
+                      }`}
                       autoFocus
                       required
                     />
@@ -553,40 +220,40 @@ export default function LoginPage({ onSuccess }) {
 
                 {/* Password Input */}
                 <div>
-                  <div className="flex items-center justify-between mb-1.5">
-                    <label className="block text-xs font-bold text-[#1D1D1F]">
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="block text-xs font-bold text-[#1D1D1F] dark:text-[#F5F5F7]">
                       رمز عبور
                     </label>
                     {password.length > 0 && (
-                      <span className="text-[10px] text-[#2F9A88] font-bold">
+                      <span className="text-[11px] font-bold text-[#0071E3] dark:text-sky-400 tabular-nums">
                         {password.length} کاراکتر
                       </span>
                     )}
                   </div>
                   <div className="relative flex items-center">
-                    <span className="absolute right-3.5 text-[#86868B] pointer-events-none transition-colors">
-                      <LockKeyhole size={18} className={isPasswordFocused ? 'text-[#2F9A88]' : ''} />
+                    <span className="absolute right-3.5 text-[#86868B] dark:text-[#98989D] pointer-events-none transition-colors">
+                      <LockKeyhole size={18} className={focusedField === 'password' ? 'text-[#0071E3]' : ''} />
                     </span>
                     <input
                       type={show ? 'text' : 'password'}
                       value={password}
-                      onChange={handlePasswordChange}
+                      onChange={(e) => setPassword(e.target.value)}
                       onFocus={() => setFocusedField('password')}
                       onBlur={() => setFocusedField(null)}
                       autoComplete="current-password"
                       dir="ltr"
                       placeholder="••••••••"
-                      className={`w-full bg-black/[0.03] border rounded-2xl pr-11 pl-11 py-3 text-sm text-[#1D1D1F] placeholder:text-[#86868B]/50 transition-all outline-none font-medium text-left [&:-webkit-autofill]:shadow-[0_0_0_1000px_#f8fafc_inset] [&:-webkit-autofill]:[-webkit-text-fill-color:#1D1D1F] ${
-                        isPasswordFocused
-                          ? 'bg-white border-[#2F9A88] ring-4 ring-[#2F9A88]/20'
-                          : 'border-black/[0.06] focus:bg-white focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/20'
+                      className={`w-full rounded-2xl pr-11 pl-11 py-3.5 text-sm transition-all outline-none font-medium text-left ${
+                        isDark
+                          ? 'bg-white/5 border border-white/10 text-[#F5F5F7] placeholder:text-slate-500 focus:bg-white/10 focus:border-[#0071E3] focus:ring-4 focus:ring-[#0071E3]/20'
+                          : 'bg-black/[0.03] border border-black/[0.08] text-[#1D1D1F] placeholder:text-slate-400 focus:bg-white focus:border-[#0071E3] focus:ring-4 focus:ring-[#0071E3]/15'
                       }`}
                       required
                     />
                     <button
                       type="button"
                       onClick={() => setShow((v) => !v)}
-                      className="absolute left-3.5 text-[#86868B] hover:text-[#1D1D1F] transition-colors p-1 rounded-lg cursor-pointer"
+                      className="absolute left-3.5 text-[#86868B] dark:text-[#98989D] hover:text-[#1D1D1F] dark:hover:text-white transition-colors p-1 rounded-lg cursor-pointer"
                       aria-label={show ? 'پنهان کردن رمز' : 'نمایش رمز'}
                     >
                       {show ? <EyeOff size={18} /> : <Eye size={18} />}
@@ -594,135 +261,141 @@ export default function LoginPage({ onSuccess }) {
                   </div>
                 </div>
 
-                {/* Error Banner */}
-                {error && (
-                  <motion.div
-                    initial={{ opacity: 0, y: -6 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="p-3 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-xs font-semibold text-rose-700 flex items-center gap-2"
-                    role="alert"
-                  >
-                    <AlertCircle size={16} className="shrink-0" />
-                    <span>{error}</span>
-                  </motion.div>
-                )}
+                {/* Error Banner with Smooth Shake */}
+                <AnimatePresence>
+                  {error && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -6, scale: 0.96 }}
+                      animate={{ opacity: 1, y: 0, scale: 1, x: [-6, 6, -4, 4, 0] }}
+                      exit={{ opacity: 0, y: -6, scale: 0.96 }}
+                      transition={{ duration: 0.3 }}
+                      className="p-3 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-xs font-semibold text-rose-700 dark:text-rose-400 flex items-center gap-2"
+                      role="alert"
+                    >
+                      <AlertCircle size={16} className="shrink-0" />
+                      <span>{error}</span>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
 
-                {/* Submit Button */}
+                {/* Submit Action Button */}
                 <button
                   type="submit"
                   disabled={busy || !username || !password}
-                  className="w-full mt-2 py-3.5 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-sm font-bold flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/25 hover:-translate-y-0.5 hover:shadow-xl hover:shadow-emerald-500/35 active:translate-y-0 transition-all disabled:opacity-50 disabled:pointer-events-none disabled:shadow-none cursor-pointer"
+                  className="w-full mt-3 py-3.5 px-4 rounded-2xl bg-[#0071E3] hover:bg-[#0077ED] active:scale-[0.99] text-white text-sm font-bold flex items-center justify-center gap-2 shadow-lg shadow-blue-500/25 hover:shadow-blue-500/40 transition-all duration-200 disabled:opacity-50 disabled:pointer-events-none disabled:shadow-none cursor-pointer"
                 >
-                  <LogIn size={18} />
-                  <span>{busy ? 'در حال ورود به سامانه…' : 'ورود به داشبورد'}</span>
+                  {busy ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      <span>در حال بررسی اعتبار…</span>
+                    </>
+                  ) : (
+                    <>
+                      <LogIn size={18} />
+                      <span>ورود به داشبورد مدیریتی</span>
+                    </>
+                  )}
                 </button>
               </form>
             </div>
 
-            {/* Bottom Form Footnote */}
-            <div className="mt-6 pt-4 border-t border-black/[0.06] flex items-center justify-center gap-1.5 text-xs text-[#86868B]">
-              <ShieldCheck size={14} className="text-[#2F9A88]" />
-              <span>دسترسی محافظت‌شده ویژهٔ کاربران مجاز</span>
+            {/* Bottom Security Note */}
+            <div className="mt-8 pt-4 border-t border-slate-200/80 dark:border-white/10 flex items-center justify-between text-xs text-[#86868B] dark:text-[#98989D]">
+              <div className="flex items-center gap-1.5">
+                <ShieldCheck size={14} className="text-[#0071E3]" />
+                <span>دسترسی محافظت‌شده و رمزنگاری‌شده</span>
+              </div>
+              <span className="text-[11px] font-semibold">سال مالی ۱۴۰۵</span>
             </div>
           </div>
 
-          {/* ── Interactive Brand Showcase (lg:col-span-7) ────────── */}
-          <div className="order-1 lg:order-2 lg:col-span-7 relative flex flex-col justify-between p-6 sm:p-8 lg:p-12 text-white overflow-hidden bg-gradient-to-br from-[#060D24] via-[#0B173B] to-[#122856]">
-            {/* 60fps Interactive HTML5 Canvas Reactive Field */}
-            <SalesPulseCanvas
-              mouse={mouse}
-              focusedField={focusedField}
-              typingPulseRef={typingPulseRef}
-              isMobile={isMobile}
-            />
+          {/* ── Left Side: Executive Showcase Bento Pane (7 Cols) ───── */}
+          <div className="order-1 lg:order-2 lg:col-span-7 relative p-7 sm:p-10 lg:p-12 flex flex-col justify-between text-white overflow-hidden bg-gradient-to-br from-[#0F172A] via-[#1E1B4B] to-[#090D1A]">
+            {/* Ambient Internal Glows */}
+            <div className="absolute top-0 right-0 w-80 h-80 bg-[#0071E3]/25 rounded-full blur-3xl pointer-events-none" />
+            <div className="absolute bottom-0 left-0 w-80 h-80 bg-[#F59E0B]/20 rounded-full blur-3xl pointer-events-none" />
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-[#10B981]/15 rounded-full blur-3xl pointer-events-none" />
 
-            {/* Ambient Lighting Orbs inside Dark Showcase */}
-            <div className="absolute top-0 right-0 w-72 h-72 bg-emerald-500/20 rounded-full blur-3xl pointer-events-none" />
-            <div className="absolute bottom-0 left-0 w-72 h-72 bg-teal-500/20 rounded-full blur-3xl pointer-events-none" />
-
-            {/* 3D Tilt Wrapper for Brand Highlights (Desktop only, smooth damping) */}
-            <div
-              className="relative z-10 flex flex-col justify-between h-full transition-transform duration-200 ease-out"
-              style={{
-                transform: `rotateX(${tilt.x}deg) rotateY(${tilt.y}deg)`,
-                transformStyle: 'preserve-3d',
-              }}
-            >
-              <div>
-                {/* Sleek Floating Glass Squircle Logo */}
-                <div className="flex items-center justify-between">
-                  <div className="w-16 h-16 rounded-2xl bg-white/95 p-2 shadow-xl shadow-black/40 border border-white/30 flex items-center justify-center backdrop-blur-md">
-                    <img
-                      src="/login-logo.jpg"
-                      alt="شرکت کوپا گستر طلایی"
-                      className="w-full h-full object-contain"
-                    />
-                  </div>
-
-                  {/* Live Pulse Status Chip */}
-                  <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/[0.08] border border-white/15 backdrop-blur-md text-[11px] font-medium text-white/80 shadow-sm">
-                    <span className="relative flex h-2 w-2">
-                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#34C759] opacity-75" />
-                      <span className="relative inline-flex rounded-full h-2 w-2 bg-[#34C759]" />
-                    </span>
-                    <span>سامانه برخط پایش داده‌ها</span>
-                  </div>
-                </div>
-
-                {/* Brand Titles */}
-                <div className="mt-4 sm:mt-5">
-                  <div className="flex items-center gap-2">
-                    <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white">
-                      نبض فروش
-                    </h2>
-                    <span className="px-2 py-0.5 rounded-md bg-emerald-500/25 border border-emerald-500/35 text-emerald-400 text-[10px] font-bold">
-                      PRO
-                    </span>
-                  </div>
-                  <p className="text-xs sm:text-sm text-white/70 mt-1 font-medium">
-                    سامانه هوشمند پایش، تحلیل و پیش‌بینی فروش
-                  </p>
-                </div>
-
-                {/* Compact Feature Chips (Inline, NOT Giant Bars!) */}
-                <div className="flex flex-wrap gap-2.5 my-5 sm:my-8">
-                  {FEATURES.map(({ icon: Icon, text, color }) => (
-                    <div
-                      key={text}
-                      className="inline-flex items-center gap-2 px-3.5 py-2 rounded-full bg-white/[0.08] hover:bg-white/[0.14] border border-white/15 backdrop-blur-md text-xs font-semibold text-white/90 transition-all shadow-sm group cursor-default"
-                    >
-                      <span
-                        className="w-2 h-2 rounded-full shrink-0 transition-transform group-hover:scale-125"
-                        style={{ backgroundColor: color }}
-                      />
-                      <Icon size={14} className="text-white/75 group-hover:text-white transition-colors" />
-                      <span>{text}</span>
-                    </div>
-                  ))}
-                </div>
+            {/* Top Showcase Header */}
+            <div className="relative z-10 flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 shadow-sm shadow-emerald-400" />
+                <span className="text-xs font-bold text-white/90">سامانه جامع نبض فروش</span>
               </div>
+              <span className="px-3 py-1 rounded-full bg-white/10 border border-white/15 text-[11px] font-semibold text-white/80 backdrop-blur-md">
+                کوپا گستر طلایی
+              </span>
+            </div>
 
-              {/* Bottom Glass Showcase Footer */}
-              <div className="pt-4 border-t border-white/10 flex items-center justify-between text-xs text-white/60">
-                <div className="flex items-center gap-2">
-                  <span className="w-1.5 h-1.5 rounded-full bg-[#E4A53A]" />
-                  <span>شرکت <strong className="text-white font-bold">کوپا گستر طلایی</strong></span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="px-2.5 py-0.5 rounded-full bg-white/10 text-white/80 text-[10px] font-medium border border-white/10">
-                    سال مالی ۱۴۰۵
-                  </span>
-                </div>
+            {/* 3 Modular Pillars Cards */}
+            <div className="relative z-10 my-6 sm:my-8 space-y-3">
+              <p className="text-xs font-semibold text-white/60 tracking-wider mb-2">
+                ماژول‌های سه‌گانه تصمیم‌گیری هوشمند:
+              </p>
+
+              <div className="grid grid-cols-1 gap-2.5">
+                {PILLARS.map((pillar) => {
+                  const Icon = pillar.icon
+                  return (
+                    <motion.div
+                      key={pillar.id}
+                      whileHover={{ x: -4 }}
+                      transition={{ duration: 0.2 }}
+                      className={`rounded-2xl p-3.5 sm:p-4 bg-gradient-to-r ${pillar.bg} border ${pillar.border} backdrop-blur-xl transition-all shadow-sm flex items-center gap-3.5 group`}
+                    >
+                      <div
+                        className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 shadow-md"
+                        style={{ backgroundColor: `${pillar.color}25`, color: pillar.color }}
+                      >
+                        <Icon size={20} />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center justify-between gap-2">
+                          <h3 className="font-extrabold text-xs sm:text-sm text-white">
+                            {pillar.title}
+                          </h3>
+                          <span
+                            className="text-[10px] font-bold px-2 py-0.5 rounded-full border"
+                            style={{
+                              color: pillar.color,
+                              backgroundColor: `${pillar.color}15`,
+                              borderColor: `${pillar.color}35`,
+                            }}
+                          >
+                            {pillar.badge}
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-white/70 mt-1 truncate">
+                          {pillar.desc}
+                        </p>
+                      </div>
+                    </motion.div>
+                  )
+                })}
+              </div>
+            </div>
+
+            {/* Bottom Showcase Footer */}
+            <div className="relative z-10 pt-4 border-t border-white/10 flex items-center justify-between text-xs text-white/70">
+              <div className="flex items-center gap-2">
+                <Sparkles size={14} className="text-amber-400" />
+                <span>طراحی یکپارچه بر پایه سیستم اپل هایبرید گلس</span>
+              </div>
+              <div className="flex items-center gap-1.5 text-emerald-400 font-semibold">
+                <CheckCircle2 size={14} />
+                <span>تطابق کامل محاسبات</span>
               </div>
             </div>
           </div>
         </motion.div>
+      </main>
 
-        {/* ── Footer Copyright ─────────────────────────────────── */}
-        <p className="text-xs text-[#86868B] mt-5 text-center font-medium">
-          © ۱۴۰۵ <bdi dir="ltr">M.Kharaji</bdi> · تمامی حقوق محفوظ است
+      {/* ── Footer Copyright ────────────────────────────────────────── */}
+      <footer className="w-full text-center py-2 z-20">
+        <p className="text-xs text-[#86868B] dark:text-[#98989D] font-medium">
+          © ۱۴۰۵ شرکت کوپا گستر طلایی · تمامی حقوق محفوظ است
         </p>
-      </div>
+      </footer>
     </div>
   )
 }
