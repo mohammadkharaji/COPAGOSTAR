@@ -146,7 +146,7 @@ export default function ActivityRingsWidget({
     >
       <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
         <div>
-          <h2 className="text-base font-extrabold tracking-tight">{title || defaultTitle}</h2>
+          <h2 className="text-base font-extrabold tracking-normal">{title || defaultTitle}</h2>
           <p className="text-xs text-[#86868B] dark:text-[#98989D] mt-0.5">{subtitle || defaultSubtitle}</p>
         </div>
         <span
@@ -209,7 +209,7 @@ export default function ActivityRingsWidget({
 
             {/* Center Core Pulsing Glow Badge */}
             <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-              <span className="text-2xl font-black tabular-nums tracking-tighter" style={{ color: rings[0].color }}>
+              <span className="text-2xl font-black tabular-nums tracking-normal" style={{ color: rings[0].color }}>
                 {fa(rings[0].percentage)}٪
               </span>
               <span className="text-[10px] font-bold text-[#86868B] dark:text-[#98989D] -mt-0.5">

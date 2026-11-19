@@ -209,7 +209,7 @@ export default function MobileWidgetView({ principal, onNavigate, onLogout }) {
   const isVisitor = data?.role_view === 'visitor'
 
   return (
-    <div className={containerClass} dir="rtl">
+    <div className={containerClass} dir="rtl" style={{ fontFamily: "'Vazirmatn', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" }}>
       <div className="max-w-md mx-auto px-4 py-5 flex flex-col min-h-screen">
         {/* Top Floating App Bar */}
         <header className={`flex items-center justify-between p-3.5 rounded-2xl mb-4 ${glassCard}`}>
@@ -222,7 +222,7 @@ export default function MobileWidgetView({ principal, onNavigate, onLogout }) {
             </div>
             <div>
               <div className="flex items-center gap-1.5">
-                <h1 className="text-sm font-black tracking-tight leading-none">نبض فروش</h1>
+                <h1 className="text-sm font-black tracking-normal leading-tight">نبض فروش</h1>
                 <span className="text-[10px] px-1.5 py-0.5 rounded-md font-bold bg-[#0071E3]/15 text-[#0071E3] dark:text-[#38BDF8]">
                   کوپا گستر
                 </span>
@@ -464,7 +464,7 @@ export default function MobileWidgetView({ principal, onNavigate, onLogout }) {
                   <span className="text-xs text-slate-500 dark:text-slate-400 font-medium block mb-1">
                     فروش خالص جاری (با مالیات و عوارض)
                   </span>
-                  <div className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white tracking-tight whitespace-nowrap">
+                  <div className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white tracking-normal whitespace-nowrap">
                     {fa(data.net_rial_vat)} <span className="text-xs font-bold text-slate-400">ریال</span>
                   </div>
                 </div>
