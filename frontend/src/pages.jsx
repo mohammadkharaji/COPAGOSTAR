@@ -1388,52 +1388,132 @@ export function InactiveCustomersPage({ p, openCustomer, openVisitor }) {
 function InvoiceCompare({ p }) {
   const { isDark } = useAppearance()
   const r = useApi('/invoice-compare', { ...p, day: p.end ? p.end.replaceAll('-', '/') : undefined })
-  const row = (label, key, fmt) => {
-    const ch = r.data?.change?.[key]
-    return (
-      <tr key={key} className={`border-b transition-colors ${isDark ? 'border-white/[0.04] hover:bg-white/[0.02]' : 'border-slate-100 hover:bg-slate-50/50'}`}>
-        <td className={`py-3 px-4 text-xs font-semibold ${isDark ? 'text-slate-200' : 'text-slate-800'}`}>{label}</td>
-        <td className={`py-3 px-4 text-xs tabular-nums font-bold ${isDark ? 'text-emerald-400' : 'text-emerald-700'}`}>{r.data ? fmt(r.data.current[key]) : '—'}</td>
-        <td className={`py-3 px-4 text-xs tabular-nums ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>{r.data ? fmt(r.data.previous[key]) : '—'}</td>
-        <td className="py-3 px-4 text-xs font-bold tabular-nums">
-          {ch == null ? (
-            '—'
-          ) : (
-            <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-xs font-semibold ${
-              ch >= 0
-                ? isDark ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/25' : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                : isDark ? 'bg-rose-500/15 text-rose-400 border border-rose-500/25' : 'bg-rose-50 text-rose-700 border border-rose-200'
-            }`}>
-              {ch >= 0 ? '+' : ''}{pct(ch, 1)}
-            </span>
-          )}
-        </td>
-      </tr>
-    )
-  }
   if (!r.data || !r.data.available) return null
+
+  const daysCur = fa(r.data.current.to % 100)
+  const items = [
+    {
+      label: 'تعداد فاکتور فروش',
+      current: fa(r.data.current.invoices),
+      curUnit: 'فقره فاکتور',
+      previous: fa(r.data.previous.invoices),
+      prevUnit: 'فقره',
+      change: r.data.change.invoices,
+      icon: FileText,
+      curRaw: r.data.current.invoices,
+      prevRaw: r.data.previous.invoices,
+    },
+    {
+      label: 'جمع فروش فاکتورها',
+      current: rial(r.data.current.sales_rial),
+      curUnit: `${billions(r.data.current.sales_rial).toFixed(1)} میلیارد ریال`,
+      previous: rial(r.data.previous.sales_rial),
+      prevUnit: `${billions(r.data.previous.sales_rial).toFixed(1)} م.ر`,
+      change: r.data.change.sales_rial,
+      icon: CircleDollarSign,
+      curRaw: r.data.current.sales_rial,
+      prevRaw: r.data.previous.sales_rial,
+    },
+    {
+      label: 'میانگین هر فاکتور (AOV)',
+      current: rial(r.data.current.avg_invoice_rial),
+      curUnit: 'ریال در فاکتور',
+      previous: rial(r.data.previous.avg_invoice_rial),
+      prevUnit: 'ریال',
+      change: r.data.change.avg_invoice_rial,
+      icon: TrendingUp,
+      curRaw: r.data.current.avg_invoice_rial,
+      prevRaw: r.data.previous.avg_invoice_rial,
+    },
+  ]
+
   return (
     <AppleCard
-      title="مقایسه با همان روز ماه قبل"
+      title="مقایسه عملکرد با مدت مشابه ماه قبل"
       subtitle={`از ابتدای ماه تا ${r.data.day} در برابر همان بازه در ماه قبل`}
-      badge={`این ماه: ${fa(r.data.current.to % 100)} روز`}
+      badge={`این ماه: ${daysCur} روز`}
     >
-      <div className="overflow-x-auto">
-        <table className="w-full text-right text-sm">
-          <thead>
-            <tr className={`border-b text-xs ${isDark ? 'border-white/[0.06] text-slate-400' : 'border-slate-200 text-slate-500'}`}>
-              <th className="py-2.5 px-4 font-semibold">شاخص</th>
-              <th className="py-2.5 px-4 font-semibold">{`این ماه (${fa(r.data.current.to % 100)} روز)`}</th>
-              <th className="py-2.5 px-4 font-semibold">ماه قبل</th>
-              <th className="py-2.5 px-4 font-semibold">تغییر</th>
-            </tr>
-          </thead>
-          <tbody>
-            {row('تعداد فاکتور', 'invoices', (v) => fa(v))}
-            {row('جمع فروش فاکتورها (ریال)', 'sales_rial', (v) => rial(v))}
-            {row('میانگین هر فاکتور (ریال)', 'avg_invoice_rial', (v) => rial(v))}
-          </tbody>
-        </table>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-1">
+        {items.map((it) => {
+          const ch = it.change
+          const isUp = ch != null && ch >= 0
+          const Icon = it.icon
+          const maxRaw = Math.max(it.curRaw || 1, it.prevRaw || 1)
+          const curPct = Math.min(100, Math.round(((it.curRaw || 0) / maxRaw) * 100))
+          const prevPct = Math.min(100, Math.round(((it.prevRaw || 0) / maxRaw) * 100))
+
+          return (
+            <div
+              key={it.label}
+              className={`p-4 rounded-2xl border transition-all flex flex-col justify-between ${
+                isDark ? 'bg-black/25 border-white/5 hover:border-white/10' : 'bg-slate-50 border-slate-200/60 hover:shadow-xs'
+              }`}
+            >
+              <div>
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${
+                      isDark ? 'bg-emerald-500/15 text-emerald-400' : 'bg-emerald-50 text-emerald-700'
+                    }`}>
+                      <Icon size={16} />
+                    </div>
+                    <span className={`text-xs font-bold ${isDark ? 'text-slate-200' : 'text-slate-800'}`}>
+                      {it.label}
+                    </span>
+                  </div>
+
+                  {ch != null && (
+                    <span className={`inline-flex items-center gap-0.5 px-2.5 py-0.5 rounded-full text-xs font-extrabold tabular-nums ${
+                      isUp
+                        ? isDark ? 'bg-emerald-500/15 text-emerald-300 border border-emerald-500/30' : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                        : isDark ? 'bg-rose-500/15 text-rose-300 border border-rose-500/30' : 'bg-rose-50 text-rose-700 border border-rose-200'
+                    }`}>
+                      {isUp ? '▲ +' : '▼ '}{pct(Math.abs(ch), 1)}
+                    </span>
+                  )}
+                </div>
+
+                {/* Values comparison */}
+                <div className="space-y-2 mt-2">
+                  <div>
+                    <div className="flex items-baseline justify-between text-xs">
+                      <span className={`text-[11px] ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>این ماه ({daysCur} روز):</span>
+                      <span className={`text-base font-black tabular-nums ${isDark ? 'text-emerald-400' : 'text-emerald-700'}`}>
+                        {it.current}
+                      </span>
+                    </div>
+                    {it.curUnit && (
+                      <div className={`text-[10px] text-left tabular-nums ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                        {it.curUnit}
+                      </div>
+                    )}
+                    <div className={`h-1.5 rounded-full mt-1.5 overflow-hidden ${isDark ? 'bg-white/5' : 'bg-slate-200'}`}>
+                      <div
+                        className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-teal-400 transition-all"
+                        style={{ width: `${curPct}%` }}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="pt-1.5 border-t border-white/5">
+                    <div className="flex items-baseline justify-between text-xs">
+                      <span className={`text-[11px] ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>مدت مشابه ماه قبل:</span>
+                      <span className={`text-sm font-semibold tabular-nums ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
+                        {it.previous}
+                      </span>
+                    </div>
+                    <div className={`h-1.5 rounded-full mt-1.5 overflow-hidden ${isDark ? 'bg-white/5' : 'bg-slate-200'}`}>
+                      <div
+                        className={`h-full rounded-full transition-all ${isDark ? 'bg-slate-600' : 'bg-slate-400'}`}
+                        style={{ width: `${prevPct}%` }}
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )
+        })}
       </div>
     </AppleCard>
   )
@@ -1700,26 +1780,23 @@ export function TicketsPage({ isAdmin }) {
   )
 }
 
-function InvoiceLinesSection({ p }) {
+function InvoiceLinesSection({ p, linesState }) {
   const { isDark } = useAppearance()
-  const r = useApi('/invoice-lines', p)
+  const fallback = useApi('/invoice-lines', p)
+  const r = linesState || fallback
+
   return (
     <Status state={r}>{(j) => {
-      const buckets = j.buckets.map((b) => ({ ...b, label: b.open_ended ? `${fa(b.lines)}+` : fa(b.lines) }))
+      const buckets = (j.buckets ?? []).map((b) => ({ ...b, label: b.open_ended ? `${fa(b.lines)}+ سطر` : `${fa(b.lines)} سطر` }))
+      const maxBucket = buckets.reduce((max, b) => ((b.invoices || 0) > (max?.invoices || 0) ? b : max), buckets[0])
+
       return (
         <div className="space-y-5">
-          {/* 3 Compact Dark Emerald KPI Cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 sm:gap-3 w-full">
-            <AppleKpiCard label="تعداد سطر فاکتور" value={fa(j.total_lines)} unit="سطر · بدون پروموشن و مرجوعی" icon={FileText} tone="blue" />
-            <AppleKpiCard label="میانگین سطر هر فاکتور" value={fa2(j.avg_lines_per_invoice)} unit="سطر در فاکتور" icon={BarChart3} tone="teal" />
-            <AppleKpiCard label="میانگین ریال هر سطر" value={j.avg_rial_per_line == null ? '—' : rial(j.avg_rial_per_line)} unit="ریال" icon={CircleDollarSign} tone="green" />
-          </div>
-
           {/* Distribution Chart Bento */}
           <AppleCard
-            title="توزیع فاکتورها بر حسب تعداد سطر"
-            subtitle="محور افقی: تعداد سطر در فاکتور · عمودی: تعداد فاکتور"
-            badge="توزیع سطر"
+            title="توزیع فاکتورها بر حسب تعداد سطر (عمق سبد خرید)"
+            subtitle={maxBucket ? `تمرکز اصلی روی فاکتورهای ${maxBucket.label} با ${fa(maxBucket.invoices)} فقره (${pct(maxBucket.invoice_share, 1)} از کل فاکتورها)` : 'محور افقی: تعداد سطر در فاکتور · عمودی: تعداد فاکتور'}
+            badge="توزیع اقلام"
           >
             <div className="h-72 w-full mt-2" dir="ltr">
               <ResponsiveContainer width="100%" height="100%">
@@ -1731,10 +1808,21 @@ function InvoiceLinesSection({ p }) {
                     </linearGradient>
                   </defs>
                   <CartesianGrid vertical={false} stroke={isDark ? 'rgba(255,255,255,0.06)' : '#E5E5EA'} strokeDasharray="3 3" />
-                  <XAxis dataKey="label" reversed tickLine={false} axisLine={false} tick={{ fill: isDark ? '#94A3B8' : '#86868B', fontSize: 12, fontFamily: 'Vazirmatn' }} />
+                  <XAxis dataKey="label" reversed tickLine={false} axisLine={false} tick={{ fill: isDark ? '#94A3B8' : '#86868B', fontSize: 11, fontFamily: 'Vazirmatn' }} />
                   <YAxis orientation="right" tickFormatter={(v) => fa(v)} tickLine={false} axisLine={false} width={55} tick={{ fill: isDark ? '#94A3B8' : '#86868B', fontSize: 12, fontFamily: 'Vazirmatn' }} />
-                  <Tooltip content={<ChartTip unit="فاکتور" />} cursor={{ fill: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.03)' }} />
-                  <Bar dataKey="invoices" name="تعداد فاکتور" fill="url(#emeraldLinesBar)" radius={[6, 6, 0, 0]} maxBarSize={36} />
+                  <Tooltip
+                    content={
+                      <ChartTip
+                        unit="فاکتور"
+                        valueFn={(v, payload) => {
+                          const item = payload?.payload
+                          return item ? `${fa(v)} فقره (${pct(item.invoice_share, 1)})` : fa(v)
+                        }}
+                      />
+                    }
+                    cursor={{ fill: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.03)' }}
+                  />
+                  <Bar dataKey="invoices" name="تعداد فاکتور" fill="url(#emeraldLinesBar)" radius={[6, 6, 0, 0]} maxBarSize={38} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -1742,23 +1830,87 @@ function InvoiceLinesSection({ p }) {
 
           {/* Tables Row: Line Distribution Table + Monthly Trend Table */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 w-full items-start">
-            <AppleCard title="جدول سطر فاکتور" subtitle="فقط فروش عادی؛ آخرین ردیف یعنی ۱۰ سطر یا بیشتر">
+            <AppleCard title="جدول سطر فاکتور" subtitle="فقط فروش عادی؛ آخرین ردیف شامل ۱۰ سطر یا بیشتر است" badge={`${fa(buckets.length)} ردیف`}>
               <Table name="توزیع-سطر-فاکتور" rows={buckets} columns={[
-                { label: 'تعداد سطر در فاکتور', render: (b) => <span className={`font-semibold ${isDark ? 'text-slate-200' : 'text-slate-800'}`}>{b.label}</span>, value: (b) => b.lines },
-                { label: 'تعداد فاکتور', render: (b) => <span className="tabular-nums">{fa(b.invoices)}</span>, value: (b) => b.invoices },
+                {
+                  label: 'سطر در فاکتور',
+                  render: (b) => (
+                    <span className={`font-bold px-2 py-0.5 rounded-md text-xs ${
+                      isDark ? 'bg-white/5 text-slate-100' : 'bg-slate-100 text-slate-900'
+                    }`}>
+                      {b.label}
+                    </span>
+                  ),
+                  value: (b) => b.lines,
+                },
+                { label: 'تعداد فاکتور', render: (b) => <span className="tabular-nums font-bold">{fa(b.invoices)}</span>, value: (b) => b.invoices },
                 { label: 'جمع سطرها', render: (b) => <span className="tabular-nums">{fa(b.line_count)}</span>, value: (b) => b.line_count },
-                { label: 'سهم از فاکتورها', render: (b) => <span className="tabular-nums">{pct(b.invoice_share, 1)}</span>, value: (b) => b.invoice_share * 100, unit: '٪' },
-                { label: 'سهم تجمعی فاکتور', render: (b) => <span className={`tabular-nums font-semibold ${isDark ? 'text-teal-400' : 'text-teal-700'}`}>{pct(b.cum_invoice_share, 1)}</span>, value: (b) => b.cum_invoice_share * 100, unit: '٪' },
+                {
+                  label: 'سهم از فاکتورها',
+                  render: (b) => (
+                    <div className="flex items-center gap-2 min-w-[90px]">
+                      <div className={`flex-1 h-2 rounded-full overflow-hidden ${isDark ? 'bg-white/10' : 'bg-slate-200'}`}>
+                        <div
+                          className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-teal-400"
+                          style={{ width: `${Math.min(100, Math.max(4, b.invoice_share * 100))}%` }}
+                        />
+                      </div>
+                      <span className="text-xs font-bold tabular-nums min-w-[34px] text-left">
+                        {pct(b.invoice_share, 1)}
+                      </span>
+                    </div>
+                  ),
+                  value: (b) => b.invoice_share * 100,
+                  unit: '٪',
+                },
+                {
+                  label: 'سهم تجمعی',
+                  render: (b) => (
+                    <span className={`tabular-nums font-bold text-xs px-2 py-0.5 rounded-md ${
+                      isDark ? 'bg-teal-500/10 text-teal-300' : 'bg-teal-50 text-teal-700'
+                    }`}>
+                      {pct(b.cum_invoice_share, 1)}
+                    </span>
+                  ),
+                  value: (b) => b.cum_invoice_share * 100,
+                  unit: '٪',
+                },
               ]} />
             </AppleCard>
 
-            <AppleCard title="روند ماهانه سطر فاکتور" subtitle="میانگین سطر هر فاکتور در هر ماه">
-              <Table name="سطر-فاکتور-ماهانه" rows={j.months} columns={[
-                { label: 'ماه', render: (m) => <span className={`font-semibold ${isDark ? 'text-slate-200' : 'text-slate-800'}`}>{monthLabel(m.year_month)}</span>, value: (m) => m.year_month },
-                { label: 'تعداد فاکتور', render: (m) => <span className="tabular-nums">{fa(m.invoices)}</span>, value: (m) => m.invoices },
+            <AppleCard title="روند ماهانه سطر فاکتور" subtitle="میانگین سطر هر فاکتور در هر ماه" badge={`${fa(j.months?.length || 0)} ماه`}>
+              <Table name="سطر-فاکتور-ماهانه" rows={j.months || []} columns={[
+                {
+                  label: 'ماه',
+                  render: (m) => <span className={`font-bold ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>{monthName(m.year_month)}</span>,
+                  value: (m) => m.year_month,
+                },
+                { label: 'تعداد فاکتور', render: (m) => <span className="tabular-nums font-semibold">{fa(m.invoices)}</span>, value: (m) => m.invoices },
                 { label: 'تعداد سطر', render: (m) => <span className="tabular-nums">{fa(m.lines)}</span>, value: (m) => m.lines },
-                { label: 'میانگین سطر هر فاکتور', render: (m) => <span className={`tabular-nums font-bold ${isDark ? 'text-emerald-400' : 'text-emerald-700'}`}>{fa2(m.avg_lines_per_invoice)}</span>, value: (m) => m.avg_lines_per_invoice ?? 0 },
-                { label: 'فروش عادی (ریال)', render: (m) => <span className="tabular-nums">{rial(m.sales_rial)}</span>, value: (m) => m.sales_rial },
+                {
+                  label: 'میانگین سطر',
+                  render: (m) => (
+                    <span className={`tabular-nums font-black text-xs px-2 py-0.5 rounded-md ${
+                      isDark ? 'bg-emerald-500/15 text-emerald-400' : 'bg-emerald-50 text-emerald-700'
+                    }`}>
+                      {fa2(m.avg_lines_per_invoice)}
+                    </span>
+                  ),
+                  value: (m) => m.avg_lines_per_invoice ?? 0,
+                },
+                {
+                  label: 'فروش عادی',
+                  render: (m) => (
+                    <div className="flex flex-col">
+                      <span className={`tabular-nums font-bold ${isDark ? 'text-emerald-400' : 'text-emerald-700'}`}>{rial(m.sales_rial)}</span>
+                      <span className={`text-[10px] tabular-nums font-normal ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                        {billions(m.sales_rial).toFixed(1)} م.ر
+                      </span>
+                    </div>
+                  ),
+                  value: (m) => m.sales_rial,
+                  unit: 'ریال',
+                },
               ]} />
             </AppleCard>
           </div>
@@ -1771,26 +1923,108 @@ function InvoiceLinesSection({ p }) {
 export function InvoicePage({ p }) {
   const { isDark } = useAppearance()
   const [step, setStep] = useState('10000000')
-  const r = useApi('/invoice-bands', { ...p, step })
+  const bandsApi = useApi('/invoice-bands', { ...p, step })
+  const linesApi = useApi('/invoice-lines', p)
+
   return (
     <div className="w-full max-w-[1600px] mx-auto space-y-5">
-      <Status state={r}>{(j) => {
+      <Status state={bandsApi}>{(j) => {
+        const lines = linesApi.data
+        const totalInvoices = j.total_invoices || 0
+        const totalRial = j.total_rial || 0
+        const avgInvoice = totalInvoices > 0 ? Math.round(totalRial / totalInvoices) : 0
+
         return (
           <>
-            {/* Top 3 Compact Dark Emerald KPI Cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 sm:gap-3 w-full">
-              <AppleKpiCard label="تعداد فاکتور فروش" value={fa(j.total_invoices)} unit="فقره" icon={FileText} tone="blue" />
-              <AppleKpiCard label="جمع فروش فاکتورها" value={rial(j.total_rial)} unit="ریال" icon={CircleDollarSign} tone="teal" />
-              <AppleKpiCard label="میانگین هر فاکتور" value={j.total_invoices ? rial(j.total_rial / j.total_invoices) : '—'} unit="ریال" icon={TrendingUp} tone="green" />
+            {/* Executive Invoice Hero Card */}
+            <div
+              className={`rounded-2xl sm:rounded-3xl border transition-all p-4 sm:p-6 overflow-hidden relative ${
+                isDark
+                  ? 'bg-[#0B100E]/85 backdrop-blur-2xl border-emerald-500/20 shadow-[0_12px_40px_rgba(0,0,0,0.5)]'
+                  : 'bg-white/95 backdrop-blur-xl border-slate-200/90 shadow-[0_8px_30px_rgb(0,0,0,0.04)]'
+              }`}
+            >
+              {isDark && (
+                <div className="absolute top-0 right-0 left-0 h-1 bg-gradient-to-r from-emerald-500 via-teal-400 to-emerald-600 opacity-70" />
+              )}
+
+              <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-5">
+                {/* Right: Emblem, Title & Tags */}
+                <div className="flex items-start sm:items-center gap-3.5 sm:gap-4 min-w-0">
+                  <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-700 flex items-center justify-center text-white shadow-lg shadow-emerald-900/40 text-xl font-black shrink-0">
+                    <FileText size={28} className="text-white" />
+                  </div>
+
+                  <div className="space-y-1.5 min-w-0">
+                    <div className="flex items-center gap-2 sm:gap-2.5 flex-wrap">
+                      <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold ${
+                        isDark ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/25' : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                      }`}>
+                        تحلیل فاکتور
+                      </span>
+                      <h1 className={`text-xl sm:text-2xl font-black tracking-tight truncate ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                        آنالیز ساختار و توزیع فاکتورهای فروش
+                      </h1>
+                    </div>
+
+                    <div className={`flex items-center gap-2 sm:gap-3 text-xs flex-wrap ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
+                      <div className="flex items-center gap-1.5">
+                        <span className={isDark ? 'text-slate-400' : 'text-slate-500'}>مجموع فاکتورهای صادرشده:</span>
+                        <span className={`font-mono font-bold px-2 py-0.5 rounded-md ${isDark ? 'bg-white/5 text-slate-200' : 'bg-slate-100 text-slate-800'}`}>
+                          {fa(totalInvoices)} فقره
+                        </span>
+                      </div>
+
+                      {lines && (
+                        <div className="flex items-center gap-1.5">
+                          <span className={isDark ? 'text-slate-400' : 'text-slate-500'}>عمق فاکتور:</span>
+                          <span className="font-semibold text-emerald-400">
+                            میانگین {fa2(lines.avg_lines_per_invoice)} سطر در هر فاکتور
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Left: Financial Highlights */}
+                <div className="flex items-center gap-2.5 text-right w-full lg:w-auto justify-between lg:justify-end shrink-0 border-t lg:border-t-0 pt-3 lg:pt-0 border-white/5">
+                  <div className={`p-2.5 sm:p-3 rounded-2xl border text-right ${isDark ? 'bg-black/35 border-white/10' : 'bg-slate-50 border-slate-200'}`}>
+                    <span className={`text-[10px] block font-medium ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>مجموع فروش فاکتورها</span>
+                    <span className={`text-base sm:text-lg font-black tabular-nums ${isDark ? 'text-emerald-400' : 'text-emerald-700'}`}>
+                      {billions(totalRial).toFixed(1)} <span className="text-[10px] font-normal">میلیارد ریال</span>
+                    </span>
+                  </div>
+                  <div className={`p-2.5 sm:p-3 rounded-2xl border text-right ${isDark ? 'bg-black/35 border-white/10' : 'bg-slate-50 border-slate-200'}`}>
+                    <span className={`text-[10px] block font-medium ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>میانگین هر فاکتور (AOV)</span>
+                    <span className={`text-base sm:text-lg font-bold tabular-nums ${isDark ? 'text-teal-300' : 'text-teal-700'}`}>
+                      {rial(avgInvoice)} <span className="text-[10px] font-normal">ریال</span>
+                    </span>
+                  </div>
+                </div>
+              </div>
             </div>
 
+            {/* 6 Unified Symmetrical Apple Bento KPI Cards */}
+            <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-2.5 sm:gap-3.5 w-full">
+              <AppleKpiCard label="تعداد فاکتور فروش" value={fa(totalInvoices)} unit="فقره فاکتور صادرشده" icon={FileText} tone="blue" />
+              <AppleKpiCard label="جمع فروش فاکتورها" value={rial(totalRial)} unit={`${billions(totalRial).toFixed(1)} میلیارد ریال`} icon={CircleDollarSign} tone="teal" />
+              <AppleKpiCard label="میانگین هر فاکتور" value={avgInvoice ? rial(avgInvoice) : '—'} unit="ریال به ازای هر خرید" icon={TrendingUp} tone="green" />
+              <AppleKpiCard label="تعداد سطر فاکتور" value={lines ? fa(lines.total_lines) : '…'} unit="سطر بدون پروموشن و مرجوعی" icon={Layers} tone="amber" />
+              <AppleKpiCard label="میانگین سطر هر فاکتور" value={lines ? fa2(lines.avg_lines_per_invoice) : '…'} unit="قلم کالا در هر سبد خرید" icon={Package} tone="teal" />
+              <AppleKpiCard label="میانگین ریال هر سطر" value={lines?.avg_rial_per_line != null ? rial(lines.avg_rial_per_line) : '…'} unit="ریال به ازای هر سطر" icon={BarChart3} tone="green" />
+            </div>
+
+            {/* Comparison with same day last month (Executive Bento Cards) */}
             <InvoiceCompare p={p} />
-            <InvoiceLinesSection p={p} />
+
+            {/* Invoice Lines Section (Distribution Chart + 2 Tables) */}
+            <InvoiceLinesSection p={p} linesState={linesApi} />
 
             {/* Invoice Bands Section */}
             <AppleCard
-              title="جدول بازه‌های فاکتور"
-              subtitle="فقط فروش عادی؛ فاکتورهای با جمع منفی حذف است"
+              title="تحلیل بازه‌های مبلغی فاکتور"
+              subtitle="توزیع تعداد و سهم فروش عادی فاکتورها در پله‌های مختلف ریالی"
               badge="بازه مبالغ"
               action={
                 <div className={`flex items-center gap-1.5 p-1 rounded-xl flex-wrap ${isDark ? 'bg-black/30' : 'bg-slate-100'}`}>
@@ -1818,14 +2052,93 @@ export function InvoicePage({ p }) {
               }
             >
               <Table name="بازه-فاکتور" rows={j.bands} pageSize={50} columns={[
-                { label: 'از (ریال)', render: (b) => rial(b.from_rial), value: (b) => b.from_rial },
-                { label: 'تا (ریال)', render: (b) => rial(b.to_rial), value: (b) => b.to_rial },
-                { label: 'تعداد فاکتور', render: (b) => fa(b.invoices), value: (b) => b.invoices },
-                { label: 'سهم از فاکتورها', render: (b) => pct(b.invoice_share, 1), value: (b) => b.invoice_share * 100, unit: '٪' },
-                { label: 'سهم تجمعی فاکتور', render: (b) => <span className={`tabular-nums font-semibold ${isDark ? 'text-teal-400' : 'text-teal-700'}`}>{pct(b.cum_invoice_share, 1)}</span>, value: (b) => b.cum_invoice_share * 100, unit: '٪' },
-                { label: 'فروش (ریال)', render: (b) => <span className={`tabular-nums font-bold ${isDark ? 'text-emerald-400' : 'text-emerald-700'}`}>{rial(b.sales_rial)}</span>, value: (b) => b.sales_rial },
-                { label: 'سهم از فروش', render: (b) => pct(b.sales_share, 1), value: (b) => b.sales_share * 100, unit: '٪' },
-                { label: 'سهم تجمعی فروش', render: (b) => <span className={`tabular-nums font-semibold ${isDark ? 'text-teal-400' : 'text-teal-700'}`}>{pct(b.cum_sales_share, 1)}</span>, value: (b) => b.cum_sales_share * 100, unit: '٪' },
+                {
+                  label: 'بازه ریالی فاکتور',
+                  render: (b) => (
+                    <span className={`font-mono text-xs tabular-nums font-semibold ${isDark ? 'text-slate-200' : 'text-slate-800'}`}>
+                      {rial(b.from_rial)} تا {rial(b.to_rial)} ریال
+                    </span>
+                  ),
+                  value: (b) => b.from_rial,
+                },
+                {
+                  label: 'تعداد فاکتور',
+                  render: (b) => <span className="tabular-nums font-bold">{fa(b.invoices)}</span>,
+                  value: (b) => b.invoices,
+                },
+                {
+                  label: 'سهم از فاکتورها',
+                  render: (b) => (
+                    <div className="flex items-center gap-2 min-w-[90px]">
+                      <div className={`flex-1 h-2 rounded-full overflow-hidden ${isDark ? 'bg-white/10' : 'bg-slate-200'}`}>
+                        <div
+                          className="h-full rounded-full bg-gradient-to-r from-blue-500 to-indigo-400"
+                          style={{ width: `${Math.min(100, Math.max(4, b.invoice_share * 100))}%` }}
+                        />
+                      </div>
+                      <span className="text-xs font-bold tabular-nums min-w-[34px] text-left">
+                        {pct(b.invoice_share, 1)}
+                      </span>
+                    </div>
+                  ),
+                  value: (b) => b.invoice_share * 100,
+                  unit: '٪',
+                },
+                {
+                  label: 'سهم تجمعی فاکتور',
+                  render: (b) => (
+                    <span className={`tabular-nums font-bold text-xs px-2 py-0.5 rounded-md ${
+                      isDark ? 'bg-sky-500/10 text-sky-300' : 'bg-sky-50 text-sky-700'
+                    }`}>
+                      {pct(b.cum_invoice_share, 1)}
+                    </span>
+                  ),
+                  value: (b) => b.cum_invoice_share * 100,
+                  unit: '٪',
+                },
+                {
+                  label: 'مبلغ فروش',
+                  render: (b) => (
+                    <div className="flex flex-col">
+                      <span className={`tabular-nums font-bold ${isDark ? 'text-emerald-400' : 'text-emerald-700'}`}>{rial(b.sales_rial)}</span>
+                      <span className={`text-[10px] tabular-nums font-normal ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                        {billions(b.sales_rial).toFixed(1)} م.ر
+                      </span>
+                    </div>
+                  ),
+                  value: (b) => b.sales_rial,
+                  unit: 'ریال',
+                },
+                {
+                  label: 'سهم از کل فروش',
+                  render: (b) => (
+                    <div className="flex items-center gap-2 min-w-[90px]">
+                      <div className={`flex-1 h-2 rounded-full overflow-hidden ${isDark ? 'bg-white/10' : 'bg-slate-200'}`}>
+                        <div
+                          className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-teal-400"
+                          style={{ width: `${Math.min(100, Math.max(4, b.sales_share * 100))}%` }}
+                        />
+                      </div>
+                      <span className="text-xs font-bold tabular-nums min-w-[34px] text-left">
+                        {pct(b.sales_share, 1)}
+                      </span>
+                    </div>
+                  ),
+                  value: (b) => b.sales_share * 100,
+                  unit: '٪',
+                },
+                {
+                  label: 'سهم تجمعی فروش',
+                  render: (b) => (
+                    <span className={`tabular-nums font-bold text-xs px-2 py-0.5 rounded-md ${
+                      isDark ? 'bg-teal-500/10 text-teal-300' : 'bg-teal-50 text-teal-700'
+                    }`}>
+                      {pct(b.cum_sales_share, 1)}
+                    </span>
+                  ),
+                  value: (b) => b.cum_sales_share * 100,
+                  unit: '٪',
+                },
               ]} />
             </AppleCard>
           </>
