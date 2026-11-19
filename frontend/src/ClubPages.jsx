@@ -590,6 +590,14 @@ export function MyClub({ arg }) {
 export function MyVisitorClub({ arg }) {
   const { isDark } = useAppearance()
   const team = useApi('/club/visitor/team', {})
+  // Hooks must run in the same order on every render, so these sit above the early returns.
+  const [month, setMonth] = useState(null)
+  const planTypeEarly = team.data?.plan?.plan_type
+  const isLadder = planTypeEarly === 'ladder'
+  const target = useApi('/target', { by: 'visitor', month: '' }, !isLadder && !team.loading)
+  const sc = useApi('/club/visitor/scorecard',
+    { plan_id: team.data?.plan?.id, code: team.data?.code, ...(month ? { month } : {}) },
+    isLadder && team.data?.plan?.id != null)
   if (team.error) return <div className="w-full max-w-[1600px] mx-auto px-6 p-6" role="alert" dir="rtl"><div className="rounded-[28px] bg-rose-50/90 border border-rose-200 text-rose-700 p-5 text-xs font-semibold">{team.error}</div></div>
   if (team.loading) return <div className="w-full max-w-[1600px] mx-auto px-6 p-6 text-center text-xs text-[#86868B]" dir="rtl">در حال بارگذاری…</div>
 
@@ -606,12 +614,7 @@ export function MyVisitorClub({ arg }) {
     breakdown: team.data?.breakdown || [],
   }
   const customers = team.data?.portfolio_customers || team.data?.team || []
-  const [month, setMonth] = useState(null)
-  const isLadder = plan?.plan_type === 'ladder'
-  const target = useApi('/target', { by: 'visitor', month: '' }, !isLadder)
   const visTarget = (target.data?.rows ?? []).find((r) => r.code === team.data?.code)
-  const sc = useApi('/club/visitor/scorecard', { plan_id: plan?.id, code: team.data?.code, ...(month ? { month } : {}) },
-    isLadder && plan?.id != null)
 
   if (!plan) {
     return (
