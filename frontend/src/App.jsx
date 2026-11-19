@@ -4,7 +4,7 @@ import { ClubPage, MyClub, MyVisitorClub } from './ClubPages'
 import AdminPage from './AdminPage'
 import ChatPage from './ChatPage'
 import MobileWidgetView from './MobileWidgetView'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { Component, useEffect, useMemo, useRef, useState } from 'react'
 import { get, post, postJson, useApi } from './api'
 import { monthLabel, monthRange } from './format'
 import ExecutiveDashboard, { ExecShell, NAV } from './ExecutiveDashboard'
@@ -37,6 +37,66 @@ const initialState = () => {
   const dims = {}
   SHARED_KEYS.filter((k) => k !== 'month').forEach((k) => { if (q.get(k)) dims[k] = q.get(k) })
   return { core: CORES[q.get('core')] ? q.get('core') : 'kg', month: /^\d{6}$/.test(q.get('month') ?? '') ? q.get('month') : '', dims }
+}
+
+class ErrorBoundary extends Component {
+  constructor(props) {
+    super(props)
+    this.state = { hasError: false, error: null }
+  }
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error }
+  }
+  componentDidCatch(error, errorInfo) {
+    console.error('ErrorBoundary caught an error:', error, errorInfo)
+  }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="w-full max-w-[1200px] mx-auto p-6 my-8" dir="rtl">
+          <div className="rounded-3xl p-6 sm:p-8 bg-[#0B100E]/90 border border-emerald-500/20 text-[#F5F5F7] shadow-2xl backdrop-blur-xl space-y-4">
+            <div className="flex items-center gap-3">
+              <span className="w-10 h-10 rounded-2xl bg-rose-500/15 border border-rose-500/30 text-rose-400 flex items-center justify-center font-bold text-lg">
+                ⚠️
+              </span>
+              <div>
+                <h2 className="text-base font-bold text-slate-100">خطا در بارگذاری بخش</h2>
+                <p className="text-xs text-slate-400 mt-0.5">مشکلی در پردازش و نمایش این بخش رخ داده است.</p>
+              </div>
+            </div>
+            {this.state.error && (
+              <div className="p-4 rounded-2xl bg-black/40 border border-white/5 font-mono text-xs text-rose-300 overflow-x-auto" dir="ltr">
+                {this.state.error?.toString()}
+              </div>
+            )}
+            <div className="flex items-center gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => {
+                  this.setState({ hasError: false, error: null })
+                  window.location.reload()
+                }}
+                className="px-5 py-2.5 rounded-xl text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white transition-all cursor-pointer shadow-sm"
+              >
+                تلاش مجدد و بارگذاری صفحه
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  this.setState({ hasError: false, error: null })
+                  window.location.hash = '#overview'
+                }}
+                className="px-5 py-2.5 rounded-xl text-xs font-semibold bg-white/10 hover:bg-white/15 text-slate-200 transition-all cursor-pointer"
+              >
+                بازگشت به داشبورد
+              </button>
+            </div>
+          </div>
+        </div>
+      )
+    }
+    return this.props.children
+  }
 }
 
 export default function App({ onLogout }) {
@@ -219,47 +279,49 @@ export default function App({ onLogout }) {
       error={error} partial={partial} lastDataDate={health?.last_data_date} syncState={syncState} syncNotice={syncNotice} syncMessage={biData?.message} syncProgress={biData?.progress} onDismissNotice={() => setSyncNotice('')} onRefresh={startSync} onLogout={onLogout} user={principal.user}
       allowedPages={allowedPages} isAdmin={isAdmin} canSync={isAdmin}
     >
-      {page === 'admin' && isAdmin && <AdminPage />}
-      {page === 'chat' && <ChatPage />}
-      {page in CLUB_KIND && reports && (principal.is_admin
-        ? <ClubPage kind={CLUB_KIND[page]} core={core} arg={arg} />
-        : CLUB_KIND[page] === 'visitor' ? <MyVisitorClub arg={arg} /> : <MyClub arg={arg} />)}
-      {page && page !== 'admin' && !allowedCores.length && <div className="empty">برای این حساب هسته‌ای فعال نشده است.</div>}
-      {reports && page !== 'admin' && <>
-      {page === 'overview' && (
-        <ExecutiveDashboard
-          p={p}
-          cal={cal}
-          month={month}
-          setMonth={setMonth}
-          dims={dims}
-          onFilterChange={setDim}
-          filters={options.data ?? {}}
-          onReset={() => { setMonth(''); setDims({}) }}
-          onOpenReturns={() => go('returns')}
-          onOpenTickets={() => go('tickets')}
-          onNavigate={go}
-        />
-      )}
-      {page === 'trend' && <TrendPage p={p} />}
-      {page === 'monthly' && <MonthlyTrendPage p={p} />}
-      {page === 'target' && <TargetPage key={core} core={core} />}
-      {page === 'growth' && <GrowthPage p={p} />}
-      {page === 'branch' && <BranchRegionPage p={p} openProfile={openProfile} openVisitor={(c) => go('visitor', c)} />}
-      {page === 'product' && <ProductBrandPage p={p} openProfile={openProfile} />}
-      {page === 'profile' && <ProfilePage p={p} arg={arg} openProfile={openProfile} back={() => go('profile')} openCustomer={(c) => go('customer', c)} openVisitor={(c) => go('visitor', c)} />}
-      {page === 'pareto' && <ParetoPage p={p} openCustomer={(c) => go('customer', c)} openVisitor={(c) => go('visitor', c)} openProfile={openProfile} />}
-      {page === 'visitor' && <VisitorPage p={p} code={arg} setCode={(c) => go('visitor', c)} openCustomer={(c) => go('customer', c)} openReturns={(a) => go('returns', a)} />}
-      {page === 'returns' && <ReturnsPage p={p} arg={arg} setArg={(a) => go('returns', a)} openCustomer={(c) => go('customer', c)} onReason={(v) => setDim('reason', v)} />}
-      {page === 'quantity' && <QuantityPage p={p} />}
-      {page === 'invoice' && <InvoicePage p={p} />}
-      {page === 'inactive' && <InactiveCustomersPage p={p} openCustomer={(c) => go('customer', c)} openVisitor={(c) => go('visitor', c)} />}
-      {page === 'potential' && <PotentialCustomersPage p={p} openCustomer={(c) => go('customer', c)} openVisitor={(c) => go('visitor', c)} />}
-      {page === 'customer_metrics' && <CustomerMetricsPage p={p} core={core} setCore={setCore} openCustomer={(c) => go('customer', c)} />}
-      {page === 'customer' && <CustomerPage key={arg} core={core} code={arg} setCode={(c) => go('customer', c)} openReturns={(a) => go('returns', a)} />}
-      {page === 'health' && <HealthPage health={health} meta={meta} quality={quality} biSync={biSync} onTriggerBiSync={startSync} isAdmin={isAdmin} />}
-      {page === 'tickets' && <TicketsPage isAdmin={!!me.data?.is_admin} />}
-      </>}
+      <ErrorBoundary key={page}>
+        {page === 'admin' && isAdmin && <AdminPage />}
+        {page === 'chat' && <ChatPage />}
+        {page in CLUB_KIND && reports && (principal.is_admin
+          ? <ClubPage kind={CLUB_KIND[page]} core={core} arg={arg} />
+          : CLUB_KIND[page] === 'visitor' ? <MyVisitorClub arg={arg} /> : <MyClub arg={arg} />)}
+        {page && page !== 'admin' && !allowedCores.length && <div className="empty">برای این حساب هسته‌ای فعال نشده است.</div>}
+        {reports && page !== 'admin' && <>
+        {page === 'overview' && (
+          <ExecutiveDashboard
+            p={p}
+            cal={cal}
+            month={month}
+            setMonth={setMonth}
+            dims={dims}
+            onFilterChange={setDim}
+            filters={options.data ?? {}}
+            onReset={() => { setMonth(''); setDims({}) }}
+            onOpenReturns={() => go('returns')}
+            onOpenTickets={() => go('tickets')}
+            onNavigate={go}
+          />
+        )}
+        {page === 'trend' && <TrendPage p={p} />}
+        {page === 'monthly' && <MonthlyTrendPage p={p} />}
+        {page === 'target' && <TargetPage key={core} core={core} />}
+        {page === 'growth' && <GrowthPage p={p} />}
+        {page === 'branch' && <BranchRegionPage p={p} openProfile={openProfile} openVisitor={(c) => go('visitor', c)} />}
+        {page === 'product' && <ProductBrandPage p={p} openProfile={openProfile} />}
+        {page === 'profile' && <ProfilePage p={p} arg={arg} openProfile={openProfile} back={() => go('profile')} openCustomer={(c) => go('customer', c)} openVisitor={(c) => go('visitor', c)} />}
+        {page === 'pareto' && <ParetoPage p={p} openCustomer={(c) => go('customer', c)} openVisitor={(c) => go('visitor', c)} openProfile={openProfile} />}
+        {page === 'visitor' && <VisitorPage p={p} code={arg} setCode={(c) => go('visitor', c)} openCustomer={(c) => go('customer', c)} openReturns={(a) => go('returns', a)} />}
+        {page === 'returns' && <ReturnsPage p={p} arg={arg} setArg={(a) => go('returns', a)} openCustomer={(c) => go('customer', c)} onReason={(v) => setDim('reason', v)} />}
+        {page === 'quantity' && <QuantityPage p={p} />}
+        {page === 'invoice' && <InvoicePage p={p} />}
+        {page === 'inactive' && <InactiveCustomersPage p={p} openCustomer={(c) => go('customer', c)} openVisitor={(c) => go('visitor', c)} />}
+        {page === 'potential' && <PotentialCustomersPage p={p} openCustomer={(c) => go('customer', c)} openVisitor={(c) => go('visitor', c)} />}
+        {page === 'customer_metrics' && <CustomerMetricsPage p={p} core={core} setCore={setCore} openCustomer={(c) => go('customer', c)} />}
+        {page === 'customer' && <CustomerPage key={arg} core={core} code={arg} setCode={(c) => go('customer', c)} openReturns={(a) => go('returns', a)} />}
+        {page === 'health' && <HealthPage health={health} meta={meta} quality={quality} biSync={biSync} onTriggerBiSync={startSync} isAdmin={isAdmin} />}
+        {page === 'tickets' && <TicketsPage isAdmin={!!me.data?.is_admin} />}
+        </>}
+      </ErrorBoundary>
     </ExecShell>
   )
 }

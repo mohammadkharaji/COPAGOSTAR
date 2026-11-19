@@ -152,8 +152,8 @@ export default function ActivityRingsWidget({
         <span
           className="px-3 py-1 rounded-full text-xs font-bold"
           style={{
-            backgroundColor: `${rings[0].color}18`,
-            color: rings[0].color,
+            backgroundColor: `${rings[0]?.color || '#10B981'}18`,
+            color: rings[0]?.color || '#10B981',
           }}
         >
           Apple Activity

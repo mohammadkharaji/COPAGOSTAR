@@ -150,6 +150,7 @@ function PointsChart({ history, name }) {
 }
 
 function PlanForm({ kind, core, onCreated }) {
+  const { isDark } = useAppearance()
   const [name, setName] = useState('')
   const [start, setStart] = useState('')
   const [end, setEnd] = useState('')
@@ -384,7 +385,7 @@ function PointsView({ kind, core }) {
       }
     >
       <Table name="امتیازها" rows={rows} columns={[
-        { label: CLUBS[kind].codeLabel, render: (r) => <span className={`font-bold ${isDark ? 'text-slate-100' : 'text-[#1D1D1F]'}`} dir="ltr">{r.code}</span>, value: (r) => r.code },
+        { label: CLUBS[kind]?.codeLabel || 'کد', render: (r) => <span className={`font-bold ${isDark ? 'text-slate-100' : 'text-[#1D1D1F]'}`} dir="ltr">{r.code}</span>, value: (r) => r.code },
         { label: 'نام', render: (r) => r.name, value: (r) => r.name },
         { label: 'فروش خالص (ریال)', render: (r) => <span className={`tabular-nums font-semibold ${isDark ? 'text-slate-100' : 'text-[#1D1D1F]'}`}>{fa(r.sales_rial)}</span>, value: (r) => r.sales_rial },
         { label: 'امتیاز', render: (r) => <span className="tabular-nums font-extrabold text-emerald-400">{fa(r.points)}</span>, value: (r) => r.points },
@@ -408,7 +409,7 @@ export function ClubPage({ kind, core, arg }) {
             <Award size={20} />
           </span>
           <div>
-            <h1 className={`text-base font-bold ${isDark ? 'text-slate-100' : 'text-[#1D1D1F]'}`}>{CLUBS[kind].title}</h1>
+            <h1 className={`text-base font-bold ${isDark ? 'text-slate-100' : 'text-[#1D1D1F]'}`}>{CLUBS[kind]?.title || 'باشگاه'}</h1>
             <p className={`text-xs mt-0.5 ${isDark ? 'text-slate-400' : 'text-[#86868B]'}`}>مدیریت قوانین گیمیفیکیشن، پله‌ها و امتیازات</p>
           </div>
         </div>
@@ -438,8 +439,8 @@ export function MyClub({ arg }) {
   const [i, setI] = useState(0)
   if (me.error) return <div className="w-full max-w-[1600px] mx-auto px-6 p-6" role="alert" dir="rtl"><div className="rounded-[28px] bg-rose-50/90 border border-rose-200 text-rose-700 p-5 text-xs font-semibold">{me.error}</div></div>
   if (me.loading) return <div className="w-full max-w-[1600px] mx-auto px-6 p-6 text-center text-xs text-[#86868B]" dir="rtl">در حال بارگذاری…</div>
-  const { code, name, plans = [] } = me.data
-  const plan = plans[Math.min(i, plans.length - 1)]
+  const { code = '', name = '', plans = [] } = me.data || {}
+  const plan = plans.length ? plans[Math.min(i, plans.length - 1)] : null
   const activeTier = plan?.tier
 
   return (
@@ -601,7 +602,7 @@ export function MyVisitorClub({ arg }) {
   if (team.error) return <div className="w-full max-w-[1600px] mx-auto px-6 p-6" role="alert" dir="rtl"><div className="rounded-[28px] bg-rose-50/90 border border-rose-200 text-rose-700 p-5 text-xs font-semibold">{team.error}</div></div>
   if (team.loading) return <div className="w-full max-w-[1600px] mx-auto px-6 p-6 text-center text-xs text-[#86868B]" dir="rtl">در حال بارگذاری…</div>
 
-  const { plan } = team.data
+  const { plan } = team.data || {}
   // Requirement 2: Two clear sections (visitor_summary & portfolio_customers)
   const summary = team.data?.visitor_summary || {
     code: team.data?.code,
