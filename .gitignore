@@ -16,3 +16,5 @@ dist/
 *.tsv
 *.bak
 *.bak-*
+skill-updates/
+

@@ -16,9 +16,9 @@ import { login } from './api'
 
 // ── Compact Feature Highlights (Inline Chips) ───────────────────
 const FEATURES = [
-  { icon: Activity, text: 'روند فروش روزانه و ماهانه', color: '#0071E3' },
+  { icon: Activity, text: 'روند فروش روزانه و ماهانه', color: '#10B981' },
   { icon: Building2, text: 'عملکرد شعبه‌ها و ویزیتورها', color: '#E4A53A' },
-  { icon: TrendingUp, text: 'تحلیل رشد، افت و پارتو', color: '#2F9A88' },
+  { icon: TrendingUp, text: 'تحلیل رشد، افت و پارتو', color: '#059669' },
 ]
 
 /**
@@ -50,7 +50,7 @@ function SalesPulseCanvas({ mouse, focusedField, typingPulseRef, isMobile }) {
 
     const initNodes = (w, h) => {
       nodes.length = 0
-      const colors = ['#0071E3', '#38BDF8', '#E4A53A', '#2F9A88', '#60A5FA']
+      const colors = ['#10B981', '#059669', '#34D399', '#6EE7B7', '#047857']
       for (let i = 0; i < nodeCount; i++) {
         const ox = Math.random() * w
         const oy = Math.random() * h
@@ -184,7 +184,7 @@ function SalesPulseCanvas({ mouse, focusedField, typingPulseRef, isMobile }) {
           speed2: 0.5,
           amp1: 22,
           amp2: 12,
-          color: currentSecurity > 0.5 ? '#10B981' : '#0071E3',
+          color: currentSecurity > 0.5 ? '#10B981' : '#059669',
           alpha: 0.6,
           width: 2.0,
         },
@@ -325,7 +325,7 @@ function SalesPulseCanvas({ mouse, focusedField, typingPulseRef, isMobile }) {
         ctx.strokeStyle = r.type === 'password' || currentSecurity > 0.5 ? '#2F9A88' : '#38BDF8'
         ctx.lineWidth = 2.2
         ctx.globalAlpha = r.alpha * 0.85
-        ctx.shadowColor = r.type === 'password' ? '#2F9A88' : '#0071E3'
+        ctx.shadowColor = r.type === 'password' ? '#059669' : '#10B981'
         ctx.shadowBlur = 12
         ctx.stroke()
         ctx.restore()
@@ -434,12 +434,12 @@ export default function LoginPage({ onSuccess }) {
   return (
     <div
       dir="rtl"
-      className="min-h-screen w-full flex items-center justify-center p-4 sm:p-6 lg:p-10 bg-[#070B19] relative overflow-hidden select-none font-sans antialiased text-right selection:bg-[#0071E3]/30"
+      className="min-h-screen w-full flex items-center justify-center p-4 sm:p-6 lg:p-10 bg-[#070C0A] relative overflow-hidden select-none font-sans antialiased text-right selection:bg-emerald-500/30"
     >
       {/* ── Background Atmospheric Ambient Mesh Orbs ────────────── */}
-      <div className="absolute top-[-15%] right-[-10%] w-[640px] h-[640px] rounded-full bg-gradient-to-br from-[#0071E3]/25 via-[#38BDF8]/15 to-transparent blur-[140px] pointer-events-none" />
-      <div className="absolute bottom-[-15%] left-[-10%] w-[700px] h-[700px] rounded-full bg-gradient-to-tr from-[#2F9A88]/20 via-[#1D3557]/30 to-[#E4A53A]/15 blur-[150px] pointer-events-none" />
-      <div className="absolute top-[35%] left-[20%] w-[380px] h-[380px] rounded-full bg-[#0071E3]/10 blur-[120px] pointer-events-none" />
+      <div className="absolute top-[-15%] right-[-10%] w-[640px] h-[640px] rounded-full bg-gradient-to-br from-[#10B981]/20 via-[#059669]/15 to-transparent blur-[140px] pointer-events-none" />
+      <div className="absolute bottom-[-15%] left-[-10%] w-[700px] h-[700px] rounded-full bg-gradient-to-tr from-[#059669]/20 via-[#064E3B]/30 to-[#10B981]/15 blur-[150px] pointer-events-none" />
+      <div className="absolute top-[35%] left-[20%] w-[380px] h-[380px] rounded-full bg-[#10B981]/10 blur-[120px] pointer-events-none" />
 
       {/* Subtle background tech grid */}
       <div
@@ -506,7 +506,7 @@ export default function LoginPage({ onSuccess }) {
                       animate={{ opacity: 1, y: 0, scale: 1 }}
                       exit={{ opacity: 0, y: -4, scale: 0.94 }}
                       transition={{ duration: 0.18 }}
-                      className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-[#0071E3]/10 text-[#0071E3] border border-[#0071E3]/20"
+                      className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-emerald-500/15 text-emerald-700 border border-emerald-500/25"
                     >
                       <ShieldCheck size={14} />
                       <span>ورود امن به سامانه</span>
@@ -544,7 +544,7 @@ export default function LoginPage({ onSuccess }) {
                       spellCheck={false}
                       dir="ltr"
                       placeholder="نام کاربری"
-                      className="w-full bg-black/[0.03] border border-black/[0.06] focus:bg-white focus:border-[#0071E3] focus:ring-4 focus:ring-[#0071E3]/20 rounded-2xl pr-11 pl-11 py-3 text-sm text-[#1D1D1F] placeholder:text-[#86868B]/50 transition-all outline-none font-medium text-left [&:-webkit-autofill]:shadow-[0_0_0_1000px_#f8fafc_inset] [&:-webkit-autofill]:[-webkit-text-fill-color:#1D1D1F]"
+                      className="w-full bg-black/[0.03] border border-black/[0.06] focus:bg-white focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/20 rounded-2xl pr-11 pl-11 py-3 text-sm text-[#1D1D1F] placeholder:text-[#86868B]/50 transition-all outline-none font-medium text-left [&:-webkit-autofill]:shadow-[0_0_0_1000px_#f8fafc_inset] [&:-webkit-autofill]:[-webkit-text-fill-color:#1D1D1F]"
                       autoFocus
                       required
                     />
@@ -579,14 +579,14 @@ export default function LoginPage({ onSuccess }) {
                       className={`w-full bg-black/[0.03] border rounded-2xl pr-11 pl-11 py-3 text-sm text-[#1D1D1F] placeholder:text-[#86868B]/50 transition-all outline-none font-medium text-left [&:-webkit-autofill]:shadow-[0_0_0_1000px_#f8fafc_inset] [&:-webkit-autofill]:[-webkit-text-fill-color:#1D1D1F] ${
                         isPasswordFocused
                           ? 'bg-white border-[#2F9A88] ring-4 ring-[#2F9A88]/20'
-                          : 'border-black/[0.06] focus:bg-white focus:border-[#0071E3] focus:ring-4 focus:ring-[#0071E3]/20'
+                          : 'border-black/[0.06] focus:bg-white focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/20'
                       }`}
                       required
                     />
                     <button
                       type="button"
                       onClick={() => setShow((v) => !v)}
-                      className="absolute left-3.5 text-[#86868B] hover:text-[#1D1D1F] transition-colors p-1 rounded-lg"
+                      className="absolute left-3.5 text-[#86868B] hover:text-[#1D1D1F] transition-colors p-1 rounded-lg cursor-pointer"
                       aria-label={show ? 'پنهان کردن رمز' : 'نمایش رمز'}
                     >
                       {show ? <EyeOff size={18} /> : <Eye size={18} />}
@@ -611,7 +611,7 @@ export default function LoginPage({ onSuccess }) {
                 <button
                   type="submit"
                   disabled={busy || !username || !password}
-                  className="w-full mt-2 py-3.5 rounded-2xl bg-[#0071E3] text-white text-sm font-bold flex items-center justify-center gap-2 shadow-lg shadow-blue-500/25 hover:bg-[#0077ED] hover:-translate-y-0.5 hover:shadow-xl hover:shadow-blue-500/35 active:translate-y-0 transition-all disabled:opacity-50 disabled:pointer-events-none disabled:shadow-none cursor-pointer"
+                  className="w-full mt-2 py-3.5 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-sm font-bold flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/25 hover:-translate-y-0.5 hover:shadow-xl hover:shadow-emerald-500/35 active:translate-y-0 transition-all disabled:opacity-50 disabled:pointer-events-none disabled:shadow-none cursor-pointer"
                 >
                   <LogIn size={18} />
                   <span>{busy ? 'در حال ورود به سامانه…' : 'ورود به داشبورد'}</span>
@@ -637,8 +637,8 @@ export default function LoginPage({ onSuccess }) {
             />
 
             {/* Ambient Lighting Orbs inside Dark Showcase */}
-            <div className="absolute top-0 right-0 w-72 h-72 bg-[#0071E3]/20 rounded-full blur-3xl pointer-events-none" />
-            <div className="absolute bottom-0 left-0 w-72 h-72 bg-[#2F9A88]/20 rounded-full blur-3xl pointer-events-none" />
+            <div className="absolute top-0 right-0 w-72 h-72 bg-emerald-500/20 rounded-full blur-3xl pointer-events-none" />
+            <div className="absolute bottom-0 left-0 w-72 h-72 bg-teal-500/20 rounded-full blur-3xl pointer-events-none" />
 
             {/* 3D Tilt Wrapper for Brand Highlights (Desktop only, smooth damping) */}
             <div
@@ -675,7 +675,7 @@ export default function LoginPage({ onSuccess }) {
                     <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white">
                       نبض فروش
                     </h2>
-                    <span className="px-2 py-0.5 rounded-md bg-[#0071E3]/30 border border-[#0071E3]/40 text-[#38BDF8] text-[10px] font-bold">
+                    <span className="px-2 py-0.5 rounded-md bg-emerald-500/25 border border-emerald-500/35 text-emerald-400 text-[10px] font-bold">
                       PRO
                     </span>
                   </div>

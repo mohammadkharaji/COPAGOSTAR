@@ -9,8 +9,6 @@ import { Table } from './ui'
 import ActivityRingsWidget from './ActivityRingsWidget'
 import LadderPlanForm from './club/LadderPlanForm'
 import { DEFAULT_KPIS, validateConfig } from './club/ladder'
-import LadderLeaderboard from './club/LadderLeaderboard'
-import ReportCard, { linearRings, ringsFromScorecard } from './club/ReportCard'
 
 // One page per club, both backed by the same /api/club/<kind>/... routes. `kind` is 'b2b' or 'visitor'.
 const CLUBS = {
@@ -23,23 +21,25 @@ function AppleCard({ title, subtitle, badge, action, children, className = '' })
   const { isDark, isSolid } = useAppearance()
   return (
     <div
-      className={`apple-card rounded-[28px] border transition-all p-6 overflow-hidden w-full max-w-full ${
+      className={`apple-card rounded-2xl sm:rounded-3xl border transition-all p-4 sm:p-6 overflow-hidden w-full max-w-full ${
         isDark
-          ? 'bg-[#1C1C1E]/85 backdrop-blur-2xl border-white/10 text-[#F5F5F7] shadow-[0_8px_30px_rgba(0,0,0,0.4)]'
+          ? 'bg-[#0B100E]/75 backdrop-blur-2xl border-emerald-500/15 text-[#F5F5F7] shadow-[0_8px_30px_rgba(0,0,0,0.45)]'
           : isSolid
           ? 'bg-white border-slate-200 text-[#1D1D1F] shadow-xs'
-          : 'bg-white/85 backdrop-blur-xl border-black/[0.04] text-[#1D1D1F] shadow-[0_8px_30px_rgb(0,0,0,0.04)]'
+          : 'bg-white/90 backdrop-blur-xl border-slate-200/80 text-[#1D1D1F] shadow-[0_8px_30px_rgb(0,0,0,0.04)]'
       } ${className}`}
     >
       {(title || subtitle || badge || action) && (
-        <div className="flex items-center justify-between mb-5 flex-wrap gap-2">
+        <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
           <div>
-            {title && <h2 className={`text-base font-bold ${isDark ? 'text-[#F5F5F7]' : 'text-[#1D1D1F]'}`}>{title}</h2>}
-            {subtitle && <p className={`text-xs mt-0.5 ${isDark ? 'text-slate-400' : 'text-[#86868B]'}`}>{subtitle}</p>}
+            {title && <h2 className={`text-sm sm:text-base font-bold ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>{title}</h2>}
+            {subtitle && <p className={`text-xs mt-0.5 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>{subtitle}</p>}
           </div>
           <div className="flex items-center gap-2">
             {badge && (
-              <span className="px-3 py-1 rounded-full text-xs font-medium bg-[#0071E3]/10 text-[#0071E3]">
+              <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${
+                isDark ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/25' : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+              }`}>
                 {badge}
               </span>
             )}
@@ -52,56 +52,57 @@ function AppleCard({ title, subtitle, badge, action, children, className = '' })
   )
 }
 
-function AppleKpiCard({ label, value, unit, icon: Icon, tone = 'blue' }) {
+function AppleKpiCard({ label, value, unit, icon: Icon, tone = 'teal' }) {
   const { isDark, isSolid } = useAppearance()
   const tones = {
-    blue: 'bg-blue-500/10 text-blue-600',
-    teal: 'bg-teal-500/10 text-teal-600',
-    amber: 'bg-amber-500/10 text-amber-600',
-    violet: 'bg-violet-500/10 text-violet-600',
-    pink: 'bg-pink-500/10 text-pink-600',
+    blue: isDark ? 'bg-sky-500/15 text-sky-400 border border-sky-500/25' : 'bg-sky-50 text-sky-700',
+    teal: isDark ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/25' : 'bg-emerald-50 text-emerald-700',
+    amber: isDark ? 'bg-amber-500/15 text-amber-400 border border-amber-500/25' : 'bg-amber-50 text-amber-700',
+    violet: isDark ? 'bg-purple-500/15 text-purple-400 border border-purple-500/25' : 'bg-purple-50 text-purple-700',
+    pink: isDark ? 'bg-pink-500/15 text-pink-400 border border-pink-500/25' : 'bg-pink-50 text-pink-700',
   }
   return (
     <motion.div
-      whileHover={{ y: -3 }}
-      className={`apple-kpi-card rounded-3xl border transition-all p-5 flex flex-col justify-between text-right ${
+      whileHover={{ y: -2 }}
+      className={`apple-kpi-card rounded-2xl border transition-all p-3 sm:p-4 flex flex-col justify-between text-right ${
         isDark
-          ? 'bg-[#1C1C1E]/85 backdrop-blur-2xl border-white/10 text-[#F5F5F7] shadow-[0_4px_20px_rgba(0,0,0,0.3)] hover:shadow-[0_12px_30px_rgba(0,0,0,0.5)]'
+          ? 'bg-[#0B100E]/80 backdrop-blur-xl border-emerald-500/15 text-[#F5F5F7] shadow-[0_4px_20px_rgba(0,0,0,0.35)] hover:border-emerald-500/30'
           : isSolid
           ? 'bg-white border-slate-200 text-[#1D1D1F] shadow-xs hover:shadow-md'
-          : 'bg-white/85 backdrop-blur-xl border-black/[0.04] text-[#1D1D1F] shadow-[0_4px_20px_rgb(0,0,0,0.03)] hover:shadow-[0_12px_30px_rgb(0,0,0,0.07)]'
+          : 'bg-white/90 backdrop-blur-xl border-slate-200/80 text-[#1D1D1F] shadow-[0_4px_20px_rgb(0,0,0,0.03)] hover:shadow-[0_8px_25px_rgb(0,0,0,0.06)]'
       }`}
     >
-      <div className="flex items-center justify-between mb-3">
-        <span className={`text-xs font-medium ${isDark ? 'text-slate-400' : 'text-[#86868B]'}`}>{label}</span>
-        <div className={`w-8 h-8 rounded-2xl flex items-center justify-center shrink-0 ${tones[tone] || tones.blue}`}>
-          {Icon ? <Icon size={16} /> : null}
+      <div className="flex items-center justify-between mb-2">
+        <span className={`text-[11px] sm:text-xs font-medium truncate ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>{label}</span>
+        <div className={`w-7 h-7 sm:w-8 sm:h-8 rounded-xl flex items-center justify-center shrink-0 ${tones[tone] || tones.teal}`}>
+          {Icon ? <Icon size={14} className="sm:w-4 sm:h-4" /> : null}
         </div>
       </div>
       <div>
-        <div className={`text-xl font-extrabold tracking-tight tabular-nums truncate ${isDark ? 'text-[#F5F5F7]' : 'text-[#1D1D1F]'}`}>{value}</div>
-        <div className={`text-[11px] mt-1 truncate ${isDark ? 'text-slate-400' : 'text-[#86868B]'}`}>{unit}</div>
+        <div className={`text-base sm:text-xl font-sans font-bold tracking-tight tabular-nums truncate ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>{value}</div>
+        <div className={`text-[10px] sm:text-[11px] mt-0.5 truncate ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>{unit}</div>
       </div>
     </motion.div>
   )
 }
 
 function Progress({ value, label, subtitle }) {
+  const { isDark } = useAppearance()
   const pctv = Math.min(100, Math.max(0, Math.round((value ?? 0) * 100)))
   return (
     <div className="space-y-2" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={pctv} aria-label={label}>
-      <div className="flex justify-between items-center text-xs font-semibold text-[#1D1D1F]">
+      <div className={`flex justify-between items-center text-xs font-semibold ${isDark ? 'text-slate-200' : 'text-slate-800'}`}>
         <span>{label}</span>
-        <span className="tabular-nums font-bold text-[#0071E3]">{faDigits(pctv)}٪</span>
+        <span className={`tabular-nums font-bold ${isDark ? 'text-emerald-400' : 'text-emerald-700'}`}>{faDigits(pctv)}٪</span>
       </div>
-      <div className="h-3 bg-black/[0.05] rounded-full overflow-hidden p-0.5 border border-black/[0.03]">
+      <div className={`h-2.5 rounded-full overflow-hidden p-0.5 border ${isDark ? 'bg-black/30 border-white/5' : 'bg-slate-100 border-slate-200'}`}>
         <div
-          className="h-full rounded-full bg-gradient-to-r from-[#0071E3] via-[#34C759] to-[#30B0C7] transition-all duration-700 shadow-sm"
+          className="h-full rounded-full bg-gradient-to-r from-emerald-600 via-teal-500 to-emerald-400 transition-all duration-700 shadow-xs"
           style={{ width: `${pctv}%` }}
         />
       </div>
       {subtitle && (
-        <div className="text-[11px] font-medium text-[#86868B] text-left" dir="rtl">
+        <div className={`text-[11px] font-medium text-left ${isDark ? 'text-slate-400' : 'text-slate-500'}`} dir="rtl">
           {subtitle}
         </div>
       )}
@@ -131,8 +132,8 @@ function PointsChart({ history, name }) {
         <BarChart data={data} margin={{ top: 8, right: 8, left: 8, bottom: 0 }}>
           <defs>
             <linearGradient id="appleClubBar" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#0071E3" />
-              <stop offset="100%" stopColor="#42A1EC" />
+              <stop offset="0%" stopColor="#10B981" />
+              <stop offset="100%" stopColor="#059669" />
             </linearGradient>
           </defs>
           <CartesianGrid vertical={false} stroke="#E5E5EA" strokeDasharray="3 3" />
@@ -186,68 +187,98 @@ function PlanForm({ kind, core, onCreated }) {
       .catch((err) => setMsg(err.message))
   }
   return (
-    <form onSubmit={submit} className="mb-6 p-6 rounded-[24px] bg-[#F5F5F7] border border-black/[0.05] space-y-4" dir="rtl">
-      <h3 className="text-sm font-bold text-[#1D1D1F]">تعریف طرح جدید گیمیفیکیشن و وفاداری</h3>
+    <form onSubmit={submit} className={`mb-6 p-6 rounded-2xl sm:rounded-3xl border space-y-4 ${
+      isDark ? 'bg-[#0F1412] border-emerald-500/15' : 'bg-[#F5F5F7] border-black/[0.05]'
+    }`} dir="rtl">
+      <h3 className={`text-sm font-bold ${isDark ? 'text-slate-100' : 'text-[#1D1D1F]'}`}>تعریف طرح جدید گیمیفیکیشن و وفاداری</h3>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3">
         <div>
-          <label className="block text-xs font-medium text-[#86868B] mb-1">نام طرح</label>
-          <input className="w-full bg-white border border-black/[0.08] rounded-xl px-3 py-2 text-xs text-[#1D1D1F] focus:outline-none focus:ring-2 focus:ring-[#0071E3]/25" value={name} onChange={(e) => setName(e.target.value)} required minLength={2} />
+          <label className={`block text-xs font-medium mb-1 ${isDark ? 'text-slate-400' : 'text-[#86868B]'}`}>نام طرح</label>
+          <input className={`w-full border rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500/25 ${
+            isDark ? 'bg-white/5 border-white/10 text-slate-100' : 'bg-white border-black/[0.08] text-[#1D1D1F]'
+          }`} value={name} onChange={(e) => setName(e.target.value)} required minLength={2} />
         </div>
         <div>
-          <label className="block text-xs font-medium text-[#86868B] mb-1">شروع (۱۴۰۵۰۷۰۱)</label>
-          <input className="w-full bg-white border border-black/[0.08] rounded-xl px-3 py-2 text-xs text-[#1D1D1F] focus:outline-none focus:ring-2 focus:ring-[#0071E3]/25" value={start} onChange={(e) => setStart(e.target.value)} required inputMode="numeric" />
+          <label className={`block text-xs font-medium mb-1 ${isDark ? 'text-slate-400' : 'text-[#86868B]'}`}>شروع (۱۴۰۵۰۷۰۱)</label>
+          <input className={`w-full border rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500/25 ${
+            isDark ? 'bg-white/5 border-white/10 text-slate-100' : 'bg-white border-black/[0.08] text-[#1D1D1F]'
+          }`} value={start} onChange={(e) => setStart(e.target.value)} required inputMode="numeric" />
         </div>
         <div>
-          <label className="block text-xs font-medium text-[#86868B] mb-1">پایان (۱۴۰۵۰۷۳۰)</label>
-          <input className="w-full bg-white border border-black/[0.08] rounded-xl px-3 py-2 text-xs text-[#1D1D1F] focus:outline-none focus:ring-2 focus:ring-[#0071E3]/25" value={end} onChange={(e) => setEnd(e.target.value)} required inputMode="numeric" />
+          <label className={`block text-xs font-medium mb-1 ${isDark ? 'text-slate-400' : 'text-[#86868B]'}`}>پایان (۱۴۰۵۰۷۳۰)</label>
+          <input className={`w-full border rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500/25 ${
+            isDark ? 'bg-white/5 border-white/10 text-slate-100' : 'bg-white border-black/[0.08] text-[#1D1D1F]'
+          }`} value={end} onChange={(e) => setEnd(e.target.value)} required inputMode="numeric" />
         </div>
         {kind === 'visitor' && (
           <div>
-            <label className="block text-xs font-medium text-[#86868B] mb-1">نوع طرح</label>
-            <select className="w-full bg-white border border-black/[0.08] rounded-xl px-3 py-2 text-xs text-[#1D1D1F]" value={planType} onChange={(e) => setPlanType(e.target.value)}>
+            <label className={`block text-xs font-medium mb-1 ${isDark ? 'text-slate-400' : 'text-[#86868B]'}`}>نوع طرح</label>
+            <select className={`w-full border rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500/25 ${
+              isDark ? 'bg-[#0F1412] border-white/10 text-slate-100' : 'bg-white border-black/[0.08] text-[#1D1D1F]'
+            }`} value={planType} onChange={(e) => setPlanType(e.target.value)}>
               <option value="linear">خطی</option><option value="ladder">نردبان تحقق</option>
             </select>
           </div>
         )}
         {!isLadder && <div>
-          <label className="block text-xs font-medium text-[#86868B] mb-1">ریال به ازای امتیاز</label>
-          <input className="w-full bg-white border border-black/[0.08] rounded-xl px-3 py-2 text-xs text-[#1D1D1F] focus:outline-none focus:ring-2 focus:ring-[#0071E3]/25" value={rate} onChange={(e) => setRate(e.target.value)} required inputMode="numeric" />
+          <label className={`block text-xs font-medium mb-1 ${isDark ? 'text-slate-400' : 'text-[#86868B]'}`}>ریال به ازای امتیاز</label>
+          <input className={`w-full border rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500/25 ${
+            isDark ? 'bg-white/5 border-white/10 text-slate-100' : 'bg-white border-black/[0.08] text-[#1D1D1F]'
+          }`} value={rate} onChange={(e) => setRate(e.target.value)} required inputMode="numeric" />
         </div>}
         {!isLadder && <div>
-          <label className="block text-xs font-medium text-[#86868B] mb-1">هدف امتیاز (اختیاری)</label>
-          <input className="w-full bg-white border border-black/[0.08] rounded-xl px-3 py-2 text-xs text-[#1D1D1F] focus:outline-none focus:ring-2 focus:ring-[#0071E3]/25" value={target} onChange={(e) => setTarget(e.target.value)} inputMode="numeric" />
+          <label className={`block text-xs font-medium mb-1 ${isDark ? 'text-slate-400' : 'text-[#86868B]'}`}>هدف امتیاز (اختیاری)</label>
+          <input className={`w-full border rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500/25 ${
+            isDark ? 'bg-white/5 border-white/10 text-slate-100' : 'bg-white border-black/[0.08] text-[#1D1D1F]'
+          }`} value={target} onChange={(e) => setTarget(e.target.value)} inputMode="numeric" />
         </div>}
         {!isLadder && <div>
-          <label className="block text-xs font-medium text-[#86868B] mb-1">پله‌ها (مثال: 10,20,30,40)</label>
-          <input className="w-full bg-white border border-black/[0.08] rounded-xl px-3 py-2 text-xs text-[#1D1D1F] focus:outline-none focus:ring-2 focus:ring-[#0071E3]/25" placeholder="۴ آستانه عددی" value={tierPoints} onChange={(e) => setTierPoints(e.target.value)} />
+          <label className={`block text-xs font-medium mb-1 ${isDark ? 'text-slate-400' : 'text-[#86868B]'}`}>پله‌ها (مثال: 10,20,30,40)</label>
+          <input className={`w-full border rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500/25 ${
+            isDark ? 'bg-white/5 border-white/10 text-slate-100' : 'bg-white border-black/[0.08] text-[#1D1D1F]'
+          }`} placeholder="۴ آستانه عددی" value={tierPoints} onChange={(e) => setTierPoints(e.target.value)} />
         </div>}
       </div>
 
       {isLadder && <LadderPlanForm value={ladderCfg} onChange={setLadderCfg} />}
-      {!isLadder && <div className="p-4 rounded-2xl bg-white border border-black/[0.05] space-y-3">
+      {!isLadder && <div className={`p-4 rounded-2xl border space-y-3 ${
+        isDark ? 'bg-white/[0.02] border-white/10' : 'bg-white border-black/[0.05]'
+      }`}>
         <div className="flex items-center justify-between">
-          <span className="text-xs font-bold text-[#1D1D1F]">قوانین و ضرایب گیمیفیکیشن (اختیاری)</span>
+          <span className={`text-xs font-bold ${isDark ? 'text-slate-100' : 'text-[#1D1D1F]'}`}>قوانین و ضرایب گیمیفیکیشن (اختیاری)</span>
           <button
             type="button"
-            className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-semibold bg-[#0071E3]/10 text-[#0071E3] hover:bg-[#0071E3]/20 transition-colors"
+            className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-semibold bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25 transition-colors cursor-pointer"
             onClick={() => setRules((rs) => [...rs, { label: '', metric: 'rial', ratio: '100000', factor: '1', brand: '', new_customers: false }])}
           >
             <Plus size={13} />
             <span>افزودن قانون</span>
           </button>
         </div>
-        <p className="text-[11px] text-[#86868B]">اگر خالی بماند: امتیاز = فروش خالص (پس از کسر مرجوعی) ÷ ریال به ازای هر امتیاز.</p>
+        <p className={`text-[11px] ${isDark ? 'text-slate-400' : 'text-[#86868B]'}`}>اگر خالی بماند: امتیاز = فروش خالص (پس از کسر مرجوعی) ÷ ریال به ازای هر امتیاز.</p>
         {rules.map((r, i) => (
-          <div className="flex items-center gap-2 flex-wrap bg-[#F5F5F7] p-2.5 rounded-xl border border-black/[0.03]" key={i}>
-            <input className="bg-white border border-black/[0.08] rounded-lg px-2.5 py-1.5 text-xs text-[#1D1D1F]" placeholder="عنوان قانون" value={r.label} onChange={(e) => setRule(i, 'label', e.target.value)} />
-            <select className="bg-white border border-black/[0.08] rounded-lg px-2.5 py-1.5 text-xs text-[#1D1D1F]" value={r.metric} onChange={(e) => setRule(i, 'metric', e.target.value)}>
+          <div className={`flex items-center gap-2 flex-wrap p-2.5 rounded-xl border ${
+            isDark ? 'bg-white/5 border-white/10' : 'bg-[#F5F5F7] border-black/[0.03]'
+          }`} key={i}>
+            <input className={`border rounded-lg px-2.5 py-1.5 text-xs ${
+              isDark ? 'bg-white/5 border-white/10 text-slate-100' : 'bg-white border-black/[0.08] text-[#1D1D1F]'
+            }`} placeholder="عنوان قانون" value={r.label} onChange={(e) => setRule(i, 'label', e.target.value)} />
+            <select className={`border rounded-lg px-2.5 py-1.5 text-xs ${
+              isDark ? 'bg-[#0F1412] border-white/10 text-slate-100' : 'bg-white border-black/[0.08] text-[#1D1D1F]'
+            }`} value={r.metric} onChange={(e) => setRule(i, 'metric', e.target.value)}>
               <option value="rial">ریال خالص فروش</option><option value="qty">تعداد قلم خالص</option>
               <option value="lines">سطر فاکتور (غیرمرجوعی)</option><option value="customers">تعداد مشتری یکتا</option>
             </select>
-            <input className="bg-white border border-black/[0.08] rounded-lg px-2.5 py-1.5 text-xs text-[#1D1D1F] w-24" placeholder="نسبت" inputMode="numeric" value={r.ratio} onChange={(e) => setRule(i, 'ratio', e.target.value)} />
-            <input className="bg-white border border-black/[0.08] rounded-lg px-2.5 py-1.5 text-xs text-[#1D1D1F] w-20" placeholder="ضریب" inputMode="numeric" value={r.factor} onChange={(e) => setRule(i, 'factor', e.target.value)} />
-            <input className="bg-white border border-black/[0.08] rounded-lg px-2.5 py-1.5 text-xs text-[#1D1D1F] w-28" placeholder="برند (اختیاری)" value={r.brand} onChange={(e) => setRule(i, 'brand', e.target.value)} />
-            <button type="button" className="text-rose-600 hover:text-rose-700 p-1.5 rounded-lg hover:bg-rose-50 transition-colors mr-auto" onClick={() => setRules((rs) => rs.filter((_, n) => n !== i))}>
+            <input className={`border rounded-lg px-2.5 py-1.5 text-xs w-24 ${
+              isDark ? 'bg-white/5 border-white/10 text-slate-100' : 'bg-white border-black/[0.08] text-[#1D1D1F]'
+            }`} placeholder="نسبت" inputMode="numeric" value={r.ratio} onChange={(e) => setRule(i, 'ratio', e.target.value)} />
+            <input className={`border rounded-lg px-2.5 py-1.5 text-xs w-20 ${
+              isDark ? 'bg-white/5 border-white/10 text-slate-100' : 'bg-white border-black/[0.08] text-[#1D1D1F]'
+            }`} placeholder="ضریب" inputMode="numeric" value={r.factor} onChange={(e) => setRule(i, 'factor', e.target.value)} />
+            <input className={`border rounded-lg px-2.5 py-1.5 text-xs w-28 ${
+              isDark ? 'bg-white/5 border-white/10 text-slate-100' : 'bg-white border-black/[0.08] text-[#1D1D1F]'
+            }`} placeholder="برند (اختیاری)" value={r.brand} onChange={(e) => setRule(i, 'brand', e.target.value)} />
+            <button type="button" className="text-rose-400 hover:text-rose-300 p-1.5 rounded-lg hover:bg-rose-500/10 transition-colors mr-auto cursor-pointer" onClick={() => setRules((rs) => rs.filter((_, n) => n !== i))}>
               <Trash2 size={15} />
             </button>
           </div>
@@ -255,10 +286,10 @@ function PlanForm({ kind, core, onCreated }) {
       </div>}
 
       <div className="flex items-center gap-3 pt-2">
-        <button type="submit" className="px-5 py-2.5 rounded-xl text-xs font-semibold bg-[#0071E3] hover:bg-[#0077ED] text-white shadow-sm shadow-blue-500/25 transition-all">
+        <button type="submit" className="px-5 py-2.5 rounded-xl text-xs font-semibold bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white shadow-sm shadow-emerald-500/25 transition-all cursor-pointer">
           ثبت طرح
         </button>
-        {msg && <p className="text-xs font-semibold text-emerald-700" role="status">{msg}</p>}
+        {msg && <p className="text-xs font-semibold text-emerald-400" role="status">{msg}</p>}
       </div>
     </form>
   )
@@ -286,45 +317,13 @@ function PlanDefinition({ kind, core }) {
   )
 }
 
-function ScorecardPanel({ planId, code, month, onMonth, months }) {
-  const q = { plan_id: planId, code, ...(month ? { month } : {}) }
-  const sc = useApi('/club/visitor/scorecard', q, planId != null)
-  return (
-    <div className="mt-5 pt-5 border-t border-black/[0.06]">
-      {sc.error ? <p className="text-xs font-semibold text-rose-600" role="alert">{sc.error}</p>
-        : sc.loading ? <p className="text-xs text-[#86868B]">در حال بارگذاری کارنامه…</p>
-        : <ReportCard scorecard={sc.data} months={months} month={month} onMonth={onMonth} />}
-    </div>
-  )
-}
-
 function PointsView({ kind, core }) {
+  const { isDark } = useAppearance()
   const plans = useApi(`/club/${kind}/plans`, { core })
   const [planId, setPlanId] = useState(null)
   const chosen = planId ?? plans.data?.plans?.[0]?.id ?? null
   const points = useApi(`/club/${kind}/points`, { plan_id: chosen ?? 0 }, chosen != null)
   const rows = points.data?.rows ?? []
-  const isLadder = points.data?.plan?.plan_type === 'ladder'
-  const [code, setCode] = useState(null)
-  const [month, setMonth] = useState(null)
-  if (isLadder) {
-    return (
-      <AppleCard
-        title="جدول رتبه‌بندی نردبان تحقق"
-        subtitle="امتیاز هر ویزیتور در هر ماه؛ ماه در جریان جدا مشخص شده است"
-        badge={`${rows.length} ویزیتور`}
-        action={
-          <select value={chosen ?? ''} onChange={(e) => { setPlanId(Number(e.target.value)); setCode(null); setMonth(null) }}
-            className="bg-[#F5F5F7] border border-black/[0.06] rounded-xl px-3 py-1.5 text-xs text-[#1D1D1F]">
-            {(plans.data?.plans ?? []).map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-          </select>
-        }
-      >
-        <LadderLeaderboard data={points.data} onSelect={setCode} />
-        {code && <ScorecardPanel planId={chosen} code={code} month={month} onMonth={setMonth} months={points.data?.months ?? []} />}
-      </AppleCard>
-    )
-  }
   return (
     <AppleCard
       title="امتیازات اعضا"
@@ -332,11 +331,13 @@ function PointsView({ kind, core }) {
       badge={`${rows.length} عضو`}
       action={
         <div className="flex items-center gap-2">
-          <span className="text-xs font-medium text-[#86868B]">انتخاب طرح:</span>
+          <span className={`text-xs font-medium ${isDark ? 'text-slate-400' : 'text-[#86868B]'}`}>انتخاب طرح:</span>
           <select
             value={chosen ?? ''}
             onChange={(e) => setPlanId(Number(e.target.value))}
-            className="bg-[#F5F5F7] border border-black/[0.06] rounded-xl px-3 py-1.5 text-xs text-[#1D1D1F] focus:outline-none focus:ring-2 focus:ring-[#0071E3]/25"
+            className={`border rounded-xl px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500/25 ${
+              isDark ? 'bg-[#0F1412] border-white/10 text-slate-100' : 'bg-[#F5F5F7] border-black/[0.06] text-[#1D1D1F]'
+            }`}
           >
             {(plans.data?.plans ?? []).map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
           </select>
@@ -344,10 +345,10 @@ function PointsView({ kind, core }) {
       }
     >
       <Table name="امتیازها" rows={rows} columns={[
-        { label: CLUBS[kind].codeLabel, render: (r) => <span className="font-bold text-[#1D1D1F]" dir="ltr">{r.code}</span>, value: (r) => r.code },
+        { label: CLUBS[kind].codeLabel, render: (r) => <span className={`font-bold ${isDark ? 'text-slate-100' : 'text-[#1D1D1F]'}`} dir="ltr">{r.code}</span>, value: (r) => r.code },
         { label: 'نام', render: (r) => r.name, value: (r) => r.name },
-        { label: 'فروش خالص (ریال)', render: (r) => <span className="tabular-nums font-semibold text-[#1D1D1F]">{fa(r.sales_rial)}</span>, value: (r) => r.sales_rial },
-        { label: 'امتیاز', render: (r) => <span className="tabular-nums font-extrabold text-[#0071E3]">{fa(r.points)}</span>, value: (r) => r.points },
+        { label: 'فروش خالص (ریال)', render: (r) => <span className={`tabular-nums font-semibold ${isDark ? 'text-slate-100' : 'text-[#1D1D1F]'}`}>{fa(r.sales_rial)}</span>, value: (r) => r.sales_rial },
+        { label: 'امتیاز', render: (r) => <span className="tabular-nums font-extrabold text-emerald-400">{fa(r.points)}</span>, value: (r) => r.points },
         { label: 'تفکیک', render: (r) => (r.breakdown?.length ? r.breakdown.map((b) => `${b.label}: ${fa(b.points)}`).join(' · ') : '—'), value: (r) => r.breakdown?.length ?? 0 },
       ]} />
     </AppleCard>
@@ -355,19 +356,26 @@ function PointsView({ kind, core }) {
 }
 
 export function ClubPage({ kind, core, arg }) {
+  const { isDark } = useAppearance()
   return (
-    <div className="w-full max-w-[1600px] mx-auto px-6 space-y-6" dir="rtl">
-      <div className="rounded-[24px] bg-white/85 backdrop-blur-xl border border-black/[0.04] p-5 flex items-center justify-between shadow-[0_4px_20px_rgb(0,0,0,0.03)] flex-wrap gap-3">
+    <div className="w-full max-w-[1600px] mx-auto px-4 sm:px-6 space-y-6" dir="rtl">
+      <div className={`rounded-2xl sm:rounded-3xl p-4 sm:p-5 flex items-center justify-between border flex-wrap gap-3 ${
+        isDark
+          ? 'bg-[#0B100E]/75 backdrop-blur-2xl border-emerald-500/15 text-[#F5F5F7] shadow-[0_8px_30px_rgba(0,0,0,0.45)]'
+          : 'bg-white/85 backdrop-blur-xl border-black/[0.04] shadow-[0_4px_20px_rgb(0,0,0,0.03)]'
+      }`}>
         <div className="flex items-center gap-3">
-          <span className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-[#0071E3] to-[#42A1EC] text-white flex items-center justify-center shadow-sm shadow-blue-500/25">
+          <span className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-emerald-500 to-teal-400 text-white flex items-center justify-center shadow-sm shadow-emerald-500/25">
             <Award size={20} />
           </span>
           <div>
-            <h1 className="text-base font-bold text-[#1D1D1F]">{CLUBS[kind].title}</h1>
-            <p className="text-xs text-[#86868B] mt-0.5">مدیریت قوانین گیمیفیکیشن، پله‌ها و امتیازات</p>
+            <h1 className={`text-base font-bold ${isDark ? 'text-slate-100' : 'text-[#1D1D1F]'}`}>{CLUBS[kind].title}</h1>
+            <p className={`text-xs mt-0.5 ${isDark ? 'text-slate-400' : 'text-[#86868B]'}`}>مدیریت قوانین گیمیفیکیشن، پله‌ها و امتیازات</p>
           </div>
         </div>
-        <span className="px-3 py-1 rounded-full text-xs font-semibold bg-[#0071E3]/10 text-[#0071E3]">
+        <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
+          isDark ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/25' : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+        }`}>
           سامانه وفاداری
         </span>
       </div>
@@ -386,6 +394,7 @@ export function ClubPage({ kind, core, arg }) {
 const sum = (rows, key) => rows.reduce((s, r) => s + (r[key] ?? 0), 0)
 
 export function MyClub({ arg }) {
+  const { isDark } = useAppearance()
   const me = useApi('/club/me', {})
   const [i, setI] = useState(0)
   if (me.error) return <div className="w-full max-w-[1600px] mx-auto px-6 p-6" role="alert" dir="rtl"><div className="rounded-[28px] bg-rose-50/90 border border-rose-200 text-rose-700 p-5 text-xs font-semibold">{me.error}</div></div>
@@ -395,21 +404,25 @@ export function MyClub({ arg }) {
   const activeTier = plan?.tier
 
   return (
-    <div className="w-full max-w-[1600px] mx-auto px-6 space-y-6" dir="rtl">
+    <div className="w-full max-w-[1600px] mx-auto px-4 sm:px-6 space-y-6" dir="rtl">
       {/* Header Bento */}
-      <div className="rounded-[28px] bg-white/85 backdrop-blur-xl border border-black/[0.04] p-6 flex items-center justify-between shadow-[0_8px_30px_rgb(0,0,0,0.04)] flex-wrap gap-4">
+      <div className={`rounded-2xl sm:rounded-3xl p-4 sm:p-6 flex items-center justify-between border flex-wrap gap-4 ${
+        isDark
+          ? 'bg-[#0B100E]/75 backdrop-blur-2xl border-emerald-500/15 text-[#F5F5F7] shadow-[0_8px_30px_rgba(0,0,0,0.45)]'
+          : 'bg-white/85 backdrop-blur-xl border-black/[0.04] shadow-[0_8px_30px_rgb(0,0,0,0.04)]'
+      }`}>
         <div className="flex items-center gap-4">
-          <span className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-[#0071E3] to-[#42A1EC] text-white flex items-center justify-center shadow-md shadow-blue-500/20">
+          <span className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-emerald-500 to-teal-400 text-white flex items-center justify-center shadow-md shadow-emerald-500/20">
             <Store size={24} />
           </span>
           <div>
-            <h1 className="text-lg font-extrabold text-[#1D1D1F]">باشگاه مشتریان (B2B) — امتیاز من</h1>
-            <p className="text-xs text-[#86868B] mt-1">{name ? `${name} (شناسه: ${code})` : `شناسه مشتری: ${code}`}</p>
+            <h1 className={`text-lg font-extrabold ${isDark ? 'text-slate-100' : 'text-[#1D1D1F]'}`}>باشگاه مشتریان (B2B) — امتیاز من</h1>
+            <p className={`text-xs mt-1 ${isDark ? 'text-slate-400' : 'text-[#86868B]'}`}>{name ? `${name} (شناسه: ${code})` : `شناسه مشتری: ${code}`}</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
           {activeTier && <TierBadge tier={activeTier} />}
-          <span className="px-3.5 py-1.5 rounded-full text-xs font-bold bg-[#34C759]/10 text-[#34C759] border border-[#34C759]/20">
+          <span className="px-3.5 py-1.5 rounded-full text-xs font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/25">
             عضو رسمی باشگاه
           </span>
         </div>
@@ -417,7 +430,7 @@ export function MyClub({ arg }) {
 
       {/* KPI Bento Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 w-full">
-        <AppleKpiCard label="شناسه مشتری" value={faDigits(code)} unit="کد یکتای عضویت" icon={Store} tone="blue" />
+        <AppleKpiCard label="شناسه مشتری" value={faDigits(code)} unit="کد یکتای عضویت" icon={Store} tone="teal" />
         <AppleKpiCard label="مجموع امتیازات کل طرح‌ها" value={fa(sum(plans, 'points'))} unit="امتیاز فعال کسب‌شده" icon={Award} tone="teal" />
         <AppleKpiCard label="فروش خالص کل (کسر مرجوعی)" value={fa(sum(plans, 'sales_rial'))} unit="ریال خالص" icon={CircleDollarSign} tone="amber" />
         <AppleKpiCard label="وضعیت سطح وفاداری" value={activeTier?.level || 'پله ۱'} unit={activeTier?.points_needed_label || 'فعال'} icon={Sparkles} tone="violet" />
@@ -449,13 +462,19 @@ export function MyClub({ arg }) {
             subtitle={`بازه طرح: ${faDigits(plan.plan.start_key)} تا ${faDigits(plan.plan.end_key)}`}
             badge={plan.tier ? `سطح: ${plan.tier.level}` : ''}
             action={
-              <div className="flex items-center gap-1.5 p-1 bg-[#F5F5F7] rounded-2xl border border-black/[0.04] flex-wrap">
+              <div className={`flex items-center gap-1.5 p-1 rounded-2xl border flex-wrap ${
+                isDark ? 'bg-white/[0.04] border-white/10' : 'bg-[#F5F5F7] border-black/[0.04]'
+              }`}>
                 {plans.map((p, n) => (
                   <button
                     key={p.plan.id}
                     type="button"
-                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
-                      n === i ? 'bg-[#0071E3] text-white shadow-sm' : 'text-[#86868B] hover:text-[#1D1D1F]'
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                      n === i
+                        ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-sm'
+                        : isDark
+                        ? 'text-slate-400 hover:text-slate-200'
+                        : 'text-[#86868B] hover:text-[#1D1D1F]'
                     }`}
                     onClick={() => setI(n)}
                   >
@@ -469,13 +488,13 @@ export function MyClub({ arg }) {
               <div className="flex items-center gap-4 flex-wrap">
                 <TierBadge tier={plan.tier} />
                 <div>
-                  <span className="text-2xl font-black text-[#1D1D1F] tracking-tight">{fa(plan.points)}</span>
-                  <span className="text-xs text-[#86868B] mr-1.5 font-medium">امتیاز کسب‌شده</span>
+                  <span className={`text-2xl font-black tracking-tight ${isDark ? 'text-slate-100' : 'text-[#1D1D1F]'}`}>{fa(plan.points)}</span>
+                  <span className={`text-xs mr-1.5 font-medium ${isDark ? 'text-slate-400' : 'text-[#86868B]'}`}>امتیاز کسب‌شده</span>
                 </div>
                 <div className="mr-auto text-left">
-                  <span className="text-xs text-[#86868B]">فروش خالص: </span>
-                  <span className="text-sm font-extrabold text-[#1D1D1F] tabular-nums">{fa(plan.sales_rial)}</span>
-                  <span className="text-[11px] text-[#86868B] mr-1">ریال</span>
+                  <span className={`text-xs ${isDark ? 'text-slate-400' : 'text-[#86868B]'}`}>فروش خالص: </span>
+                  <span className={`text-sm font-extrabold tabular-nums ${isDark ? 'text-slate-100' : 'text-[#1D1D1F]'}`}>{fa(plan.sales_rial)}</span>
+                  <span className={`text-[11px] mr-1 ${isDark ? 'text-slate-400' : 'text-[#86868B]'}`}>ریال</span>
                 </div>
               </div>
 
@@ -488,14 +507,16 @@ export function MyClub({ arg }) {
               )}
 
               {!!plan.breakdown?.length && (
-                <div className="pt-3 border-t border-black/[0.04]">
-                  <span className="text-xs font-bold text-[#86868B] block mb-2">تفکیک امتیازات طبق شاخص‌ها:</span>
+                <div className={`pt-3 border-t ${isDark ? 'border-white/10' : 'border-black/[0.04]'}`}>
+                  <span className={`text-xs font-bold block mb-2 ${isDark ? 'text-slate-400' : 'text-[#86868B]'}`}>تفکیک امتیازات طبق شاخص‌ها:</span>
                   <div className="flex flex-wrap gap-2">
                     {plan.breakdown.map((b, n) => (
-                      <span key={n} className="px-3 py-1.5 rounded-xl text-xs bg-[#F5F5F7] border border-black/[0.04] text-[#1D1D1F] flex items-center gap-1.5">
-                        <span className="text-[#86868B]">{b.label}:</span>
-                        <b className="font-bold text-[#0071E3]">{fa(b.points)}</b>
-                        <span className="text-[10px] text-[#86868B]">امتیاز</span>
+                      <span key={n} className={`px-3 py-1.5 rounded-xl text-xs border flex items-center gap-1.5 ${
+                        isDark ? 'bg-white/5 border-white/10 text-slate-200' : 'bg-[#F5F5F7] border-black/[0.04] text-[#1D1D1F]'
+                      }`}>
+                        <span className={isDark ? 'text-slate-400' : 'text-[#86868B]'}>{b.label}:</span>
+                        <b className="font-bold text-emerald-400">{fa(b.points)}</b>
+                        <span className={`text-[10px] ${isDark ? 'text-slate-400' : 'text-[#86868B]'}`}>امتیاز</span>
                       </span>
                     ))}
                   </div>
@@ -512,13 +533,13 @@ export function MyClub({ arg }) {
           {/* All Plans Table Bento */}
           <AppleCard title="تاریخچه تمامی طرح‌ها" subtitle="خلاصه عملکرد عضو در طرح‌های مختلف باشگاه">
             <Table name="طرح‌های من" rows={plans.map((p) => ({ ...p, _key: p.plan.id }))} columns={[
-              { label: 'نام طرح', render: (r) => <b className="font-bold text-[#1D1D1F]">{r.plan.name}</b>, value: (r) => r.plan.name },
+              { label: 'نام طرح', render: (r) => <b className="font-bold">{r.plan.name}</b>, value: (r) => r.plan.name },
               { label: 'شروع', render: (r) => faDigits(r.plan.start_key), value: (r) => r.plan.start_key },
               { label: 'پایان', render: (r) => faDigits(r.plan.end_key), value: (r) => r.plan.end_key },
               { label: 'فروش خالص (ریال)', render: (r) => <span className="tabular-nums font-semibold">{fa(r.sales_rial)}</span>, value: (r) => r.sales_rial },
-              { label: 'امتیاز', render: (r) => <span className="tabular-nums font-extrabold text-[#0071E3]">{fa(r.points)}</span>, value: (r) => r.points },
+              { label: 'امتیاز', render: (r) => <span className="tabular-nums font-extrabold text-emerald-400">{fa(r.points)}</span>, value: (r) => r.points },
               { label: 'سطح وفاداری', render: (r) => <TierBadge tier={r.tier} />, value: (r) => r.tier?.step ?? 0 },
-              { label: 'فاصله تا پله بعد', render: (r) => <span className="text-xs text-[#86868B]">{r.tier?.points_needed_label || '—'}</span>, value: (r) => r.tier?.points_needed ?? 0 },
+              { label: 'فاصله تا پله بعد', render: (r) => <span className="text-xs text-slate-400">{r.tier?.points_needed_label || '—'}</span>, value: (r) => r.tier?.points_needed ?? 0 },
             ]} />
           </AppleCard>
         </>
@@ -528,17 +549,12 @@ export function MyClub({ arg }) {
 }
 
 export function MyVisitorClub({ arg }) {
+  const { isDark } = useAppearance()
   const team = useApi('/club/visitor/team', {})
   if (team.error) return <div className="w-full max-w-[1600px] mx-auto px-6 p-6" role="alert" dir="rtl"><div className="rounded-[28px] bg-rose-50/90 border border-rose-200 text-rose-700 p-5 text-xs font-semibold">{team.error}</div></div>
   if (team.loading) return <div className="w-full max-w-[1600px] mx-auto px-6 p-6 text-center text-xs text-[#86868B]" dir="rtl">در حال بارگذاری…</div>
 
   const { plan } = team.data
-  const [month, setMonth] = useState(null)
-  const isLadder = plan?.plan_type === 'ladder'
-  const target = useApi('/target', { by: 'visitor', month: '' }, !isLadder)
-  const visTarget = (target.data?.rows ?? []).find((r) => r.code === team.data?.code)
-  const scQ = { plan_id: plan?.id, code: team.data?.code, ...(month ? { month } : {}) }
-  const sc = useApi('/club/visitor/scorecard', scQ, isLadder && plan?.id != null)
   // Requirement 2: Two clear sections (visitor_summary & portfolio_customers)
   const summary = team.data?.visitor_summary || {
     code: team.data?.code,
@@ -554,30 +570,34 @@ export function MyVisitorClub({ arg }) {
 
   if (!plan) {
     return (
-      <div className="w-full max-w-[1600px] mx-auto px-6 space-y-6" dir="rtl">
+      <div className="w-full max-w-[1600px] mx-auto px-4 sm:px-6 space-y-6" dir="rtl">
         <AppleCard title="باشگاه ویزیتورها — کارنامه و پرتفوی فروش">
-          <div className="text-center py-12 text-xs text-[#86868B]">در حال حاضر هیچ طرح فعالی برای ویزیتورها تعریف نشده است.</div>
+          <div className={`text-center py-12 text-xs ${isDark ? 'text-slate-400' : 'text-[#86868B]'}`}>در حال حاضر هیچ طرح فعالی برای ویزیتورها تعریف نشده است.</div>
         </AppleCard>
       </div>
     )
   }
 
   return (
-    <div className="w-full max-w-[1600px] mx-auto px-6 space-y-6" dir="rtl">
+    <div className="w-full max-w-[1600px] mx-auto px-4 sm:px-6 space-y-6" dir="rtl">
       {/* Visitor Header Bento */}
-      <div className="rounded-[28px] bg-white/85 backdrop-blur-xl border border-black/[0.04] p-6 flex items-center justify-between shadow-[0_8px_30px_rgb(0,0,0,0.04)] flex-wrap gap-4">
+      <div className={`rounded-2xl sm:rounded-3xl p-4 sm:p-6 flex items-center justify-between border flex-wrap gap-4 ${
+        isDark
+          ? 'bg-[#0B100E]/75 backdrop-blur-2xl border-emerald-500/15 text-[#F5F5F7] shadow-[0_8px_30px_rgba(0,0,0,0.45)]'
+          : 'bg-white/85 backdrop-blur-xl border-black/[0.04] shadow-[0_8px_30px_rgb(0,0,0,0.04)]'
+      }`}>
         <div className="flex items-center gap-4">
-          <span className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-[#0071E3] to-[#42A1EC] text-white flex items-center justify-center shadow-md shadow-blue-500/20">
+          <span className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-emerald-500 to-teal-400 text-white flex items-center justify-center shadow-md shadow-emerald-500/20">
             <Award size={24} />
           </span>
           <div>
-            <h1 className="text-lg font-extrabold text-[#1D1D1F]">باشگاه ویزیتورها — کارنامه و پرتفوی فروش</h1>
-            <p className="text-xs text-[#86868B] mt-1">{summary.name ? `${summary.name} (کد ویزیتور: ${summary.code})` : `کد ویزیتور: ${summary.code}`}</p>
+            <h1 className={`text-lg font-extrabold ${isDark ? 'text-slate-100' : 'text-[#1D1D1F]'}`}>باشگاه ویزیتورها — کارنامه و پرتفوی فروش</h1>
+            <p className={`text-xs mt-1 ${isDark ? 'text-slate-400' : 'text-[#86868B]'}`}>{summary.name ? `${summary.name} (کد ویزیتور: ${summary.code})` : `کد ویزیتور: ${summary.code}`}</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
           {summary.tier && <TierBadge tier={summary.tier} />}
-          <span className="px-3.5 py-1.5 rounded-full text-xs font-bold bg-[#0071E3]/10 text-[#0071E3] border border-[#0071E3]/20">
+          <span className="px-3.5 py-1.5 rounded-full text-xs font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/25">
             پرتفوی رسمی فروش
           </span>
         </div>
@@ -585,7 +605,7 @@ export function MyVisitorClub({ arg }) {
 
       {/* Visitor KPI Bento Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 w-full">
-        <AppleKpiCard label="شناسه ویزیتور" value={faDigits(summary.code)} unit="کد سیستمی بازاریاب" icon={Store} tone="blue" />
+        <AppleKpiCard label="شناسه ویزیتور" value={faDigits(summary.code)} unit="کد سیستمی بازاریاب" icon={Store} tone="teal" />
         <AppleKpiCard label="امتیاز ویزیتور (یکپارچه با مدیریت)" value={fa(summary.points)} unit="امتیاز کل کسب‌شده" icon={Award} tone="teal" />
         <AppleKpiCard label="فروش خالص کل پرتفوی" value={fa(summary.sales_rial)} unit="ریال خالص (کسر مرجوعی)" icon={CircleDollarSign} tone="amber" />
         <AppleKpiCard label="مشتریان خریدار در دوره" value={fa(summary.customers_count)} unit="مشتری یکتای فعال" icon={Users} tone="violet" />
@@ -594,21 +614,18 @@ export function MyVisitorClub({ arg }) {
       {/* Activity Rings for Visitor Club */}
       <ActivityRingsWidget
         type="visitor"
-        customRings={isLadder ? ringsFromScorecard(sc.data) : linearRings(summary, visTarget)}
+        data={{
+          sales_rial: summary.sales_rial,
+          target_rial: plan ? summary.sales_rial * 1.15 : 500000000,
+          customers_count: summary.customers_count,
+          target_visits: Math.max(summary.customers_count + 5, 25),
+          collection_rate: 0.94,
+        }}
         title="حلقه‌های فعالیت ویزیتور (Apple Activity Rings)"
-        subtitle={isLadder ? 'تحقق هر شاخص کارنامه نسبت به هدف همان ماه' : 'تحقق تارگت ریالی از صفحه تارگت و مشتریان خریدار نسبت به ماه قبل'}
+        subtitle="تحقق تارگت ریالی، تعداد فاکتور / ویزیت موفق و وصول مطالبات / سلامت فاکتور"
       />
 
       {/* Section 1: Visitor Progress Bento Card */}
-      {isLadder && sc.data ? (
-        <AppleCard
-          title={`کارنامه اختصاصی در طرح: ${plan.name}`}
-          subtitle="امتیاز هر شاخص از نردبان تحقق همین طرح"
-          badge={summary.tier ? `درجه ${summary.tier.level}` : ''}
-        >
-          <ReportCard scorecard={sc.data} months={team.data?.months ?? []} month={month} onMonth={setMonth} />
-        </AppleCard>
-      ) : (
       <AppleCard
         title={`کارنامه اختصاصی در طرح: ${plan.name}`}
         subtitle={`محاسبه مستقیم بر مبنای کل فروش خالص ویزیتور و قوانین گیمیفیکیشن طرح`}
@@ -618,13 +635,13 @@ export function MyVisitorClub({ arg }) {
           <div className="flex items-center gap-4 flex-wrap">
             <TierBadge tier={summary.tier} />
             <div>
-              <span className="text-2xl font-black text-[#1D1D1F] tracking-tight">{fa(summary.points)}</span>
-              <span className="text-xs text-[#86868B] mr-1.5 font-medium">امتیاز تجمیعی ویزیتور</span>
+              <span className={`text-2xl font-black tracking-tight ${isDark ? 'text-slate-100' : 'text-[#1D1D1F]'}`}>{fa(summary.points)}</span>
+              <span className={`text-xs mr-1.5 font-medium ${isDark ? 'text-slate-400' : 'text-[#86868B]'}`}>امتیاز تجمیعی ویزیتور</span>
             </div>
             <div className="mr-auto text-left">
-              <span className="text-xs text-[#86868B]">فروش خالص کل پرتفوی: </span>
-              <span className="text-sm font-extrabold text-[#1D1D1F] tabular-nums">{fa(summary.sales_rial)}</span>
-              <span className="text-[11px] text-[#86868B] mr-1">ریال</span>
+              <span className={`text-xs ${isDark ? 'text-slate-400' : 'text-[#86868B]'}`}>فروش خالص کل پرتفوی: </span>
+              <span className={`text-sm font-extrabold tabular-nums ${isDark ? 'text-slate-100' : 'text-[#1D1D1F]'}`}>{fa(summary.sales_rial)}</span>
+              <span className={`text-[11px] mr-1 ${isDark ? 'text-slate-400' : 'text-[#86868B]'}`}>ریال</span>
             </div>
           </div>
 
@@ -637,14 +654,16 @@ export function MyVisitorClub({ arg }) {
           )}
 
           {!!summary.breakdown?.length && (
-            <div className="pt-3 border-t border-black/[0.04]">
-              <span className="text-xs font-bold text-[#86868B] block mb-2">تفکیک امتیازات ویزیتور طبق قوانین طرح:</span>
+            <div className={`pt-3 border-t ${isDark ? 'border-white/10' : 'border-black/[0.04]'}`}>
+              <span className={`text-xs font-bold block mb-2 ${isDark ? 'text-slate-400' : 'text-[#86868B]'}`}>تفکیک امتیازات ویزیتور طبق قوانین طرح:</span>
               <div className="flex flex-wrap gap-2">
                 {summary.breakdown.map((b, n) => (
-                  <span key={n} className="px-3 py-1.5 rounded-xl text-xs bg-[#F5F5F7] border border-black/[0.04] text-[#1D1D1F] flex items-center gap-1.5">
-                    <span className="text-[#86868B]">{b.label}:</span>
-                    <b className="font-bold text-[#0071E3]">{fa(b.points)}</b>
-                    <span className="text-[10px] text-[#86868B]">امتیاز</span>
+                  <span key={n} className={`px-3 py-1.5 rounded-xl text-xs border flex items-center gap-1.5 ${
+                    isDark ? 'bg-white/5 border-white/10 text-slate-200' : 'bg-[#F5F5F7] border-black/[0.04] text-[#1D1D1F]'
+                  }`}>
+                    <span className={isDark ? 'text-slate-400' : 'text-[#86868B]'}>{b.label}:</span>
+                    <b className="font-bold text-emerald-400">{fa(b.points)}</b>
+                    <span className={`text-[10px] ${isDark ? 'text-slate-400' : 'text-[#86868B]'}`}>امتیاز</span>
                   </span>
                 ))}
               </div>
@@ -652,7 +671,6 @@ export function MyVisitorClub({ arg }) {
           )}
         </div>
       </AppleCard>
-      )}
 
       {/* Section 2: Portfolio Customers Leaderboard */}
       <AppleCard
@@ -665,7 +683,7 @@ export function MyVisitorClub({ arg }) {
           { label: 'کد مشتری', render: (r) => <span dir="ltr" className="font-mono text-xs">{r.code}</span>, value: (r) => r.code },
           { label: 'نام مشتری', render: (r) => <b className="font-bold text-[#1D1D1F]">{r.name}</b>, value: (r) => r.name },
           { label: 'فروش خالص (ریال)', render: (r) => <span className="tabular-nums font-semibold">{fa(r.sales_rial)}</span>, value: (r) => r.sales_rial },
-          { label: 'امتیاز', render: (r) => <span className="tabular-nums font-extrabold text-[#0071E3]">{fa(r.points)}</span>, value: (r) => r.points },
+          { label: 'امتیاز', render: (r) => <span className="tabular-nums font-extrabold text-emerald-400">{fa(r.points)}</span>, value: (r) => r.points },
           { label: 'سطح مشتری', render: (r) => <TierBadge tier={r.tier} />, value: (r) => r.tier?.step ?? 0 },
           {
             label: 'فاصله تا پله بعدی',

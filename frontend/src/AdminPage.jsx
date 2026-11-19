@@ -103,23 +103,25 @@ function AppleCard({ title, subtitle, badge, action, children, className = '' })
   const { isDark, isSolid } = useAppearance()
   return (
     <div
-      className={`apple-card rounded-[28px] border transition-all p-6 overflow-hidden w-full max-w-full ${
+      className={`apple-card rounded-2xl sm:rounded-3xl border transition-all p-4 sm:p-6 overflow-hidden w-full max-w-full ${
         isDark
-          ? 'bg-[#1C1C1E]/85 backdrop-blur-2xl border-white/10 text-[#F5F5F7] shadow-[0_8px_30px_rgba(0,0,0,0.4)]'
+          ? 'bg-[#0B100E]/75 backdrop-blur-2xl border-emerald-500/15 text-[#F5F5F7] shadow-[0_8px_30px_rgba(0,0,0,0.45)]'
           : isSolid
           ? 'bg-white border-slate-200 text-[#1D1D1F] shadow-xs'
           : 'bg-white/85 backdrop-blur-xl border-black/[0.04] text-[#1D1D1F] shadow-[0_8px_30px_rgb(0,0,0,0.04)]'
       } ${className}`}
     >
       {(title || subtitle || badge || action) && (
-        <div className="flex items-center justify-between mb-5 flex-wrap gap-2">
+        <div className="flex items-center justify-between mb-4 sm:mb-5 flex-wrap gap-2">
           <div>
-            {title && <h2 className={`text-base font-bold ${isDark ? 'text-[#F5F5F7]' : 'text-[#1D1D1F]'}`}>{title}</h2>}
+            {title && <h2 className={`text-base font-bold ${isDark ? 'text-slate-100' : 'text-[#1D1D1F]'}`}>{title}</h2>}
             {subtitle && <p className={`text-xs mt-0.5 ${isDark ? 'text-slate-400' : 'text-[#86868B]'}`}>{subtitle}</p>}
           </div>
           <div className="flex items-center gap-2">
             {badge && (
-              <span className="px-3 py-1 rounded-full text-xs font-medium bg-[#0071E3]/10 text-[#0071E3]">
+              <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold ${
+                isDark ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/25' : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+              }`}>
                 {badge}
               </span>
             )}
@@ -165,6 +167,7 @@ function Msg({ msg }) {
 }
 
 function Checks({ items, value, onChange, label }) {
+  const { isDark } = useAppearance()
   return (
     <div className="flex flex-wrap gap-2 max-h-56 overflow-y-auto p-1" role="group" aria-label={label}>
       {items.map(([id, text, hint]) => {
@@ -174,19 +177,23 @@ function Checks({ items, value, onChange, label }) {
             key={id}
             type="button"
             onClick={() => onChange(toggleIn(value, id))}
-            className={`px-3 py-1.5 rounded-xl text-xs font-medium border transition-all text-right flex items-center gap-2 ${
+            className={`px-3 py-1.5 rounded-xl text-xs font-medium border transition-all text-right flex items-center gap-2 cursor-pointer ${
               checked
-                ? 'bg-[#0071E3]/10 border-[#0071E3]/30 text-[#0071E3] font-bold'
+                ? isDark
+                  ? 'bg-emerald-500/15 border-emerald-500/35 text-emerald-400 font-bold'
+                  : 'bg-emerald-50 border-emerald-300 text-emerald-800 font-bold'
+                : isDark
+                ? 'bg-white/[0.04] border-white/[0.08] text-slate-300 hover:bg-white/[0.08]'
                 : 'bg-[#F5F5F7] border-black/[0.04] text-[#1D1D1F] hover:bg-[#E8E8ED]'
             }`}
           >
             <span className={`w-3.5 h-3.5 rounded-md flex items-center justify-center text-[10px] ${
-              checked ? 'bg-[#0071E3] text-white' : 'border border-black/[0.2] bg-white'
+              checked ? 'bg-emerald-500 text-white font-bold' : isDark ? 'border border-white/20 bg-white/5' : 'border border-black/[0.2] bg-white'
             }`}>
               {checked && '✓'}
             </span>
             <span>{text}</span>
-            {hint && <small className="text-[#86868B] text-[10px]">({hint})</small>}
+            {hint && <small className={`text-[10px] ${isDark ? 'text-slate-400' : 'text-[#86868B]'}`}>({hint})</small>}
           </button>
         )
       })}
@@ -195,6 +202,7 @@ function Checks({ items, value, onChange, label }) {
 }
 
 function ScopePicker({ mode, options, branches, supervisors, onBranches, onSupervisors }) {
+  const { isDark } = useAppearance()
   const [q, setQ] = useState('')
   const [branchFilter, setBranchFilter] = useState('')
   const people = useMemo(() => {
@@ -206,16 +214,16 @@ function ScopePicker({ mode, options, branches, supervisors, onBranches, onSuper
     })
     return [...byName.values()]
   }, [options.supervisors])
-  if (!mode) return <p className="text-xs text-[#86868B]">برای تعیین دامنهٔ داده، ابتدا نقش را انتخاب کنید.</p>
-  if (mode === 'all') return <p className="text-xs text-[#86868B]">{SCOPE_HINT.all}</p>
+  if (!mode) return <p className={`text-xs ${isDark ? 'text-slate-400' : 'text-[#86868B]'}`}>برای تعیین دامنهٔ داده، ابتدا نقش را انتخاب کنید.</p>
+  if (mode === 'all') return <p className={`text-xs ${isDark ? 'text-slate-400' : 'text-[#86868B]'}`}>{SCOPE_HINT.all}</p>
   if (mode === 'branch') {
     const list = options.branches ?? []
     return (
       <div className="space-y-3">
-        <p className="text-xs text-[#86868B]">{SCOPE_HINT.branch}</p>
-        {!list.length && <p className="text-xs text-[#86868B]">فهرست شعبه‌ها هنوز از داده خوانده نشده است.</p>}
+        <p className={`text-xs ${isDark ? 'text-slate-400' : 'text-[#86868B]'}`}>{SCOPE_HINT.branch}</p>
+        {!list.length && <p className={`text-xs ${isDark ? 'text-slate-400' : 'text-[#86868B]'}`}>فهرست شعبه‌ها هنوز از داده خوانده نشده است.</p>}
         <Checks items={list.map((b) => [b, b])} value={branches} onChange={onBranches} label="شعبه‌ها" />
-        {branches.length > 0 && <p className="text-xs text-[#0071E3] font-semibold">{fa(branches.length)} شعبه انتخاب شده است.</p>}
+        {branches.length > 0 && <p className="text-xs text-emerald-400 font-semibold">{fa(branches.length)} شعبه انتخاب شده است.</p>}
         {branches.length === 0 && <div className="text-xs text-amber-700 bg-amber-500/10 p-3 rounded-xl" role="status">هیچ شعبه‌ای انتخاب نشده است؛ این کاربر هیچ دادهٔ فروشی نمی‌بیند.</div>}
       </div>
     )
@@ -224,26 +232,32 @@ function ScopePicker({ mode, options, branches, supervisors, onBranches, onSuper
   const shown = people.filter((p) => (!branchFilter || p.branches.includes(branchFilter)) && (!needle || p.name.toLowerCase().includes(needle)))
   return (
     <div className="space-y-3">
-      <p className="text-xs text-[#86868B]">{SCOPE_HINT.supervisor}</p>
+      <p className={`text-xs ${isDark ? 'text-slate-400' : 'text-[#86868B]'}`}>{SCOPE_HINT.supervisor}</p>
       <div className="flex items-center gap-2 flex-wrap">
         <input
           type="search"
           value={q}
           onChange={(e) => setQ(e.target.value)}
           placeholder="جستجوی سرپرست…"
-          className="bg-[#F5F5F7] border border-black/[0.06] rounded-xl px-3 py-1.5 text-xs text-[#1D1D1F] focus:outline-none focus:ring-2 focus:ring-[#0071E3]/25"
+          className={`rounded-xl px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500/25 ${
+            isDark ? 'bg-white/5 border border-white/10 text-slate-100 placeholder-slate-500' : 'bg-[#F5F5F7] border border-black/[0.06] text-[#1D1D1F]'
+          }`}
         />
         <select
           value={branchFilter}
           onChange={(e) => setBranchFilter(e.target.value)}
-          className="bg-[#F5F5F7] border border-black/[0.06] rounded-xl px-3 py-1.5 text-xs text-[#1D1D1F] focus:outline-none focus:ring-2 focus:ring-[#0071E3]/25"
+          className={`rounded-xl px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500/25 ${
+            isDark ? 'bg-[#0F1412] border border-white/10 text-slate-100' : 'bg-[#F5F5F7] border border-black/[0.06] text-[#1D1D1F]'
+          }`}
         >
           <option value="">همهٔ شعبه‌ها</option>
           {(options.branches ?? []).map((b) => <option key={b} value={b}>{b}</option>)}
         </select>
         <button
           type="button"
-          className="px-3 py-1.5 rounded-xl text-xs font-semibold bg-black/[0.05] hover:bg-black/[0.08] text-[#1D1D1F]"
+          className={`px-3 py-1.5 rounded-xl text-xs font-semibold cursor-pointer ${
+            isDark ? 'bg-white/10 hover:bg-white/15 text-slate-200' : 'bg-black/[0.05] hover:bg-black/[0.08] text-[#1D1D1F]'
+          }`}
           onClick={() => onSupervisors([...new Set([...supervisors, ...shown.map((p) => p.name)])])}
           disabled={!shown.length}
         >
@@ -251,16 +265,18 @@ function ScopePicker({ mode, options, branches, supervisors, onBranches, onSuper
         </button>
         <button
           type="button"
-          className="px-3 py-1.5 rounded-xl text-xs font-semibold bg-black/[0.05] hover:bg-black/[0.08] text-[#1D1D1F]"
+          className={`px-3 py-1.5 rounded-xl text-xs font-semibold cursor-pointer ${
+            isDark ? 'bg-white/10 hover:bg-white/15 text-slate-200' : 'bg-black/[0.05] hover:bg-black/[0.08] text-[#1D1D1F]'
+          }`}
           onClick={() => onSupervisors([])}
           disabled={!supervisors.length}
         >
           پاک کردن انتخاب
         </button>
       </div>
-      {!people.length && <p className="text-xs text-[#86868B]">فهرست سرپرست‌ها هنوز از داده خوانده نشده است.</p>}
+      {!people.length && <p className={`text-xs ${isDark ? 'text-slate-400' : 'text-[#86868B]'}`}>فهرست سرپرست‌ها هنوز از داده خوانده نشده است.</p>}
       <Checks items={shown.map((p) => [p.name, p.name, p.branches.join('، ')])} value={supervisors} onChange={onSupervisors} label="سرپرست‌ها" />
-      {supervisors.length > 0 && <p className="text-xs text-[#0071E3] font-semibold">{fa(supervisors.length)} سرپرست انتخاب شده است.</p>}
+      {supervisors.length > 0 && <p className="text-xs text-emerald-400 font-semibold">{fa(supervisors.length)} سرپرست انتخاب شده است.</p>}
       {supervisors.length === 0 && <div className="text-xs text-amber-700 bg-amber-500/10 p-3 rounded-xl" role="status">هیچ سرپرستی انتخاب نشده است؛ این کاربر هیچ دادهٔ فروشی نمی‌بیند.</div>}
     </div>
   )
@@ -326,7 +342,7 @@ function UsersTab({ options, roles, ver, bump }) {
         <div className="flex items-center gap-2">
           <button
             type="button"
-            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold bg-[#0071E3] hover:bg-[#0077ED] text-white shadow-sm shadow-blue-500/25 active:scale-95 transition-all"
+            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white shadow-sm shadow-emerald-500/25 active:scale-95 transition-all cursor-pointer"
             onClick={() => open(null)}
             disabled={!roles.length}
           >
@@ -343,7 +359,9 @@ function UsersTab({ options, roles, ver, bump }) {
             value={q}
             onChange={(e) => setQ(e.target.value)}
             placeholder="جستجوی کاربر یا نقش…"
-            className="w-full bg-[#F5F5F7] border border-black/[0.06] rounded-xl px-4 py-2 text-xs text-[#1D1D1F] focus:outline-none focus:ring-2 focus:ring-[#0071E3]/25"
+            className={`w-full border rounded-xl px-4 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500/25 ${
+              isDark ? 'bg-white/5 border-white/10 text-slate-100 placeholder-slate-500' : 'bg-[#F5F5F7] border-black/[0.06] text-[#1D1D1F]'
+            }`}
           />
         </div>
       </div>
@@ -352,31 +370,37 @@ function UsersTab({ options, roles, ver, bump }) {
       <Msg msg={act.msg} />
 
       {form && (
-        <form className="mb-6 p-5 rounded-2xl bg-[#F5F5F7] border border-black/[0.05] space-y-4" onSubmit={submit}>
-          <h3 className="text-sm font-bold text-[#1D1D1F]">{form.id == null ? 'کاربر جدید' : `ویرایش «${form.username}»`}</h3>
+        <form className={`mb-6 p-5 rounded-2xl border space-y-4 ${
+          isDark ? 'bg-[#0F1412] border-emerald-500/15' : 'bg-[#F5F5F7] border-black/[0.05]'
+        }`} onSubmit={submit}>
+          <h3 className={`text-sm font-bold ${isDark ? 'text-slate-100' : 'text-[#1D1D1F]'}`}>{form.id == null ? 'کاربر جدید' : `ویرایش «${form.username}»`}</h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <div>
-              <label className="block text-xs font-medium text-[#86868B] mb-1">نام کاربری</label>
+              <label className={`block text-xs font-medium mb-1 ${isDark ? 'text-slate-400' : 'text-[#86868B]'}`}>نام کاربری</label>
               <input
                 dir="ltr"
                 value={form.username}
                 onChange={(e) => set({ username: e.target.value })}
                 required={form.id == null}
                 disabled={form.id != null}
-                className="w-full bg-white border border-black/[0.08] rounded-xl px-3 py-2 text-xs text-[#1D1D1F] focus:outline-none focus:ring-2 focus:ring-[#0071E3]/25"
+                className={`w-full border rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500/25 ${
+                  isDark ? 'bg-white/5 border-white/10 text-slate-100' : 'bg-white border-black/[0.08] text-[#1D1D1F]'
+                }`}
               />
             </div>
             <div>
-              <label className="block text-xs font-medium text-[#86868B] mb-1">نام نمایشی</label>
+              <label className={`block text-xs font-medium mb-1 ${isDark ? 'text-slate-400' : 'text-[#86868B]'}`}>نام نمایشی</label>
               <input
                 value={form.display_name}
                 onChange={(e) => set({ display_name: e.target.value })}
                 maxLength={100}
-                className="w-full bg-white border border-black/[0.08] rounded-xl px-3 py-2 text-xs text-[#1D1D1F] focus:outline-none focus:ring-2 focus:ring-[#0071E3]/25"
+                className={`w-full border rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500/25 ${
+                  isDark ? 'bg-white/5 border-white/10 text-slate-100' : 'bg-white border-black/[0.08] text-[#1D1D1F]'
+                }`}
               />
             </div>
             <div>
-              <label className="block text-xs font-medium text-[#86868B] mb-1">{form.id == null ? 'رمز عبور (حداقل ۸ نویسه)' : 'رمز عبور جدید (اختیاری)'}</label>
+              <label className={`block text-xs font-medium mb-1 ${isDark ? 'text-slate-400' : 'text-[#86868B]'}`}>{form.id == null ? 'رمز عبور (حداقل ۸ نویسه)' : 'رمز عبور جدید (اختیاری)'}</label>
               <input
                 type="password"
                 dir="ltr"
@@ -384,16 +408,20 @@ function UsersTab({ options, roles, ver, bump }) {
                 onChange={(e) => set({ password: e.target.value })}
                 required={form.id == null}
                 minLength={8}
-                className="w-full bg-white border border-black/[0.08] rounded-xl px-3 py-2 text-xs text-[#1D1D1F] focus:outline-none focus:ring-2 focus:ring-[#0071E3]/25"
+                className={`w-full border rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500/25 ${
+                  isDark ? 'bg-white/5 border-white/10 text-slate-100' : 'bg-white border-black/[0.08] text-[#1D1D1F]'
+                }`}
               />
             </div>
             <div>
-              <label className="block text-xs font-medium text-[#86868B] mb-1">نقش</label>
+              <label className={`block text-xs font-medium mb-1 ${isDark ? 'text-slate-400' : 'text-[#86868B]'}`}>نقش</label>
               <select
                 value={form.role_id}
                 onChange={(e) => changeRole(e.target.value)}
                 required
-                className="w-full bg-white border border-black/[0.08] rounded-xl px-3 py-2 text-xs text-[#1D1D1F] focus:outline-none focus:ring-2 focus:ring-[#0071E3]/25"
+                className={`w-full border rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500/25 ${
+                  isDark ? 'bg-[#0F1412] border-white/10 text-slate-100' : 'bg-white border-black/[0.08] text-[#1D1D1F]'
+                }`}
               >
                 <option value="">انتخاب نقش…</option>
                 {roles.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
@@ -409,11 +437,13 @@ function UsersTab({ options, roles, ver, bump }) {
               onChange={(e) => set({ is_active: e.target.checked })}
               className="rounded"
             />
-            <label htmlFor="user_active_check" className="text-xs font-medium text-[#1D1D1F]">حساب فعال</label>
+            <label htmlFor="user_active_check" className={`text-xs font-medium ${isDark ? 'text-slate-200' : 'text-[#1D1D1F]'}`}>حساب فعال</label>
           </div>
 
-          <div className="p-4 rounded-xl bg-white border border-black/[0.05] space-y-2">
-            <span className="text-xs font-bold text-[#1D1D1F] block">دامنهٔ داده{mode ? ` · ${SCOPE_LABEL[mode] ?? mode}` : ''}</span>
+          <div className={`p-4 rounded-xl border space-y-2 ${
+            isDark ? 'bg-white/[0.02] border-white/10' : 'bg-white border-black/[0.05]'
+          }`}>
+            <span className={`text-xs font-bold block ${isDark ? 'text-slate-100' : 'text-[#1D1D1F]'}`}>دامنهٔ داده{mode ? ` · ${SCOPE_LABEL[mode] ?? mode}` : ''}</span>
             <ScopePicker
               key={mode} mode={mode} options={options} branches={form.branches} supervisors={form.supervisors}
               onBranches={(v) => set({ branches: v })} onSupervisors={(v) => set({ supervisors: v })}
@@ -423,14 +453,16 @@ function UsersTab({ options, roles, ver, bump }) {
           <div className="flex items-center gap-2 pt-2">
             <button
               type="submit"
-              className="px-5 py-2 rounded-xl text-xs font-semibold bg-[#0071E3] hover:bg-[#0077ED] text-white shadow-sm shadow-blue-500/25 transition-all"
+              className="px-5 py-2 rounded-xl text-xs font-semibold bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white shadow-sm shadow-emerald-500/25 transition-all cursor-pointer"
               disabled={act.busy}
             >
               {form.id == null ? 'ایجاد کاربر' : 'ذخیره تغییرات'}
             </button>
             <button
               type="button"
-              className="px-4 py-2 rounded-xl text-xs font-semibold bg-black/[0.05] hover:bg-black/[0.08] text-[#1D1D1F] transition-all"
+              className={`px-4 py-2 rounded-xl text-xs font-semibold cursor-pointer ${
+                isDark ? 'bg-white/10 hover:bg-white/15 text-slate-200' : 'bg-black/[0.05] hover:bg-black/[0.08] text-[#1D1D1F]'
+              }`}
               onClick={() => { setForm(null); act.setMsg(null) }}
             >
               انصراف
@@ -553,22 +585,26 @@ function RolePermissionsTree({ form, set, options }) {
       {/* Top Bar for Permission Tree */}
       <div className="flex items-center justify-between flex-wrap gap-2 pb-1">
         <div className="flex items-center gap-2">
-          <span className="text-xs font-bold text-[#1D1D1F]">سطوح دسترسی به منوها و زیرمنوها</span>
-          <span className="text-[11px] font-semibold text-[#0071E3] bg-[#0071E3]/10 px-2.5 py-0.5 rounded-full">
+          <span className={`text-xs font-bold ${isDark ? 'text-slate-100' : 'text-[#1D1D1F]'}`}>سطوح دسترسی به منوها و زیرمنوها</span>
+          <span className={`text-[11px] font-semibold px-2.5 py-0.5 rounded-full ${
+            isDark ? 'text-emerald-400 bg-emerald-500/15 border border-emerald-500/25' : 'text-emerald-800 bg-emerald-50 border border-emerald-200'
+          }`}>
             {fa(selectedCount)} از {fa(totalPermissions)} فعال
           </span>
         </div>
         <div className="flex items-center gap-2">
           <button
             type="button"
-            className="text-xs text-[#0071E3] font-semibold hover:underline bg-[#0071E3]/10 hover:bg-[#0071E3]/15 px-3 py-1 rounded-xl transition-all"
+            className="text-xs text-emerald-400 font-semibold hover:underline bg-emerald-500/10 hover:bg-emerald-500/20 px-3 py-1 rounded-xl transition-all cursor-pointer"
             onClick={selectAllAll}
           >
             انتخاب همهٔ منوها
           </button>
           <button
             type="button"
-            className="text-xs text-[#86868B] font-semibold hover:underline bg-black/[0.04] hover:bg-black/[0.08] px-3 py-1 rounded-xl transition-all"
+            className={`text-xs font-semibold hover:underline px-3 py-1 rounded-xl transition-all cursor-pointer ${
+              isDark ? 'text-slate-400 bg-white/5 hover:bg-white/10' : 'text-[#86868B] bg-black/[0.04] hover:bg-black/[0.08]'
+            }`}
             onClick={deselectAllAll}
           >
             پاک کردن همه
@@ -609,13 +645,13 @@ function RolePermissionsTree({ form, set, options }) {
             <div
               key={group.id}
               className={`border rounded-2xl p-4 shadow-xs space-y-3 flex flex-col justify-between transition-all ${
-                isDark ? 'bg-white/5 border-white/10 text-[#F5F5F7]' : 'bg-white border-slate-200/80 text-[#1D1D1F]'
+                isDark ? 'bg-white/[0.03] border-white/10 text-[#F5F5F7]' : 'bg-white border-slate-200/80 text-[#1D1D1F]'
               }`}
             >
               {/* Group Header */}
               <div className={`flex items-center justify-between pb-2 border-b ${isDark ? 'border-white/10' : 'border-slate-200/80'}`}>
                 <div className="flex items-center gap-2.5">
-                  <span className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${isDark ? 'bg-white/10 text-[#F5F5F7]' : 'bg-black/[0.04] text-[#1D1D1F]'}`}>
+                  <span className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${isDark ? 'bg-emerald-500/15 text-emerald-400' : 'bg-black/[0.04] text-[#1D1D1F]'}`}>
                     <GroupIcon size={15} />
                   </span>
                   <div>
@@ -628,7 +664,7 @@ function RolePermissionsTree({ form, set, options }) {
                 <div className="flex items-center gap-1.5 shrink-0">
                   <button
                     type="button"
-                    className="text-[11px] text-[#0071E3] font-semibold hover:underline px-1.5 py-0.5"
+                    className="text-[11px] text-emerald-400 font-semibold hover:underline px-1.5 py-0.5 cursor-pointer"
                     onClick={selectGroup}
                   >
                     انتخاب همه
@@ -636,7 +672,7 @@ function RolePermissionsTree({ form, set, options }) {
                   <span className={`text-xs ${isDark ? 'text-white/20' : 'text-slate-300'}`}>|</span>
                   <button
                     type="button"
-                    className={`text-[11px] font-semibold hover:underline px-1.5 py-0.5 ${isDark ? 'text-slate-400' : 'text-[#86868B]'}`}
+                    className={`text-[11px] font-semibold hover:underline px-1.5 py-0.5 cursor-pointer ${isDark ? 'text-slate-400' : 'text-[#86868B]'}`}
                     onClick={deselectGroup}
                   >
                     پاک کردن
@@ -660,9 +696,11 @@ function RolePermissionsTree({ form, set, options }) {
                       key={item.id}
                       type="button"
                       onClick={toggle}
-                      className={`px-3 py-2 rounded-xl text-xs font-medium border transition-all text-right flex items-center justify-between gap-2 select-none ${
+                      className={`px-3 py-2 rounded-xl text-xs font-medium border transition-all text-right flex items-center justify-between gap-2 select-none cursor-pointer ${
                         isChecked
-                          ? 'bg-[#0071E3]/10 border-[#0071E3]/30 text-[#0071E3] font-bold shadow-xs'
+                          ? isDark
+                            ? 'bg-emerald-500/15 border-emerald-500/35 text-emerald-400 font-bold shadow-xs'
+                            : 'bg-emerald-50 border-emerald-300 text-emerald-800 font-bold shadow-xs'
                           : isDark
                           ? 'bg-white/5 border-white/10 text-[#F5F5F7] hover:bg-white/10'
                           : 'bg-[#F5F5F7] border-black/[0.04] text-[#1D1D1F] hover:bg-[#E8E8ED]'
@@ -672,7 +710,7 @@ function RolePermissionsTree({ form, set, options }) {
                         <span
                           className={`w-4 h-4 rounded-md flex items-center justify-center text-[10px] shrink-0 transition-colors ${
                             isChecked
-                              ? 'bg-[#0071E3] text-white shadow-xs'
+                              ? 'bg-emerald-500 text-white font-bold shadow-xs'
                               : isDark
                               ? 'border border-white/20 bg-white/10'
                               : 'border border-black/[0.2] bg-white'
@@ -697,15 +735,17 @@ function RolePermissionsTree({ form, set, options }) {
 
         {/* Other Pages Card (if any unexpected or extra page exists) */}
         {otherPages.length > 0 && (
-          <div className="bg-white border border-slate-200/80 rounded-2xl p-4 shadow-xs space-y-3 flex flex-col justify-between">
-            <div className="flex items-center justify-between pb-2 border-b border-slate-200/80">
+          <div className={`border rounded-2xl p-4 shadow-xs space-y-3 flex flex-col justify-between ${
+            isDark ? 'bg-white/[0.03] border-white/10 text-slate-100' : 'bg-white border-slate-200/80 text-[#1D1D1F]'
+          }`}>
+            <div className={`flex items-center justify-between pb-2 border-b ${isDark ? 'border-white/10' : 'border-slate-200/80'}`}>
               <div className="flex items-center gap-2.5">
-                <span className="w-7 h-7 rounded-lg bg-black/[0.04] flex items-center justify-center text-[#1D1D1F] shrink-0">
+                <span className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${isDark ? 'bg-white/10 text-slate-100' : 'bg-black/[0.04] text-[#1D1D1F]'}`}>
                   <Layers size={15} />
                 </span>
                 <div>
-                  <h4 className="text-xs font-bold text-[#1D1D1F]">سایر صفحات</h4>
-                  <span className="text-[10px] text-[#86868B] block mt-0.5">
+                  <h4 className={`text-xs font-bold ${isDark ? 'text-slate-100' : 'text-[#1D1D1F]'}`}>سایر صفحات</h4>
+                  <span className={`text-[10px] block mt-0.5 ${isDark ? 'text-slate-400' : 'text-[#86868B]'}`}>
                     {fa(otherPages.filter((p) => form.pages.includes(p.id)).length)} از {fa(otherPages.length)} انتخاب‌شده
                   </span>
                 </div>
@@ -713,15 +753,15 @@ function RolePermissionsTree({ form, set, options }) {
               <div className="flex items-center gap-1.5 shrink-0">
                 <button
                   type="button"
-                  className="text-[11px] text-[#0071E3] font-semibold hover:underline px-1.5 py-0.5"
+                  className="text-[11px] text-emerald-400 font-semibold hover:underline px-1.5 py-0.5 cursor-pointer"
                   onClick={() => set({ pages: [...new Set([...form.pages, ...otherPages.map((p) => p.id)])] })}
                 >
                   انتخاب همه
                 </button>
-                <span className="text-slate-300 text-xs">|</span>
+                <span className={`text-xs ${isDark ? 'text-white/20' : 'text-slate-300'}`}>|</span>
                 <button
                   type="button"
-                  className="text-[11px] text-[#86868B] font-semibold hover:underline px-1.5 py-0.5"
+                  className={`text-[11px] font-semibold hover:underline px-1.5 py-0.5 cursor-pointer ${isDark ? 'text-slate-400' : 'text-[#86868B]'}`}
                   onClick={() => set({ pages: form.pages.filter((p) => !otherPages.some((op) => op.id === p)) })}
                 >
                   پاک کردن
@@ -736,16 +776,20 @@ function RolePermissionsTree({ form, set, options }) {
                     key={item.id}
                     type="button"
                     onClick={() => set({ pages: toggleIn(form.pages, item.id) })}
-                    className={`px-3 py-2 rounded-xl text-xs font-medium border transition-all text-right flex items-center justify-between gap-2 select-none ${
+                    className={`px-3 py-2 rounded-xl text-xs font-medium border transition-all text-right flex items-center justify-between gap-2 select-none cursor-pointer ${
                       isChecked
-                        ? 'bg-[#0071E3]/10 border-[#0071E3]/30 text-[#0071E3] font-bold shadow-xs'
+                        ? isDark
+                          ? 'bg-emerald-500/15 border-emerald-500/35 text-emerald-400 font-bold shadow-xs'
+                          : 'bg-emerald-50 border-emerald-300 text-emerald-800 font-bold shadow-xs'
+                        : isDark
+                        ? 'bg-white/5 border-white/10 text-slate-100 hover:bg-white/10'
                         : 'bg-[#F5F5F7] border-black/[0.04] text-[#1D1D1F] hover:bg-[#E8E8ED]'
                     }`}
                   >
                     <div className="flex items-center gap-2 min-w-0">
                       <span
                         className={`w-4 h-4 rounded-md flex items-center justify-center text-[10px] shrink-0 transition-colors ${
-                          isChecked ? 'bg-[#0071E3] text-white shadow-xs' : 'border border-black/[0.2] bg-white'
+                          isChecked ? 'bg-emerald-500 text-white font-bold shadow-xs' : isDark ? 'border border-white/20 bg-white/10' : 'border border-black/[0.2] bg-white'
                         }`}
                       >
                         {isChecked && '✓'}
@@ -764,6 +808,7 @@ function RolePermissionsTree({ form, set, options }) {
 }
 
 function RolesTab({ options, roles, bump }) {
+  const { isDark } = useAppearance()
   const [form, setForm] = useState(null)
   const act = useAction()
   const set = (patch) => setForm((f) => ({ ...f, ...patch }))
@@ -805,14 +850,16 @@ function RolesTab({ options, roles, bump }) {
         <div className="flex items-center gap-2">
           <button
             type="button"
-            className="px-4 py-2 rounded-xl text-xs font-semibold bg-[#0071E3] hover:bg-[#0077ED] text-white shadow-sm shadow-blue-500/25 transition-all"
+            className="px-4 py-2 rounded-xl text-xs font-semibold bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white shadow-sm shadow-emerald-500/25 transition-all cursor-pointer"
             onClick={() => open(null)}
           >
             نقش جدید
           </button>
           <button
             type="button"
-            className="px-3.5 py-2 rounded-xl text-xs font-semibold bg-black/[0.05] hover:bg-black/[0.08] text-[#1D1D1F] transition-all"
+            className={`px-3.5 py-2 rounded-xl text-xs font-semibold cursor-pointer ${
+              isDark ? 'bg-white/10 hover:bg-white/15 text-slate-200' : 'bg-black/[0.05] hover:bg-black/[0.08] text-[#1D1D1F]'
+            }`}
             onClick={seed}
             disabled={act.busy}
           >
@@ -824,36 +871,44 @@ function RolesTab({ options, roles, bump }) {
       <Msg msg={act.msg} />
 
       {form && (
-        <form className="mb-6 p-5 rounded-2xl bg-[#F5F5F7] border border-black/[0.05] space-y-4" onSubmit={submit}>
-          <h3 className="text-sm font-bold text-[#1D1D1F]">{form.id == null ? 'نقش جدید' : `ویرایش «${form.name}»`}</h3>
+        <form className={`mb-6 p-5 rounded-2xl border space-y-4 ${
+          isDark ? 'bg-[#0F1412] border-emerald-500/15' : 'bg-[#F5F5F7] border-black/[0.05]'
+        }`} onSubmit={submit}>
+          <h3 className={`text-sm font-bold ${isDark ? 'text-slate-100' : 'text-[#1D1D1F]'}`}>{form.id == null ? 'نقش جدید' : `ویرایش «${form.name}»`}</h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             <div>
-              <label className="block text-xs font-medium text-[#86868B] mb-1">نام نقش</label>
+              <label className={`block text-xs font-medium mb-1 ${isDark ? 'text-slate-400' : 'text-[#86868B]'}`}>نام نقش</label>
               <input
                 value={form.name}
                 onChange={(e) => set({ name: e.target.value })}
                 required
                 minLength={2}
                 maxLength={60}
-                className="w-full bg-white border border-black/[0.08] rounded-xl px-3 py-2 text-xs text-[#1D1D1F] focus:outline-none focus:ring-2 focus:ring-[#0071E3]/25"
+                className={`w-full border rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500/25 ${
+                  isDark ? 'bg-white/5 border-white/10 text-slate-100' : 'bg-white border-black/[0.08] text-[#1D1D1F]'
+                }`}
               />
             </div>
             <div>
-              <label className="block text-xs font-medium text-[#86868B] mb-1">توضیح</label>
+              <label className={`block text-xs font-medium mb-1 ${isDark ? 'text-slate-400' : 'text-[#86868B]'}`}>توضیح</label>
               <input
                 value={form.description}
                 onChange={(e) => set({ description: e.target.value })}
                 maxLength={300}
-                className="w-full bg-white border border-black/[0.08] rounded-xl px-3 py-2 text-xs text-[#1D1D1F] focus:outline-none focus:ring-2 focus:ring-[#0071E3]/25"
+                className={`w-full border rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500/25 ${
+                  isDark ? 'bg-white/5 border-white/10 text-slate-100' : 'bg-white border-black/[0.08] text-[#1D1D1F]'
+                }`}
               />
             </div>
             <div>
-              <label className="block text-xs font-medium text-[#86868B] mb-1">دامنهٔ داده</label>
+              <label className={`block text-xs font-medium mb-1 ${isDark ? 'text-slate-400' : 'text-[#86868B]'}`}>دامنهٔ داده</label>
               <select
                 value={form.scope_mode}
                 onChange={(e) => set({ scope_mode: e.target.value })}
                 disabled={locked}
-                className="w-full bg-white border border-black/[0.08] rounded-xl px-3 py-2 text-xs text-[#1D1D1F] focus:outline-none focus:ring-2 focus:ring-[#0071E3]/25"
+                className={`w-full border rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500/25 ${
+                  isDark ? 'bg-[#0F1412] border-white/10 text-slate-100' : 'bg-white border-black/[0.08] text-[#1D1D1F]'
+                }`}
               >
                 {(options.scope_modes ?? ['all', 'branch', 'supervisor']).map((m) => <option key={m} value={m}>{SCOPE_LABEL[m] ?? m}</option>)}
               </select>
@@ -863,8 +918,10 @@ function RolesTab({ options, roles, bump }) {
 
           <RolePermissionsTree form={form} set={set} options={options} />
 
-          <div className="p-4 rounded-xl bg-white border border-black/[0.05] space-y-2">
-            <span className="text-xs font-bold text-[#1D1D1F] block mb-2">هسته‌های مجاز</span>
+          <div className={`p-4 rounded-xl border space-y-2 ${
+            isDark ? 'bg-white/[0.02] border-white/10' : 'bg-white border-black/[0.05]'
+          }`}>
+            <span className={`text-xs font-bold block mb-2 ${isDark ? 'text-slate-100' : 'text-[#1D1D1F]'}`}>هسته‌های مجاز</span>
             <Checks items={coreItems} value={form.cores} onChange={(v) => set({ cores: v })} label="هسته‌های مجاز" />
           </div>
 
@@ -876,7 +933,7 @@ function RolesTab({ options, roles, bump }) {
               onChange={(e) => set({ is_admin: e.target.checked })}
               className="rounded"
             />
-            <label htmlFor="role_admin_check" className="text-xs font-medium text-[#1D1D1F]">
+            <label htmlFor="role_admin_check" className={`text-xs font-medium ${isDark ? 'text-slate-200' : 'text-[#1D1D1F]'}`}>
               دسترسی مدیریت (کاربران، نقش‌ها، گزارش رویدادها و به‌روزرسانی داده)
             </label>
           </div>
@@ -884,14 +941,16 @@ function RolesTab({ options, roles, bump }) {
           <div className="flex items-center gap-2 pt-2">
             <button
               type="submit"
-              className="px-5 py-2 rounded-xl text-xs font-semibold bg-[#0071E3] hover:bg-[#0077ED] text-white shadow-sm shadow-blue-500/25 transition-all"
+              className="px-5 py-2 rounded-xl text-xs font-semibold bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white shadow-sm shadow-emerald-500/25 transition-all cursor-pointer"
               disabled={act.busy}
             >
               {form.id == null ? 'ایجاد نقش' : 'ذخیره'}
             </button>
             <button
               type="button"
-              className="px-4 py-2 rounded-xl text-xs font-semibold bg-black/[0.05] hover:bg-black/[0.08] text-[#1D1D1F] transition-all"
+              className={`px-4 py-2 rounded-xl text-xs font-semibold cursor-pointer ${
+                isDark ? 'bg-white/10 hover:bg-white/15 text-slate-200' : 'bg-black/[0.05] hover:bg-black/[0.08] text-[#1D1D1F]'
+              }`}
               onClick={() => { setForm(null); act.setMsg(null) }}
             >
               انصراف
@@ -979,42 +1038,50 @@ function AuditTab() {
       subtitle="ثبت تمامی ورودها، تغییرات کاربران و نقش‌ها با جزئیات IP و زمان (پالایش خودکار و نگهداری ۱۴ روز اخیر)"
       badge={d ? `${fa(count)} رویداد (۱۴ روز اخیر)` : 'در حال بارگذاری'}
     >
-      <div className="flex items-center gap-2 mb-4 px-3.5 py-2.5 rounded-xl bg-[#0071E3]/5 border border-[#0071E3]/15 text-[#0071E3] text-xs">
+      <div className={`flex items-center gap-2 mb-4 px-3.5 py-2.5 rounded-xl text-xs ${
+        isDark ? 'bg-emerald-500/10 border border-emerald-500/20 text-emerald-400' : 'bg-emerald-50 border border-emerald-200 text-emerald-800'
+      }`}>
         <History size={15} className="shrink-0" />
         <span>سیاست نگهداری ۱۴ روزه فعال است: رویدادهای قدیمی‌تر از ۲ هفته به‌طور خودکار پالایش و حذف می‌شوند.</span>
       </div>
       <form className="flex items-center gap-3 mb-5 flex-wrap" onSubmit={apply}>
         <div className="flex items-center gap-2">
-          <span className="text-xs font-medium text-[#86868B]">کاربر:</span>
+          <span className={`text-xs font-medium ${isDark ? 'text-slate-400' : 'text-[#86868B]'}`}>کاربر:</span>
           <input
             dir="ltr"
             value={draft.actor}
             onChange={(e) => setDraft({ ...draft, actor: e.target.value })}
             placeholder="مثلاً admin"
-            className="bg-[#F5F5F7] border border-black/[0.06] rounded-xl px-3 py-1.5 text-xs text-[#1D1D1F] focus:outline-none focus:ring-2 focus:ring-[#0071E3]/25"
+            className={`border rounded-xl px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500/25 ${
+              isDark ? 'bg-white/5 border-white/10 text-slate-100 placeholder-slate-500' : 'bg-[#F5F5F7] border-black/[0.06] text-[#1D1D1F]'
+            }`}
           />
         </div>
         <div className="flex items-center gap-2">
-          <span className="text-xs font-medium text-[#86868B]">نوع رویداد:</span>
+          <span className={`text-xs font-medium ${isDark ? 'text-slate-400' : 'text-[#86868B]'}`}>نوع رویداد:</span>
           <input
             dir="ltr"
             list="adm-actions"
             value={draft.action}
             onChange={(e) => setDraft({ ...draft, action: e.target.value })}
             placeholder="مثلاً login"
-            className="bg-[#F5F5F7] border border-black/[0.06] rounded-xl px-3 py-1.5 text-xs text-[#1D1D1F] focus:outline-none focus:ring-2 focus:ring-[#0071E3]/25"
+            className={`border rounded-xl px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500/25 ${
+              isDark ? 'bg-white/5 border-white/10 text-slate-100 placeholder-slate-500' : 'bg-[#F5F5F7] border-black/[0.06] text-[#1D1D1F]'
+            }`}
           />
           <datalist id="adm-actions">{KNOWN_ACTIONS.map((a) => <option key={a} value={a} />)}</datalist>
         </div>
         <button
           type="submit"
-          className="px-4 py-1.5 rounded-xl text-xs font-semibold bg-[#0071E3] hover:bg-[#0077ED] text-white transition-all shadow-sm shadow-blue-500/25"
+          className="px-4 py-1.5 rounded-xl text-xs font-semibold bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white transition-all shadow-sm shadow-emerald-500/25 cursor-pointer"
         >
           اعمال فیلتر
         </button>
         <button
           type="button"
-          className="px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-black/[0.05] hover:bg-black/[0.08] text-[#1D1D1F] transition-all"
+          className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+            isDark ? 'bg-white/10 hover:bg-white/15 text-slate-200' : 'bg-black/[0.05] hover:bg-black/[0.08] text-[#1D1D1F]'
+          }`}
           onClick={reset}
         >
           پاک کردن
@@ -1027,7 +1094,7 @@ function AuditTab() {
         <div className="overflow-x-auto">
           <table className="w-full text-right text-xs">
             <thead>
-              <tr className="border-b border-black/[0.06] text-[#86868B]">
+              <tr className={`border-b ${isDark ? 'border-white/10 text-slate-400' : 'border-black/[0.06] text-[#86868B]'}`}>
                 <th className="py-3 px-3 font-semibold">زمان</th>
                 <th className="py-3 px-3 font-semibold">کاربر</th>
                 <th className="py-3 px-3 font-semibold">رویداد</th>
@@ -1038,21 +1105,25 @@ function AuditTab() {
             </thead>
             <tbody>
               {d.rows.map((r) => (
-                <tr key={r.id} className="border-b border-black/[0.03] hover:bg-black/[0.015] transition-colors">
-                  <td className="py-3 px-3 text-[#86868B]" title={r.ts}>{when(r.ts)}</td>
-                  <td className="py-3 px-3 font-bold text-[#1D1D1F]" dir="ltr">{r.actor}</td>
+                <tr key={r.id} className={`border-b transition-colors ${
+                  isDark ? 'border-white/[0.04] hover:bg-white/[0.03]' : 'border-black/[0.03] hover:bg-black/[0.015]'
+                }`}>
+                  <td className={`py-3 px-3 ${isDark ? 'text-slate-400' : 'text-[#86868B]'}`} title={r.ts}>{when(r.ts)}</td>
+                  <td className={`py-3 px-3 font-bold ${isDark ? 'text-slate-100' : 'text-[#1D1D1F]'}`} dir="ltr">{r.actor}</td>
                   <td className="py-3 px-3">
-                    <span className="px-2 py-0.5 rounded-full text-[11px] font-medium bg-[#0071E3]/10 text-[#0071E3]" dir="ltr">
+                    <span className={`px-2 py-0.5 rounded-full text-[11px] font-medium ${
+                      isDark ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/25' : 'bg-emerald-50 text-emerald-800 border border-emerald-200'
+                    }`} dir="ltr">
                       {r.action}
                     </span>
                   </td>
-                  <td className="py-3 px-3 text-[#86868B]" dir="ltr">{[r.target_type, r.target].filter(Boolean).join(': ') || '—'}</td>
-                  <td className="py-3 px-3 text-[#86868B]" dir="ltr">{r.ip || '—'}</td>
+                  <td className={`py-3 px-3 ${isDark ? 'text-slate-400' : 'text-[#86868B]'}`} dir="ltr">{[r.target_type, r.target].filter(Boolean).join(': ') || '—'}</td>
+                  <td className={`py-3 px-3 ${isDark ? 'text-slate-400' : 'text-[#86868B]'}`} dir="ltr">{r.ip || '—'}</td>
                   <td className="py-3 px-3">
                     {r.detail && Object.keys(r.detail).length ? (
-                      <details className="cursor-pointer text-[#0071E3]">
+                      <details className={`cursor-pointer ${isDark ? 'text-emerald-400' : 'text-emerald-700'}`}>
                         <summary className="text-[11px] font-semibold hover:underline">نمایش JSON</summary>
-                        <pre dir="ltr" className="mt-2 p-3 rounded-xl bg-[#1C1C1E] text-white/90 text-[10px] overflow-auto max-w-xs">{JSON.stringify(r.detail, null, 2)}</pre>
+                        <pre dir="ltr" className="mt-2 p-3 rounded-xl bg-[#0B100E] border border-emerald-500/20 text-slate-200 text-[10px] overflow-auto max-w-xs">{JSON.stringify(r.detail, null, 2)}</pre>
                       </details>
                     ) : '—'}
                   </td>
@@ -1064,21 +1135,25 @@ function AuditTab() {
       ) : <div className="text-center py-10 text-xs text-[#86868B]">رویدادی با این فیلتر پیدا نشد.</div>)}
 
       {d && count > AUDIT_PAGE && (
-        <div className="flex items-center justify-between pt-4 border-t border-black/[0.05] mt-4">
+        <div className={`flex items-center justify-between pt-4 border-t mt-4 ${isDark ? 'border-white/10' : 'border-black/[0.05]'}`}>
           <button
             type="button"
-            className="px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-black/[0.05] hover:bg-black/[0.08] text-[#1D1D1F] disabled:opacity-40"
+            className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold disabled:opacity-40 cursor-pointer ${
+              isDark ? 'bg-white/10 hover:bg-white/15 text-slate-200' : 'bg-black/[0.05] hover:bg-black/[0.08] text-[#1D1D1F]'
+            }`}
             disabled={offset === 0 || audit.loading}
             onClick={() => setOffset(Math.max(0, offset - AUDIT_PAGE))}
           >
             صفحهٔ قبل
           </button>
-          <span className="text-xs text-[#86868B]">
+          <span className={`text-xs ${isDark ? 'text-slate-400' : 'text-[#86868B]'}`}>
             ردیف {fa(offset + 1)} تا {fa(last)} از {fa(count)}
           </span>
           <button
             type="button"
-            className="px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-black/[0.05] hover:bg-black/[0.08] text-[#1D1D1F] disabled:opacity-40"
+            className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold disabled:opacity-40 cursor-pointer ${
+              isDark ? 'bg-white/10 hover:bg-white/15 text-slate-200' : 'bg-black/[0.05] hover:bg-black/[0.08] text-[#1D1D1F]'
+            }`}
             disabled={offset + AUDIT_PAGE >= count || audit.loading}
             onClick={() => setOffset(offset + AUDIT_PAGE)}
           >
@@ -1099,16 +1174,16 @@ export default function AdminPage() {
   const roles = useApi('/admin/roles', { v: ver })
   const failed = options.error || roles.error
   return (
-    <div className="w-full max-w-[1600px] mx-auto px-6 space-y-6">
+    <div className="w-full max-w-[1600px] mx-auto px-4 sm:px-6 space-y-6">
       {/* Apple Tabs Bar */}
-      <div className={`apple-card rounded-[24px] border p-3 flex items-center justify-between flex-wrap gap-3 transition-all ${
+      <div className={`apple-card rounded-2xl sm:rounded-3xl border p-2.5 sm:p-3 flex items-center justify-between flex-wrap gap-3 transition-all ${
         isDark
-          ? 'bg-[#1C1C1E]/85 backdrop-blur-2xl border-white/10 text-[#F5F5F7] shadow-[0_4px_20px_rgba(0,0,0,0.3)]'
+          ? 'bg-[#0B100E]/75 backdrop-blur-2xl border-emerald-500/15 text-[#F5F5F7] shadow-[0_4px_20px_rgba(0,0,0,0.3)]'
           : isSolid
           ? 'bg-white border-slate-200 text-[#1D1D1F] shadow-xs'
           : 'bg-white/85 backdrop-blur-xl border-black/[0.04] text-[#1D1D1F] shadow-[0_4px_20px_rgb(0,0,0,0.03)]'
       }`}>
-        <div className={`flex items-center gap-1 p-1 rounded-2xl ${isDark ? 'bg-white/10' : 'bg-[#E8E8ED]/80'}`}>
+        <div className={`flex items-center gap-1 p-1 rounded-2xl ${isDark ? 'bg-white/[0.06]' : 'bg-[#E8E8ED]/80'}`}>
           {[
             ['users', 'کاربران', Users],
             ['roles', 'نقش‌ها و دسترسی‌ها', KeyRound],
@@ -1118,9 +1193,9 @@ export default function AdminPage() {
               key={k}
               type="button"
               onClick={() => setTab(k)}
-              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold transition-all ${
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
                 tab === k
-                  ? 'bg-[#0071E3] text-white shadow-sm'
+                  ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-sm shadow-emerald-500/25'
                   : isDark
                   ? 'text-slate-300 hover:text-white hover:bg-white/10'
                   : 'text-[#1D1D1F] hover:bg-black/[0.05]'

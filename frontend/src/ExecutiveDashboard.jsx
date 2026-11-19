@@ -460,7 +460,7 @@ export function ExecShell({
           <b className={`text-sm font-bold tracking-tight shrink-0 ${isDark ? 'text-[#F5F5F7]' : 'text-[#1D1D1F]'}`}>
             نبض فروش
           </b>
-          <span className="text-[11px] font-semibold text-[#0071E3] bg-[#0071E3]/10 border border-[#0071E3]/20 px-2.5 py-0.5 rounded-full truncate max-w-[130px]">
+          <span className="text-[11px] font-semibold text-emerald-400 bg-emerald-500/15 border border-emerald-500/25 px-2.5 py-0.5 rounded-full truncate max-w-[130px]">
             {currentPageLabel}
           </span>
         </div>
@@ -983,7 +983,7 @@ export function ExecShell({
                 isDark ? 'border-white/10' : 'border-slate-200/80'
               }`}>
                 <div className="flex items-center gap-2">
-                  <span className="w-2.5 h-2.5 rounded-full bg-[#0071E3]" />
+                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-400" />
                   <h3 className={`text-sm font-bold ${isDark ? 'text-[#F5F5F7]' : 'text-[#1D1D1F]'}`}>
                     منوی بخش‌های سامانه
                   </h3>
@@ -1146,7 +1146,7 @@ export function ExecShell({
                   <div className="min-w-0">
                     <button
                       type="button"
-                      className={`text-right font-bold text-xs truncate block hover:text-[#0071E3] ${
+                      className={`text-right font-bold text-xs truncate block hover:text-emerald-400 ${
                         isDark ? 'text-[#F5F5F7]' : 'text-[#1D1D1F]'
                       }`}
                       onClick={() => {

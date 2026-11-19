@@ -115,7 +115,7 @@ function Note({ children, tone }) {
   const isErr = tone === 'err'
   return (
     <div className={`rounded-2xl p-4 text-xs font-medium flex items-center gap-2.5 flex-wrap ${
-      isErr ? 'bg-rose-500/10 border border-rose-500/20 text-rose-800' : 'bg-[#0071E3]/10 border border-[#0071E3]/20 text-[#0071E3]'
+      isErr ? 'bg-rose-500/10 border border-rose-500/20 text-rose-800' : 'bg-emerald-500/10 border border-emerald-500/20 text-emerald-400'
     }`} role={isErr ? 'alert' : 'status'}>
       <Info size={16} aria-hidden="true" className="shrink-0" />
       <div className="flex-1 flex items-center gap-2 flex-wrap">{children}</div>
@@ -136,12 +136,11 @@ const orderCols = (extra = []) => [
 const customerCol = { label: 'مشتری', render: (r) => (r.customer_code ? `${r.customer_code} · ${r.customer_name ?? ''}` : '—'), value: (r) => `${r.customer_code ?? ''} ${r.customer_name ?? ''}` }
 
 const DONUT_COLORS = [
-  '#0071E3', // Apple Blue
+  '#10B981', // Emerald
   '#F43F5E', // Rose
   '#F59E0B', // Amber
-  '#10B981', // Emerald
-  '#8B5CF6', // Purple
   '#06B6D4', // Cyan
+  '#8B5CF6', // Purple
   '#EC4899', // Pink
   '#6366F1', // Indigo
   '#14B8A6', // Teal
@@ -274,7 +273,7 @@ function AppleDonutBreakdown({
             <button
               type="button"
               onClick={() => onPick('')}
-              className="mt-1 text-xs font-semibold text-[#0071E3] hover:underline"
+              className="mt-1 text-xs font-semibold text-emerald-400 hover:underline cursor-pointer"
             >
               پاک کردن فیلتر ({data.find((d) => d.rawName === selected)?.name})
             </button>
@@ -815,7 +814,7 @@ export function ReturnsProfileCard({ data, onOpen, entity }) {
       action={
         onOpen && (
           <button
-            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-[#0071E3] hover:bg-[#0077ED] text-white shadow-sm shadow-blue-500/25 transition-all"
+            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white shadow-sm shadow-emerald-500/25 transition-all cursor-pointer"
             type="button"
             onClick={onOpen}
           >

@@ -3,6 +3,7 @@ import CustomerMetricsPage from './CustomerMetricsPage'
 import { ClubPage, MyClub, MyVisitorClub } from './ClubPages'
 import AdminPage from './AdminPage'
 import ChatPage from './ChatPage'
+import MobileWidgetView from './MobileWidgetView'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { get, post, postJson, useApi } from './api'
 import { monthLabel, monthRange } from './format'
@@ -11,7 +12,7 @@ import { BranchRegionPage, CustomerPage, GrowthPage, HealthPage, InactiveCustome
 
 const CORES = { kg: 'کوپا گستر', ch: 'زنجیره‌ای' }
 const SHARED_KEYS = ['month', 'branch', 'office', 'region', 'state', 'city', 'brand', 'group', 'grade', 'sales_type', 'main_group', 'sub_group', 'product', 'reason']
-const PAGE_IDS = [...NAV.map(([k]) => k), 'admin']
+const PAGE_IDS = [...NAV.map(([k]) => k), 'admin', 'widget']
 const CLUB_KIND = { club_b2b: 'b2b', club_visitor: 'visitor' }
 
 export function getDefaultLandingPage(allowedPages = [], isAdmin = false) {
@@ -67,7 +68,7 @@ export default function App({ onLogout }) {
   //    (such as a B2B customer account or a visitor account).
   // 3. Otherwise fall back to the first allowed page in NAV (or 'admin' for pure admins).
   const home = getDefaultLandingPage(allowedPages, isAdmin)
-  const canOpen = (pg) => (pg === 'admin' ? isAdmin : allowedPages.includes(pg))
+  const canOpen = (pg) => (pg === 'widget' ? Boolean(principal) : pg === 'admin' ? isAdmin : allowedPages.includes(pg))
   // A hash for a page the user may not open falls back to their first allowed page.
   const page = principal ? (canOpen(route.page) ? route.page : home) : null
   const arg = page === route.page ? route.arg : ''
@@ -184,6 +185,11 @@ export default function App({ onLogout }) {
   }, [principal, core, month, dims, page, arg])
   if (me.error) return <div className="exec-alert err" role="alert" dir="rtl">دریافت اطلاعات حساب ناموفق بود.</div>
   if (!principal) return <div className="banner" dir="rtl">در حال بارگذاری…</div>
+
+  if (page === 'widget') {
+    return <MobileWidgetView principal={principal} onNavigate={go} onLogout={onLogout} />
+  }
+
   const title = page === 'admin' ? 'مدیریت کاربران و نقش‌ها' : page ? (NAV.find(([k]) => k === page)?.[1] ?? 'گزارش') : 'بدون دسترسی'
   const subtitle = page === 'chat'
     ? 'پرسش و پاسخ روی دادهٔ فروش · پاسخ‌ها فقط از هسته‌ها و شعب مجاز همین حساب خوانده می‌شوند'

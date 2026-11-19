@@ -265,7 +265,7 @@ function SharePie({ p, defaultBy }) {
                 {active && (
                   <motion.span
                     layoutId={`pieShareFilter-${defaultBy}`}
-                    className="absolute inset-0 rounded-xl bg-[#0071E3] shadow-sm shadow-blue-500/25"
+                    className="absolute inset-0 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 shadow-sm shadow-emerald-500/25"
                     transition={{ type: 'spring', stiffness: 420, damping: 34 }}
                   />
                 )}
@@ -412,7 +412,7 @@ function BreakdownPage({ p, options, defaultBy, title, labelHead, drill, openPro
                 type="button"
                 onClick={() => changeBy(k)}
                 className={`px-4 py-1.5 rounded-xl text-xs font-semibold transition-all ${
-                  by === k ? 'bg-[#0071E3] text-white shadow-sm' : 'text-[#1D1D1F] hover:bg-black/[0.05]'
+                  by === k ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-sm shadow-emerald-500/25' : 'text-[#1D1D1F] hover:bg-black/[0.05]'
                 }`}
               >
                 {label}
@@ -430,7 +430,7 @@ function BreakdownPage({ p, options, defaultBy, title, labelHead, drill, openPro
 
       {/* Drilldown Sub-bar if an item is selected */}
       {sel && (
-        <div className="rounded-[22px] bg-blue-500/5 border border-blue-500/15 p-3.5 flex items-center justify-between gap-3 flex-wrap">
+        <div className="rounded-[22px] bg-emerald-500/10 border border-emerald-500/20 p-3.5 flex items-center justify-between gap-3 flex-wrap">
           <div className="flex items-center gap-3 flex-wrap">
             <button
               type="button"
@@ -439,7 +439,7 @@ function BreakdownPage({ p, options, defaultBy, title, labelHead, drill, openPro
             >
               ← بازگشت به همهٔ {DIM_LABELS[sel.by]}‌ها
             </button>
-            <span className="text-xs font-extrabold text-[#0071E3]">
+            <span className="text-xs font-extrabold text-emerald-400">
               {DIM_LABELS[sel.by]}: <span className="underline">{sel.key}</span>
             </span>
             {children && (
@@ -450,7 +450,7 @@ function BreakdownPage({ p, options, defaultBy, title, labelHead, drill, openPro
                     type="button"
                     onClick={() => setChildBy(k)}
                     className={`px-3 py-1 rounded-lg text-xs font-medium transition-all ${
-                      activeChild === k ? 'bg-[#0071E3] text-white' : 'text-[#1D1D1F] hover:bg-black/[0.04]'
+                      activeChild === k ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white' : 'text-[#1D1D1F] hover:bg-black/[0.04]'
                     }`}
                   >
                     به تفکیک {DIM_LABELS[k]}
@@ -463,7 +463,7 @@ function BreakdownPage({ p, options, defaultBy, title, labelHead, drill, openPro
             <button
               type="button"
               onClick={() => openProfile(sel.by, sel.key)}
-              className="px-3.5 py-1.5 rounded-xl bg-[#0071E3] text-white text-xs font-bold hover:bg-[#0077ED] transition-all shadow-sm"
+              className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 text-white text-xs font-bold hover:from-emerald-500 hover:to-teal-500 transition-all shadow-sm shadow-emerald-500/25"
             >
               پروفایل کامل {sel.key}
             </button>
@@ -485,8 +485,8 @@ function BreakdownPage({ p, options, defaultBy, title, labelHead, drill, openPro
                   <BarChart data={d} margin={{ top: 8, right: 8, left: 8, bottom: 0 }}>
                     <defs>
                       <linearGradient id="appleBreakdownBar" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#0071E3" />
-                        <stop offset="100%" stopColor="#42A1EC" />
+                        <stop offset="0%" stopColor="#10B981" />
+                        <stop offset="100%" stopColor="#059669" />
                       </linearGradient>
                     </defs>
                     <CartesianGrid vertical={false} stroke="#E5E5EA" strokeDasharray="3 3" />

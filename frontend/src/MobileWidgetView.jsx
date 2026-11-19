@@ -26,7 +26,7 @@ import {
 import { useAppearance } from './AppearanceContext'
 import { fa, fa1, faDigits, monthLabel } from './format'
 
-const SCRIPTABLE_CODE = `// Nabz-e-Foroosh (نبض فروش) - iOS Scriptable Home Screen Widget
+export const SCRIPTABLE_CODE = `// Nabz-e-Foroosh (نبض فروش) - iOS Scriptable Home Screen Widget
 // Displays dynamic Sales Intelligence & Visitor Club metrics with Apple Hybrid Glass styling.
 
 const DASHBOARD_URL = "https://copagostar.internal"; // Replace with your server URL

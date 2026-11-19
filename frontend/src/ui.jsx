@@ -118,7 +118,7 @@ export function Table({ columns, rows, onRow, highlight, name = 'گزارش', pa
             onChange={(e) => setQ(e.target.value)}
             placeholder="جستجو در جدول…"
             aria-label="جستجو در جدول"
-            className="rounded-xl px-3 py-1.5 text-xs bg-black/[0.04] dark:bg-white/10 border-0 text-[#1D1D1F] dark:text-[#F5F5F7] focus:outline-none focus:ring-2 focus:ring-[#0071E3]/25"
+            className="rounded-xl px-3 py-1.5 text-xs bg-black/[0.04] dark:bg-white/10 border-0 text-[#1D1D1F] dark:text-[#F5F5F7] focus:outline-none focus:ring-2 focus:ring-emerald-500/25"
           />
         )}
         <span className="tbl-count text-xs text-[#86868B] dark:text-[#98989D] tabular-nums font-semibold mr-auto">
@@ -126,7 +126,7 @@ export function Table({ columns, rows, onRow, highlight, name = 'گزارش', pa
         </span>
         <button
           type="button"
-          className="tbl-export rounded-xl px-3.5 py-1.5 text-xs font-bold bg-[#0071E3]/10 hover:bg-[#0071E3]/20 text-[#0071E3] transition-colors shadow-2xs"
+          className="tbl-export rounded-xl px-3.5 py-1.5 text-xs font-bold bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-400 border border-emerald-500/20 transition-colors shadow-2xs cursor-pointer"
           onClick={() => downloadCsv(name, columns, shown)}
         >
           خروجی CSV (اکسل)
@@ -139,9 +139,9 @@ export function Table({ columns, rows, onRow, highlight, name = 'گزارش', pa
             <tr>
               {columns.map((c, i) => (
                 <th key={c.label} className="whitespace-nowrap select-none" aria-sort={sort?.i === i ? (sort.dir === 'asc' ? 'ascending' : 'descending') : 'none'}>
-                  <button type="button" className="th-sort font-bold flex items-center gap-1 hover:text-[#0071E3] transition-colors" onClick={() => nextSort(i)}>
+                  <button type="button" className="th-sort font-bold flex items-center gap-1 hover:text-emerald-400 transition-colors cursor-pointer" onClick={() => nextSort(i)}>
                     <span>{c.label}</span>
-                    <span aria-hidden="true" className="text-[#0071E3]">{sort?.i === i ? (sort.dir === 'asc' ? ' ▲' : ' ▼') : ''}</span>
+                    <span aria-hidden="true" className="text-emerald-400">{sort?.i === i ? (sort.dir === 'asc' ? ' ▲' : ' ▼') : ''}</span>
                   </button>
                 </th>
               ))}

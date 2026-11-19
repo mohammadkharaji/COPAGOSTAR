@@ -22,16 +22,16 @@ function Bubble({ role, text }) {
       className={`flex items-start gap-3 w-full ${isUser ? 'justify-start flex-row-reverse' : 'justify-start'}`}
     >
       {!isUser && (
-        <span className="w-8 h-8 rounded-xl bg-gradient-to-tr from-[#0071E3] to-[#42A1EC] text-white flex items-center justify-center shrink-0 shadow-sm shadow-blue-500/25" aria-hidden="true">
+        <span className="w-8 h-8 rounded-xl bg-gradient-to-tr from-emerald-500 to-teal-400 text-white flex items-center justify-center shrink-0 shadow-sm shadow-emerald-500/25" aria-hidden="true">
           <Sparkles size={16} />
         </span>
       )}
       <div
         className={`px-4 py-3 rounded-2xl text-sm leading-relaxed max-w-[80%] text-right ${
           isUser
-            ? 'bg-[#0071E3] text-white rounded-br-sm shadow-sm shadow-blue-500/20'
+            ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white rounded-br-sm shadow-sm shadow-emerald-500/20'
             : isDark
-            ? 'bg-white/10 border border-white/10 text-[#F5F5F7] rounded-bl-sm'
+            ? 'bg-[#0F1412] border border-emerald-500/15 text-[#F5F5F7] rounded-bl-sm'
             : 'bg-[#F5F5F7] border border-black/[0.04] text-[#1D1D1F] rounded-bl-sm'
         }`}
       >
@@ -91,26 +91,28 @@ export default function ChatPage() {
   const empty = messages.length === 0 && !busy
 
   return (
-    <div className="w-full max-w-[1600px] mx-auto px-6">
-      <div className={`apple-card border rounded-[28px] p-6 max-w-4xl mx-auto flex flex-col h-[calc(100vh-200px)] min-h-[580px] transition-all ${
+    <div className="w-full max-w-[1600px] mx-auto px-4 sm:px-6">
+      <div className={`apple-card border rounded-2xl sm:rounded-3xl p-4 sm:p-6 max-w-4xl mx-auto flex flex-col h-[calc(100vh-200px)] min-h-[580px] transition-all ${
         isDark
-          ? 'bg-[#1C1C1E]/85 backdrop-blur-2xl border-white/10 text-[#F5F5F7] shadow-[0_8px_30px_rgba(0,0,0,0.5)]'
+          ? 'bg-[#0B100E]/85 backdrop-blur-2xl border-emerald-500/20 text-[#F5F5F7] shadow-[0_8px_30px_rgba(0,0,0,0.5)]'
           : isSolid
           ? 'bg-white border-slate-200 text-[#1D1D1F] shadow-xs'
           : 'bg-white/85 backdrop-blur-xl border-black/[0.04] text-[#1D1D1F] shadow-[0_8px_30px_rgb(0,0,0,0.04)]'
       }`}>
         {/* Apple Header */}
         <div className={`flex items-center justify-between pb-4 border-b shrink-0 flex-wrap gap-3 ${
-          isDark ? 'border-white/10' : 'border-black/[0.05]'
+          isDark ? 'border-emerald-500/15' : 'border-black/[0.05]'
         }`}>
           <div className="flex items-center gap-3">
-            <span className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-[#0071E3] to-[#42A1EC] text-white flex items-center justify-center shadow-sm shadow-blue-500/30">
+            <span className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-emerald-500 to-teal-400 text-white flex items-center justify-center shadow-sm shadow-emerald-500/30">
               <Sparkles size={20} />
             </span>
             <div>
               <div className="flex items-center gap-2">
                 <h1 className={`text-base font-bold ${isDark ? 'text-[#F5F5F7]' : 'text-[#1D1D1F]'}`}>دستیار هوشمند تحلیل فروش</h1>
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-[#0071E3]/10 text-[#0071E3]">
+                <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
+                  isDark ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/25' : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                }`}>
                   هوش مصنوعی
                 </span>
               </div>
@@ -120,8 +122,8 @@ export default function ChatPage() {
           {messages.length > 0 && (
             <button
               type="button"
-              className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-colors ${
-                isDark ? 'bg-white/10 hover:bg-white/15 text-[#F5F5F7]' : 'bg-black/[0.04] hover:bg-black/[0.08] text-[#1D1D1F]'
+              className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-colors cursor-pointer ${
+                isDark ? 'bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 border border-emerald-500/20' : 'bg-black/[0.04] hover:bg-black/[0.08] text-[#1D1D1F]'
               }`}
               onClick={() => { setMessages([]); setError('') }}
             >
@@ -135,7 +137,9 @@ export default function ChatPage() {
         <div className="flex-1 overflow-y-auto py-5 space-y-4 px-2" ref={scroller} aria-live="polite">
           {empty && (
             <div className="h-full flex flex-col items-center justify-center text-center max-w-md mx-auto space-y-4 py-8">
-              <span className="w-14 h-14 rounded-3xl bg-[#0071E3]/10 text-[#0071E3] flex items-center justify-center shadow-inner">
+              <span className={`w-14 h-14 rounded-3xl flex items-center justify-center shadow-inner ${
+                isDark ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/20' : 'bg-emerald-50 text-emerald-600'
+              }`}>
                 <Sparkles size={28} />
               </span>
               <div>
@@ -151,9 +155,9 @@ export default function ChatPage() {
                     key={s}
                     type="button"
                     onClick={() => ask(s)}
-                    className={`text-right px-4 py-2.5 rounded-xl text-xs font-medium border transition-all ${
+                    className={`text-right px-4 py-2.5 rounded-xl text-xs font-medium border transition-all cursor-pointer ${
                       isDark
-                        ? 'bg-white/5 hover:bg-white/10 text-[#F5F5F7] border-white/10'
+                        ? 'bg-emerald-500/5 hover:bg-emerald-500/15 text-emerald-300 border-emerald-500/15'
                         : 'bg-[#F5F5F7] hover:bg-[#E8E8ED] text-[#1D1D1F] border-black/[0.04]'
                     }`}
                   >
@@ -174,13 +178,13 @@ export default function ChatPage() {
 
           {busy && (
             <div className="flex items-start gap-3 w-full">
-              <span className="w-8 h-8 rounded-xl bg-gradient-to-tr from-[#0071E3] to-[#42A1EC] text-white flex items-center justify-center shrink-0 shadow-sm shadow-blue-500/25">
+              <span className="w-8 h-8 rounded-xl bg-gradient-to-tr from-emerald-500 to-teal-400 text-white flex items-center justify-center shrink-0 shadow-sm shadow-emerald-500/25">
                 <Sparkles size={16} />
               </span>
               <div className={`px-4 py-3 rounded-2xl border text-sm flex items-center gap-2 ${
-                isDark ? 'bg-white/10 border-white/10 text-slate-300' : 'bg-[#F5F5F7] border-black/[0.04] text-[#86868B]'
+                isDark ? 'bg-[#0F1412] border-emerald-500/15 text-slate-300' : 'bg-[#F5F5F7] border-black/[0.04] text-[#86868B]'
               }`}>
-                <Loader2 size={16} className="animate-spin text-[#0071E3]" />
+                <Loader2 size={16} className="animate-spin text-emerald-400" />
                 <span>در حال تحلیل داده‌های فروش…</span>
               </div>
             </div>
@@ -188,18 +192,18 @@ export default function ChatPage() {
         </div>
 
         {error && (
-          <div className="px-4 py-2.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs flex items-center gap-2 mb-3 shrink-0" role="alert">
+          <div className="px-4 py-2.5 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-400 text-xs flex items-center gap-2 mb-3 shrink-0" role="alert">
             <TriangleAlert size={14} />
             <span>{error}</span>
           </div>
         )}
 
         {/* Compose area */}
-        <div className={`shrink-0 pt-3 border-t ${isDark ? 'border-white/10' : 'border-black/[0.05]'}`}>
+        <div className={`shrink-0 pt-3 border-t ${isDark ? 'border-emerald-500/15' : 'border-black/[0.05]'}`}>
           <form className={`relative border rounded-2xl p-2 flex items-center gap-2 transition-all ${
             isDark
-              ? 'bg-white/5 border-white/10 focus-within:ring-2 focus-within:ring-[#0071E3]/25 focus-within:border-[#0071E3]'
-              : 'bg-[#F5F5F7] border-black/[0.06] focus-within:ring-2 focus-within:ring-[#0071E3]/25 focus-within:border-[#0071E3]'
+              ? 'bg-[#0F1412] border-emerald-500/20 focus-within:ring-2 focus-within:ring-emerald-500/30 focus-within:border-emerald-500/40'
+              : 'bg-[#F5F5F7] border-black/[0.06] focus-within:ring-2 focus-within:ring-emerald-500/25 focus-within:border-emerald-500'
           }`} onSubmit={onSubmit}>
             <textarea
               ref={input}
@@ -212,19 +216,19 @@ export default function ChatPage() {
               disabled={busy}
               aria-label="سؤال شما"
               className={`w-full bg-transparent border-none text-sm px-3 py-1.5 focus:outline-none resize-none ${
-                isDark ? 'text-[#F5F5F7] placeholder-[#98989D]' : 'text-[#1D1D1F] placeholder-[#86868B]'
+                isDark ? 'text-[#F5F5F7] placeholder-slate-500' : 'text-[#1D1D1F] placeholder-[#86868B]'
               }`}
             />
             <button
               type="submit"
               disabled={busy || !question.trim()}
               aria-label="ارسال سؤال"
-              className="w-9 h-9 rounded-xl bg-[#0071E3] hover:bg-[#0077ED] disabled:opacity-40 text-white flex items-center justify-center transition-all shrink-0 active:scale-95 shadow-sm shadow-blue-500/25"
+              className="w-9 h-9 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 disabled:opacity-40 text-white flex items-center justify-center transition-all shrink-0 active:scale-95 shadow-sm shadow-emerald-500/25 cursor-pointer"
             >
               <ArrowUp size={18} />
             </button>
           </form>
-          <p className="flex items-center justify-center gap-1.5 text-[11px] text-[#86868B] mt-2.5">
+          <p className="flex items-center justify-center gap-1.5 text-[11px] text-slate-500 mt-2.5">
             <Database size={12} />
             <span>هر پاسخ از داده‌های زنده داشبورد خوانده می‌شود · Enter ارسال، Shift+Enter خط جدید</span>
           </p>

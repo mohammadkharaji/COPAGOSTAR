@@ -244,7 +244,7 @@ export function ForecastRings({ pace }) {
               cx="50"
               cy="50"
               r="40"
-              stroke="#0071E3"
+              stroke="#10B981"
               strokeWidth="10"
               strokeLinecap="round"
               fill="none"
@@ -318,12 +318,12 @@ export function CalendarGlass({ cal }) {
   return (
     <div className={`w-full flex flex-wrap items-center justify-between gap-2 sm:gap-3 rounded-2xl sm:rounded-3xl p-3 sm:px-5 sm:py-3.5 transition-colors ${surfaceClass}`}>
       <div className={`flex items-center gap-2 text-xs sm:text-sm font-semibold ${isDark ? 'text-[#F5F5F7]' : 'text-[#1D1D1F]'}`}>
-        <span className="w-6 h-6 sm:w-7 sm:h-7 rounded-lg sm:rounded-xl bg-[#0071E3]/10 text-[#0071E3] flex items-center justify-center select-none text-xs sm:text-sm">📅</span>
+        <span className="w-6 h-6 sm:w-7 sm:h-7 rounded-lg sm:rounded-xl bg-emerald-500/15 text-emerald-400 flex items-center justify-center select-none text-xs sm:text-sm">📅</span>
         <span className="truncate">{cal ? `${cal.weekday_name} ${fa(cal.day)} ${cal.month_name} ${fa(cal.year)}` : '—'}</span>
       </div>
       <div className="flex items-center gap-2 sm:gap-4 text-[11px] sm:text-xs">
         <span className={isDark ? 'text-slate-400' : 'text-[#86868B]'}>روز کاری: <strong className={`font-semibold ${isDark ? 'text-[#F5F5F7]' : 'text-[#1D1D1F]'}`}>{cal ? fa(cal.working_days) : '—'}</strong></span>
-        <span className={isDark ? 'text-slate-400' : 'text-[#86868B]'}>سپری‌شده: <strong className="text-[#0071E3] font-semibold">{cal ? fa(cal.days_passed) : '—'}</strong></span>
+        <span className={isDark ? 'text-slate-400' : 'text-[#86868B]'}>سپری‌شده: <strong className="text-emerald-400 font-semibold">{cal ? fa(cal.days_passed) : '—'}</strong></span>
         <span className={isDark ? 'text-slate-400' : 'text-[#86868B]'}>باقی‌مانده: <strong className="text-amber-500 font-semibold">{cal ? fa(cal.days_remaining) : '—'}</strong></span>
       </div>
       <div className="hidden sm:flex items-center gap-2 flex-1 min-w-[80px] max-w-[180px]">
@@ -332,10 +332,10 @@ export function CalendarGlass({ cal }) {
             initial={{ width: 0 }}
             animate={{ width: `${share * 100}%` }}
             transition={{ duration: 0.9, ease: [0.23, 1, 0.32, 1] }}
-            className="h-full rounded-full bg-[#0071E3]"
+            className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-teal-400"
           />
         </div>
-        <span className="text-xs font-medium text-[#0071E3] shrink-0">{pctN(share, 0)}</span>
+        <span className="text-xs font-medium text-emerald-400 shrink-0">{pctN(share, 0)}</span>
       </div>
     </div>
   )
@@ -442,7 +442,7 @@ export function ShareTabsCard({ by, setBy, options, slices, total, colors }) {
                 {active && (
                   <motion.span
                     layoutId="salesShareFilter"
-                    className="absolute inset-0 rounded-xl bg-[#0071E3] shadow-sm shadow-blue-500/25"
+                    className="absolute inset-0 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 shadow-sm shadow-emerald-500/25"
                     transition={{ type: 'spring', stiffness: 420, damping: 34 }}
                   />
                 )}
