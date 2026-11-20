@@ -1,4 +1,3 @@
-import { describe, expect, it } from 'bun:test'
 import ActivityRingsWidget from './ActivityRingsWidget'
 
 describe('ActivityRingsWidget Logic', () => {

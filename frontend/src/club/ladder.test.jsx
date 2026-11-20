@@ -1,4 +1,3 @@
-import { describe, expect, it } from 'bun:test'
 import { DEFAULT_KPIS, validateConfig, weightSum, parseLadder, formatLadder } from './ladder'
 
 describe('ladder config helpers', () => {

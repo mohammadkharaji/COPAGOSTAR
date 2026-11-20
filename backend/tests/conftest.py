@@ -18,3 +18,21 @@ def restore_backend_config():
     original = (config.DATA_DIR, config.RAW_DIR, config.DB_PATH)
     yield
     config.DATA_DIR, config.RAW_DIR, config.DB_PATH = original
+
+
+@pytest.fixture
+def metrics_data(tmp_path, monkeypatch):
+    """Small, deterministic sales history; never query the developer's database."""
+    from test_api import build_client, make_row, product_tsv
+
+    source = "SRSalesProcedure1405"
+    rows = [
+        make_row(source, "I1", "C1", "100", "10", date="1405/07/01", brand="برند نمونه", ucode="P1", vcode="V1", vname="ویزیتور نمونه"),
+        make_row(source, "I2", "C2", "200", "20", date="1405/07/02", brand="برند نمونه", ucode="P1", vcode="V1", vname="ویزیتور نمونه"),
+        make_row(source, "I3", "C1", "300", "30", date="1405/08/01", brand="برند نمونه", ucode="P1", vcode="V1", vname="ویزیتور نمونه"),
+        make_row(source, "I4", "C3", "400", "40", date="1405/08/02", brand="برند نمونه", ucode="P1", vcode="V1", vname="ویزیتور نمونه"),
+    ]
+    client = build_client(tmp_path, monkeypatch, {"sr_kg_140508": rows},
+                          product=product_tsv(("P1", "گروه بیسکویت", "بیسکویت")))
+    yield client
+    client.close()

@@ -1,4 +1,3 @@
-import { describe, expect, it } from 'bun:test'
 import { SCRIPTABLE_CODE } from './MobileWidgetView'
 
 describe('MobileWidgetView and PWA Integration', () => {

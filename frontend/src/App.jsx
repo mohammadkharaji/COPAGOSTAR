@@ -1,14 +1,18 @@
-import TargetPage from './TargetPage'
-import CustomerMetricsPage from './CustomerMetricsPage'
-import { ClubPage, MyClub, MyVisitorClub } from './ClubPages'
-import AdminPage from './AdminPage'
-import ChatPage from './ChatPage'
-import MobileWidgetView from './MobileWidgetView'
-import { Component, useEffect, useMemo, useRef, useState } from 'react'
+import { Component, lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react'
 import { get, post, postJson, useApi } from './api'
 import { monthLabel, monthRange } from './format'
 import ExecutiveDashboard, { ExecShell, NAV } from './ExecutiveDashboard'
 import { BranchRegionPage, CustomerPage, GrowthPage, HealthPage, InactiveCustomersPage, InvoicePage, MonthlyTrendPage, PotentialCustomersPage, QuantityPage, TicketsPage, ParetoPage, ProductBrandPage, ProfilePage, ReturnsPage, TrendPage, VisitorPage } from './pages'
+
+const TargetPage = lazy(() => import('./TargetPage'))
+const CustomerMetricsPage = lazy(() => import('./CustomerMetricsPage'))
+const AdminPage = lazy(() => import('./AdminPage'))
+const ChatPage = lazy(() => import('./ChatPage'))
+const MobileWidgetView = lazy(() => import('./MobileWidgetView'))
+const ClubPage = lazy(() => import('./ClubPages').then((m) => ({ default: m.ClubPage })))
+const MyClub = lazy(() => import('./ClubPages').then((m) => ({ default: m.MyClub })))
+const MyVisitorClub = lazy(() => import('./ClubPages').then((m) => ({ default: m.MyVisitorClub })))
+const pageLoading = <div className="banner" dir="rtl" role="status">در حال بارگذاری صفحه…</div>
 
 const CORES = { kg: 'کوپا گستر', ch: 'زنجیره‌ای' }
 const SHARED_KEYS = ['month', 'branch', 'office', 'region', 'state', 'city', 'brand', 'group', 'grade', 'sales_type', 'main_group', 'sub_group', 'product', 'reason']
@@ -253,7 +257,7 @@ export default function App({ onLogout }) {
   if (!principal) return <div className="banner" dir="rtl">در حال بارگذاری…</div>
 
   if (page === 'widget') {
-    return <MobileWidgetView principal={principal} onNavigate={go} onLogout={onLogout} />
+    return <ErrorBoundary key={page}><Suspense fallback={pageLoading}><MobileWidgetView principal={principal} onNavigate={go} onLogout={onLogout} /></Suspense></ErrorBoundary>
   }
 
   const title = page === 'admin' ? 'مدیریت کاربران و نقش‌ها' : page ? (NAV.find(([k]) => k === page)?.[1] ?? 'گزارش') : 'بدون دسترسی'
@@ -280,6 +284,7 @@ export default function App({ onLogout }) {
       allowedPages={allowedPages} isAdmin={isAdmin} canSync={isAdmin}
     >
       <ErrorBoundary key={page}>
+        <Suspense fallback={pageLoading}>
         {page === 'admin' && isAdmin && <AdminPage />}
         {page === 'chat' && <ChatPage />}
         {page in CLUB_KIND && reports && (principal.is_admin
@@ -321,6 +326,7 @@ export default function App({ onLogout }) {
         {page === 'health' && <HealthPage health={health} meta={meta} quality={quality} biSync={biSync} onTriggerBiSync={startSync} isAdmin={isAdmin} />}
         {page === 'tickets' && <TicketsPage isAdmin={!!me.data?.is_admin} />}
         </>}
+        </Suspense>
       </ErrorBoundary>
     </ExecShell>
   )

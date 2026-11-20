@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import asyncio
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, suppress
 import json
 import subprocess
 import sys
@@ -14,7 +14,7 @@ from fastapi import FastAPI, HTTPException, Query, Request, Response
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
-from . import auth, rbac, config, bi_sync_service
+from . import auth, rbac, config, bi_sync_service, bi_scheduler
 from .config import CORES, DEFAULT_CORE, HOLIDAYS, PROMO_KALA_SOURCES, RAW_DIR, ROOT, DB_PATH
 from .db import connect
 from .jalali import (JALALI_MONTHS, JALALI_WEEKDAYS, days_in_jalali_month, format_jdate, gregorian_to_jalali,
@@ -24,41 +24,22 @@ from . import xlsx as _xlsx
 from .schema import LIMITATIONS
 
 
-async def _bi_sync_scheduler_loop():
-    """Background loop that automatically syncs from BI server nightly at 00:30 and every 60m during business hours."""
-    if "PYTEST_CURRENT_TEST" in os.environ:
-        return
-    last_hourly = time.time()
-    last_nightly = None
-    while True:
-        try:
-            await asyncio.sleep(30)
-            now = datetime.now()
-            # 1. Nightly sync at 00:30
-            if now.hour == 0 and 30 <= now.minute <= 35 and last_nightly != now.date():
-                last_nightly = now.date()
-                bi_sync_service.trigger_sync_background()
-            # 2. Hourly sync during business hours (08:00 - 18:00)
-            elif 8 <= now.hour <= 18:
-                if time.time() - last_hourly >= 3600:
-                    last_hourly = time.time()
-                    bi_sync_service.trigger_sync_background()
-        except Exception:
-            await asyncio.sleep(60)
-
-
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     rbac.cleanup_audit_logs(days=14)
     task = None
     if "PYTEST_CURRENT_TEST" not in os.environ:
         try:
-            task = asyncio.create_task(_bi_sync_scheduler_loop())
+            task = asyncio.create_task(bi_scheduler.run())
         except Exception:
             pass
-    yield
-    if task is not None:
-        task.cancel()
+    try:
+        yield
+    finally:
+        if task is not None:
+            task.cancel()
+            with suppress(asyncio.CancelledError):
+                await task
 
 
 app = FastAPI(title="SR Sales Dashboard API", docs_url=None, redoc_url=None, openapi_url=None, lifespan=lifespan)
@@ -142,8 +123,9 @@ def logout(response: Response):
 EXPECTED_KG_MONTHS = [f"sr_kg_14050{m}" for m in range(1, 9)]
 
 CONSOLIDATION_STATUS = {
-    "status": "verified_100_percent",
-    "badge_text": "فرمول تجمیع ۳گانه فعال (فروش + پروموشن - مرجوعی) — تطابق ۱۰۰٪ با اکسل مرجع",
+    "status": "historical_reference",
+    "is_live_verification": False,
+    "badge_text": "تطبیق تاریخی با اکسل مرجع تا ۱۴۰۵/۰۸/۲۴؛ صحت داده‌های فعلی دوباره بررسی نشده است",
     "formula": "SRSalesProcedure1405 (+) + SRPromotionsProcedure1405 (+) - SRDatedSalesReturnProcedurewithVAT1405 (-)",
     "variance_rial": 0,
     "variance_pct": 0.0,

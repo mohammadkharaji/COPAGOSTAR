@@ -2,7 +2,7 @@ from app import api, rbac
 from starlette.requests import Request
 
 
-def test_product_metrics_calculation():
+def test_product_metrics_calculation(metrics_data):
     p = rbac.superadmin()
     ctx = rbac.CURRENT.set(p)
     try:

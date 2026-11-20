@@ -109,8 +109,8 @@ export function HealthPage({ health, meta, quality, biSync, onTriggerBiSync, isA
         </div>
       </div>
 
-      {/* 3-Procedure Consolidation & Reconciliation Live Audit Card */}
-      <div className={`rounded-2xl backdrop-blur-xl border p-4 sm:p-5 space-y-4 ${
+      {/* Historical reconciliation, not a verification of the current database. */}
+      {isAdmin && health?.consolidation && <div className={`rounded-2xl backdrop-blur-xl border p-4 sm:p-5 space-y-4 ${
         isDark
           ? 'bg-[#0B100E]/75 border-emerald-500/20 shadow-[0_4px_20px_rgba(0,0,0,0.35)]'
           : 'bg-gradient-to-br from-emerald-500/[0.05] via-white/90 to-teal-500/[0.03] border-emerald-500/20 shadow-xs'
@@ -123,14 +123,14 @@ export function HealthPage({ health, meta, quality, biSync, onTriggerBiSync, isA
             <div>
               <div className="flex items-center gap-2">
                 <h2 className={`text-sm sm:text-base font-extrabold tracking-tight ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>
-                  تطابق زنده فرمول تجمیع ۳گانه BI با اکسل مرجع (SR-1405.xlsx)
+                  گزارش تاریخی تطبیق فرمول تجمیع BI با اکسل مرجع
                 </h2>
                 <span className="px-2.5 py-0.5 rounded-full text-xs font-black bg-emerald-600 text-white shadow-xs">
-                  ۱۰۰٪ منطبق (۰ ریال اختلاف)
+                  مرجع تاریخی؛ نه تأیید زنده
                 </span>
               </div>
               <p className={`text-xs mt-0.5 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-                خط لوله همگام‌سازی مستقیم از سرور مرکزی SQL Server با تجمیع خالص ۳ پروسیجر استاندارد
+                {health.consolidation.badge_text}
               </p>
             </div>
           </div>
@@ -138,7 +138,7 @@ export function HealthPage({ health, meta, quality, biSync, onTriggerBiSync, isA
             <span className={`text-xs font-bold px-3 py-1 rounded-full border ${
               isDark ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/25' : 'bg-emerald-50 text-emerald-800 border-emerald-200'
             }`}>
-              بازه زمانی فعال: تا ۲۴ آبان ۱۴۰۵ (۲۴:۰۰)
+              تاریخ مرجع: {health.consolidation.last_cutoff}
             </span>
           </div>
         </div>
@@ -146,26 +146,26 @@ export function HealthPage({ health, meta, quality, biSync, onTriggerBiSync, isA
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 pt-1">
           <div className={`p-3 rounded-xl border ${isDark ? 'bg-black/25 border-white/5' : 'bg-white border-slate-200/80 shadow-xs'}`}>
             <div className={`text-[11px] font-bold mb-1 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>(+) فروش با مالیات (SRSales)</div>
-            <div className={`text-sm font-black tabular-nums ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>۲,۲۶۳,۵۱۵ م.ر</div>
-            <div className="text-[10px] text-emerald-500 mt-1 font-semibold">۷۴,۵۸۶ سطر تراکنش</div>
+            <div className={`text-sm font-black tabular-nums ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>{fa(health.consolidation.sales_vat_rial)} ریال</div>
+            <div className="text-[10px] text-emerald-500 mt-1 font-semibold">مبلغ ثبت‌شده در گزارش تاریخی</div>
           </div>
           <div className={`p-3 rounded-xl border ${isDark ? 'bg-black/25 border-white/5' : 'bg-white border-slate-200/80 shadow-xs'}`}>
             <div className={`text-[11px] font-bold mb-1 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>(+) پروموشن فعال (SRPromotions)</div>
-            <div className={`text-sm font-black tabular-nums ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>+۱۴۹,۸۵۲ م.ر</div>
-            <div className="text-[10px] text-amber-500 mt-1 font-semibold">۱۴,۶۸۷ سطر (خالص از کل برگشتی)</div>
+            <div className={`text-sm font-black tabular-nums ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>{fa(health.consolidation.promo_rial)} ریال</div>
+            <div className="text-[10px] text-amber-500 mt-1 font-semibold">مبلغ ثبت‌شده در گزارش تاریخی</div>
           </div>
           <div className={`p-3 rounded-xl border ${isDark ? 'bg-black/25 border-white/5' : 'bg-white border-slate-200/80 shadow-xs'}`}>
             <div className={`text-[11px] font-bold mb-1 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>(-) مرجوعی با مالیات (SRDatedReturn)</div>
-            <div className="text-sm font-black text-rose-500 tabular-nums">-۱۱,۰۴۶ م.ر</div>
-            <div className="text-[10px] text-rose-400 mt-1 font-semibold">۳۲۵ سطر مرجوعی رسمی</div>
+            <div className="text-sm font-black text-rose-500 tabular-nums">{fa(health.consolidation.returns_vat_rial)} ریال</div>
+            <div className="text-[10px] text-rose-400 mt-1 font-semibold">مبلغ کسرشده در گزارش تاریخی</div>
           </div>
           <div className={`p-3 rounded-xl border ${isDark ? 'bg-emerald-950/30 border-emerald-500/30' : 'bg-emerald-50 border-emerald-200 shadow-xs'}`}>
             <div className={`text-[11px] font-bold mb-1 ${isDark ? 'text-emerald-400' : 'text-emerald-800'}`}>(=) مجموع خالص تجمیعی DuckDB</div>
-            <div className={`text-sm font-black tabular-nums ${isDark ? 'text-emerald-300' : 'text-emerald-700'}`}>۲,۴۰۲,۳۲۱ م.ر</div>
-            <div className={`text-[10px] mt-1 font-bold ${isDark ? 'text-emerald-400' : 'text-emerald-700'}`}>۲۰,۵۸۹ فاکتور (تطابق ۱۰۰.۰۰٪)</div>
+            <div className={`text-sm font-black tabular-nums ${isDark ? 'text-emerald-300' : 'text-emerald-700'}`}>{fa(health.consolidation.verified_net_rial)} ریال</div>
+            <div className={`text-[10px] mt-1 font-bold ${isDark ? 'text-emerald-400' : 'text-emerald-700'}`}>{fa(health.consolidation.verified_invoices)} فاکتور در گزارش تاریخی</div>
           </div>
         </div>
-      </div>
+      </div>}
 
       {/* KPI Cards Row */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3 w-full">

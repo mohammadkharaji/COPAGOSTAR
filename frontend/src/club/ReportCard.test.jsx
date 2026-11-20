@@ -1,4 +1,3 @@
-import { describe, expect, it } from 'bun:test'
 import { ringsFromScorecard, linearRings } from './ReportCard'
 
 const sc = {
