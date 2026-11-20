@@ -177,5 +177,7 @@ def scorecard(plan: dict, code: str, month: str | None = None) -> dict:
         history.append({"month": row["provisional_month"]["month"],
                         "points": round(row["provisional_month"]["score"], 2), "provisional": True})
     return {**row, "month": chosen, "history": history, "kpis": _month_kpis(cfg, vm) if vm else [],
+            "sales_rial": vm.rial_actuals.get(D.ALL, 0.0) if vm else None,
+            "customers_count": vm.coverage_actual if vm else None,
             "note": None if vm else NOTE_NO_TARGET,
             "ladder_max": max(points for _, points in cfg.kpis[0].ladder)}

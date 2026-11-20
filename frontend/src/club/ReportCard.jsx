@@ -19,11 +19,14 @@ export function ringsFromScorecard(scorecard) {
     if (!kpi) {
       return { id: metric, ...style, label: 'تعریف نشده', value: '—', target: '—', progress: 0, percentage: 0 }
     }
-    const progress = Math.min(Math.max(kpi.ratio ?? 0, 0), 1)
+    const basketTarget = metric === 'basket' ? Math.max(...(kpi.ladder ?? []).map(([t]) => t), 0) : null
+    const ratio = metric === 'basket' ? (basketTarget > 0 ? kpi.ratio / basketTarget : 0) : (kpi.ratio ?? 0)
+    const progress = Math.min(Math.max(ratio, 0), 1)
     return {
       id: metric, label: kpi.label || style.label,
-      value: fa(Math.round(kpi.actual)), target: kpi.target == null ? '—' : fa(Math.round(kpi.target)),
-      progress, percentage: Math.round(progress * 100),
+      value: metric === 'basket' ? `${fa(kpi.ratio)} گروه` : fa(Math.round(kpi.actual)),
+      target: metric === 'basket' ? `${fa(basketTarget)} گروه` : kpi.target == null ? '—' : fa(Math.round(kpi.target)),
+      progress, percentage: Math.round(Math.max(ratio, 0) * 100),
       color: style.color, colorEnd: style.colorEnd, icon: style.icon,
     }
   })
@@ -44,8 +47,8 @@ export function linearRings(summary, target) {
   ]
 }
 
-const ladderRule = (ladder = []) =>
-  ladder.map(([t, s], i) => `${i === 0 ? 'از' : 'از'} ${faDigits(Math.round(t * 100))}٪ تحقق ${fa(s)} امتیاز`).join(' · ')
+const ladderRule = (ladder = [], metric) =>
+  ladder.map(([t, s]) => `از ${metric === 'basket' ? `${fa(t)} گروه` : `${faDigits(Math.round(t * 100))}٪ تحقق`} ${fa(s)} امتیاز`).join(' · ')
 
 export default function ReportCard({ scorecard, months = [], month, onMonth }) {
   const { isDark } = useAppearance()
@@ -98,16 +101,16 @@ export default function ReportCard({ scorecard, months = [], month, onMonth }) {
           { label: 'شاخص', render: (r) => <b className="font-bold text-[#1D1D1F]">{r.label}</b>, value: (r) => r.label },
           { label: 'هدف', render: (r) => (r.target == null ? '—' : <span className="tabular-nums">{fa(Math.round(r.target))}</span>), value: (r) => r.target ?? 0 },
           { label: 'واقعی', render: (r) => <span className="tabular-nums">{fa(Math.round(r.actual))}</span>, value: (r) => r.actual },
-          { label: 'تحقق', render: (r) => <span className="tabular-nums">{faDigits(Math.round((r.ratio ?? 0) * 100))}٪</span>, value: (r) => r.ratio },
+          { label: 'تحقق', render: (r) => <span className="tabular-nums">{r.metric === 'basket' ? `${fa(r.ratio)} گروه` : `${faDigits(Math.round((r.ratio ?? 0) * 100))}٪`}</span>, value: (r) => r.ratio },
           { label: 'امتیاز', render: (r) => <span className="tabular-nums font-bold text-[#1D1D1F]">{fa(r.score)}</span>, value: (r) => r.score },
           { label: 'ضریب', render: (r) => <span className="tabular-nums">{fa(r.weight)}</span>, value: (r) => r.weight },
           { label: 'امتیاز وزنی', render: (r) => <span className="tabular-nums font-extrabold text-[#0071E3]">{fa(Number((r.weighted ?? 0).toFixed(2)))}</span>, value: (r) => r.weighted },
         ]} />
       )}
 
-      {rows[0]?.ladder?.length ? (
-        <p className={`text-[11px] leading-relaxed ${tone}`}>قاعده نردبان: {ladderRule(rows[0].ladder)}</p>
-      ) : null}
+      {rows.filter((k) => k.ladder?.length).map((k) => (
+        <p key={k.key} className={`text-[11px] leading-relaxed ${tone}`}>قاعده نردبان {k.label}: {ladderRule(k.ladder, k.metric)}</p>
+      ))}
     </div>
   )
 }

@@ -8,6 +8,18 @@ const sc = {
 }
 
 describe('report card rings', () => {
+  it('normalizes basket groups against the final ladder step', () => {
+    const rings = ringsFromScorecard({ kpis: [{ metric: 'basket', ratio: 4, actual: 0, ladder: [[2, 8], [6, 25]] }] })
+    expect(rings[2].progress).toBeCloseTo(4 / 6)
+    expect(rings[2].value).toContain('۴')
+    expect(rings[2].target).toContain('۶')
+  })
+
+  it('keeps the real percentage above 100 while capping the ring', () => {
+    const ring = ringsFromScorecard({ kpis: [{ metric: 'rial', ratio: 1.2, actual: 120, target: 100 }] })[0]
+    expect(ring.progress).toBe(1)
+    expect(ring.percentage).toBe(120)
+  })
   it('maps kpis to three rings and marks a missing metric', () => {
     const rings = ringsFromScorecard(sc)
     expect(rings.length).toBe(3)

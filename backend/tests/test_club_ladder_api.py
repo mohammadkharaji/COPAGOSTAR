@@ -171,8 +171,11 @@ def test_scorecard_kpis_and_note(client):
     assert kp["rial"]["target"] == 1200 and kp["rial"]["actual"] == 1000 and kp["rial"]["score"] == 14.79
     assert kp["cov"]["target"] == 3 and kp["cov"]["actual"] == 2 and kp["cov"]["weighted"] == pytest.approx(3.5)
     assert sc["ladder_max"] == 25 and sc["note"] is None
+    assert sc["sales_rial"] == 1000
+    assert sc["customers_count"] == 2
     sc2 = client.get("/api/club/visitor/scorecard", params={"plan_id": pid, "code": "12", "month": "140508"}).json()
     assert sc2["kpis"] == [] and "هدفی" in sc2["note"]
+    assert sc2["sales_rial"] is None and sc2["customers_count"] is None
 
 
 def test_rial_achievement_equals_target_page(client):

@@ -593,11 +593,12 @@ export function MyVisitorClub({ arg }) {
   const team = useApi('/club/visitor/team', {})
   // Hooks must run in the same order on every render, so these sit above the early returns.
   const [month, setMonth] = useState(null)
+  const [scorecardRetry, setScorecardRetry] = useState(0)
   const planTypeEarly = team.data?.plan?.plan_type
   const isLadder = planTypeEarly === 'ladder'
   const target = useApi('/target', { by: 'visitor', month: '' }, !isLadder && !team.loading)
   const sc = useApi('/club/visitor/scorecard',
-    { plan_id: team.data?.plan?.id, code: team.data?.code, ...(month ? { month } : {}) },
+    { plan_id: team.data?.plan?.id, code: team.data?.code, ...(month ? { month } : {}), retry: scorecardRetry },
     isLadder && team.data?.plan?.id != null)
   if (team.error) return <div className="w-full max-w-[1600px] mx-auto px-6 p-6" role="alert" dir="rtl"><div className="rounded-[28px] bg-rose-50/90 border border-rose-200 text-rose-700 p-5 text-xs font-semibold">{team.error}</div></div>
   if (team.loading) return <div className="w-full max-w-[1600px] mx-auto px-6 p-6 text-center text-xs text-[#86868B]" dir="rtl">در حال بارگذاری…</div>
@@ -656,28 +657,32 @@ export function MyVisitorClub({ arg }) {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 w-full">
         <AppleKpiCard label="شناسه ویزیتور" value={faDigits(summary.code)} unit="کد سیستمی بازاریاب" icon={Store} tone="teal" />
         <AppleKpiCard label="امتیاز ویزیتور (یکپارچه با مدیریت)" value={fa(summary.points)} unit="امتیاز کل کسب‌شده" icon={Award} tone="teal" />
-        <AppleKpiCard label="فروش خالص کل پرتفوی" value={fa(summary.sales_rial)} unit="ریال خالص (کسر مرجوعی)" icon={CircleDollarSign} tone="amber" />
-        <AppleKpiCard label="مشتریان خریدار در دوره" value={fa(summary.customers_count)} unit="مشتری یکتای فعال" icon={Users} tone="violet" />
+        <AppleKpiCard label={isLadder ? 'فروش ماه کارنامه بر مبنای تارگت' : 'فروش خالص کل پرتفوی'} value={isLadder ? (!sc.loading && !sc.error && sc.data?.sales_rial != null ? fa(sc.data.sales_rial) : '—') : fa(summary.sales_rial)} unit={isLadder ? 'ریال؛ شامل پروموشن و کسر مرجوعی' : 'ریال خالص (کسر مرجوعی)'} icon={CircleDollarSign} tone="amber" />
+        <AppleKpiCard label={isLadder ? 'مشتریان خریدار ماه کارنامه' : 'مشتریان خریدار در دوره'} value={isLadder ? (!sc.loading && !sc.error && sc.data?.customers_count != null ? fa(sc.data.customers_count) : '—') : fa(summary.customers_count)} unit="مشتری یکتای فعال" icon={Users} tone="violet" />
       </div>
 
       {/* Activity Rings for Visitor Club */}
-      <ActivityRingsWidget
+      {(!isLadder || (!sc.loading && !sc.error && sc.data?.kpis?.length > 0)) && <ActivityRingsWidget
         type="visitor"
         customRings={isLadder ? ringsFromScorecard(sc.data) : linearRings(summary, visTarget)}
         title="حلقه‌های فعالیت ویزیتور (Apple Activity Rings)"
         subtitle={isLadder
           ? 'تحقق هر شاخص کارنامه نسبت به هدف همان ماه'
           : 'تحقق تارگت ریالی از صفحه تارگت و مشتریان خریدار نسبت به ماه قبل'}
-      />
+      />}
 
       {/* Section 1: Visitor Progress Bento Card */}
-      {isLadder && sc.data ? (
+      {isLadder ? (
         <AppleCard
           title={`کارنامه اختصاصی در طرح: ${plan.name}`}
           subtitle="امتیاز هر شاخص از نردبان تحقق همین طرح"
           badge={summary.tier ? `درجه ${summary.tier.level}` : ''}
         >
-          <ReportCard scorecard={sc.data} months={team.data?.months ?? []} month={month} onMonth={setMonth} />
+          {sc.loading ? <p role="status">در حال بارگذاری کارنامه…</p>
+            : sc.error ? <div role="alert"><p>{sc.error}</p><button type="button" onClick={() => setScorecardRetry((n) => n + 1)}>تلاش مجدد</button></div>
+            : sc.data?.available === false ? <p role="status">{sc.data.reason || 'دادهٔ کارنامه در دسترس نیست.'}</p>
+            : sc.data ? <ReportCard scorecard={sc.data} months={team.data?.months ?? []} month={month} onMonth={setMonth} />
+            : <p role="status">دادهٔ کارنامه در دسترس نیست.</p>}
         </AppleCard>
       ) : (
       <AppleCard
