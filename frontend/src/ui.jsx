@@ -1,8 +1,81 @@
 import { useEffect, useMemo, useState } from 'react'
+import { motion } from 'motion/react'
 import { fa } from './format'
+import { useAppearance } from './AppearanceContext'
 
 export const pct = (v, d = 1) => (v == null ? '—' : `${new Intl.NumberFormat('fa-IR', { maximumFractionDigits: d }).format(v * 100)}٪`)
 export const rial = (v) => fa(v)
+
+export function AppleKpiCard({ label, value, unit, icon: Icon, tone = 'teal' }) {
+  const { isDark, isSolid } = useAppearance()
+  const tones = {
+    blue: isDark ? 'bg-sky-500/15 text-sky-400 border border-sky-500/25' : 'bg-sky-50 text-sky-700',
+    teal: isDark ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/25' : 'bg-emerald-50 text-emerald-700',
+    amber: isDark ? 'bg-amber-500/15 text-amber-400 border border-amber-500/25' : 'bg-amber-50 text-amber-700',
+    violet: isDark ? 'bg-purple-500/15 text-purple-400 border border-purple-500/25' : 'bg-purple-50 text-purple-700',
+    pink: isDark ? 'bg-pink-500/15 text-pink-400 border border-pink-500/25' : 'bg-pink-50 text-pink-700',
+    green: isDark ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/25' : 'bg-emerald-50 text-emerald-700',
+    red: isDark ? 'bg-rose-500/15 text-rose-400 border border-rose-500/25' : 'bg-rose-50 text-rose-700',
+  }
+  return (
+    <motion.div
+      whileHover={{ y: -2 }}
+      className={`apple-kpi-card rounded-2xl border transition-all p-3 sm:p-4 flex flex-col justify-between text-right ${
+        isDark
+          ? 'bg-[#0B100E]/80 backdrop-blur-xl border-emerald-500/15 text-[#F5F5F7] shadow-[0_4px_20px_rgba(0,0,0,0.35)] hover:border-emerald-500/30'
+          : isSolid
+          ? 'bg-white border-slate-200 text-[#1D1D1F] shadow-xs hover:shadow-md'
+          : 'bg-white/90 backdrop-blur-xl border-slate-200/80 text-[#1D1D1F] shadow-[0_4px_20px_rgb(0,0,0,0.03)] hover:shadow-[0_8px_25px_rgb(0,0,0,0.06)]'
+      }`}
+    >
+      <div className="flex items-center justify-between mb-2">
+        <span className={`text-[11px] sm:text-xs font-medium truncate ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>{label}</span>
+        <div className={`w-7 h-7 sm:w-8 sm:h-8 rounded-xl flex items-center justify-center shrink-0 ${tones[tone] || tones.teal}`}>
+          {Icon ? <Icon size={14} className="sm:w-4 sm:h-4" /> : null}
+        </div>
+      </div>
+      <div>
+        <div className={`text-base sm:text-xl font-sans font-bold tracking-tight tabular-nums truncate ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>{value}</div>
+        <div className={`text-[10px] sm:text-[11px] mt-0.5 truncate ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>{unit}</div>
+      </div>
+    </motion.div>
+  )
+}
+
+export function AppleCard({ title, subtitle, badge, action, children, className = '' }) {
+  const { isDark, isSolid } = useAppearance()
+  return (
+    <div
+      className={`apple-card rounded-2xl sm:rounded-3xl border transition-all p-4 sm:p-6 overflow-hidden w-full max-w-full ${
+        isDark
+          ? 'bg-[#0B100E]/75 backdrop-blur-2xl border-emerald-500/15 text-[#F5F5F7] shadow-[0_8px_30px_rgba(0,0,0,0.45)]'
+          : isSolid
+          ? 'bg-white border-slate-200 text-[#1D1D1F] shadow-xs'
+          : 'bg-white/90 backdrop-blur-xl border-slate-200/80 text-[#1D1D1F] shadow-[0_8px_30px_rgb(0,0,0,0.04)]'
+      } ${className}`}
+    >
+      {(title || subtitle || badge || action) && (
+        <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+          <div>
+            {title && <h2 className={`text-sm sm:text-base font-bold ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>{title}</h2>}
+            {subtitle && <p className={`text-xs mt-0.5 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>{subtitle}</p>}
+          </div>
+          <div className="flex items-center gap-2">
+            {badge && (
+              <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${
+                isDark ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/25' : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+              }`}>
+                {badge}
+              </span>
+            )}
+            {action}
+          </div>
+        </div>
+      )}
+      {children}
+    </div>
+  )
+}
 
 export function Kpi({ label, value, unit, tone, hint }) {
   return (
