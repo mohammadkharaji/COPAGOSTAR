@@ -347,12 +347,12 @@ export default function MobileWidgetView({ principal, core, month = '', filters,
             </div>
             <div>
               <div className="flex items-center gap-1.5">
-                <h1 className="text-sm font-black tracking-tight leading-tight">نبض فروش کوپا گستر</h1>
+                <h1 className="text-sm font-black tracking-tight leading-tight whitespace-nowrap">نبض فروش کوپا گستر</h1>
                 <span className="text-[10px] px-1.5 py-0.5 rounded-md font-bold bg-[#0071E3]/15 text-[#0071E3] dark:text-[#38BDF8]">
                   همراه
                 </span>
               </div>
-              <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium whitespace-nowrap">
                 {isVisitor ? 'کارنامه باشگاه قدرت فروش' : 'پایش لحظه‌ای تارگت و فروش'}
               </p>
             </div>
@@ -558,19 +558,20 @@ export default function MobileWidgetView({ principal, core, month = '', filters,
 
               {/* Trend Badge with Arrow (Exact alignment with red/green colors) */}
               <div className="flex items-center justify-end gap-1 mb-2">
-                <span
-                  className={`text-xs font-black flex items-center gap-1 ${
-                    isNegative ? 'text-rose-400' : 'text-emerald-400'
+                <div
+                  className={`text-xs font-black px-2 py-0.5 rounded-lg inline-flex items-center gap-1.5 ${
+                    isNegative
+                      ? 'bg-rose-500/15 text-rose-400 border border-rose-500/25'
+                      : 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/25'
                   }`}
-                  dir="ltr"
                 >
-                  {trendValue}
-                </span>
-                {isNegative ? (
-                  <TrendingDown className="w-3.5 h-3.5 text-rose-400 stroke-[3]" />
-                ) : (
-                  <TrendingUp className="w-3.5 h-3.5 text-emerald-400 stroke-[3]" />
-                )}
+                  <span dir="ltr">{trendValue}</span>
+                  {isNegative ? (
+                    <TrendingDown className="w-3.5 h-3.5 text-rose-400 stroke-[2.5]" />
+                  ) : (
+                    <TrendingUp className="w-3.5 h-3.5 text-emerald-400 stroke-[2.5]" />
+                  )}
+                </div>
               </div>
 
               {/* HERO BIG BOLD METRIC NUMBER */}
