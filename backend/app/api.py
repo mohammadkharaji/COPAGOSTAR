@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+from contextlib import asynccontextmanager
 import json
 import subprocess
 import sys
@@ -21,8 +22,6 @@ from .jalali import (JALALI_MONTHS, JALALI_WEEKDAYS, days_in_jalali_month, forma
 from . import returns as _returns
 from . import xlsx as _xlsx
 from .schema import LIMITATIONS
-
-app = FastAPI(title="SR Sales Dashboard API", docs_url=None, redoc_url=None, openapi_url=None)
 
 
 async def _bi_sync_scheduler_loop():
@@ -48,14 +47,21 @@ async def _bi_sync_scheduler_loop():
             await asyncio.sleep(60)
 
 
-@app.on_event("startup")
-def startup_tasks():
+@asynccontextmanager
+async def lifespan(app: FastAPI):
     rbac.cleanup_audit_logs(days=14)
+    task = None
     if "PYTEST_CURRENT_TEST" not in os.environ:
         try:
-            asyncio.create_task(_bi_sync_scheduler_loop())
+            task = asyncio.create_task(_bi_sync_scheduler_loop())
         except Exception:
             pass
+    yield
+    if task is not None:
+        task.cancel()
+
+
+app = FastAPI(title="SR Sales Dashboard API", docs_url=None, redoc_url=None, openapi_url=None, lifespan=lifespan)
 
 PUBLIC_API = {"/api/auth/login"}
 limiter = auth.LoginLimiter()

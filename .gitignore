@@ -17,6 +17,18 @@ dist/
 *.bak
 *.bak-*
 skill-updates/
+skill-observations/
 
 # graphify knowledge graph: generated output, rebuilt by `graphify extract .`
 graphify-out/
+
+# Local credentials and ad-hoc backup folders
+auth.local.bat
+.evn
+BI_DB_HOST*
+backup-*/
+backups/
+test_*.html
+.vite/
+.windsurf/
+
