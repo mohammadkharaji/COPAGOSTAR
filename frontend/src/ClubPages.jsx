@@ -336,7 +336,7 @@ function PointsView({ kind, core }) {
   const { isDark } = useAppearance()
   const plans = useApi(`/club/${kind}/plans`, { core })
   const [planId, setPlanId] = useState(null)
-  const chosen = planId ?? plans.data?.plans?.[0]?.id ?? null
+  const chosen = plans.data?.plans?.some((p) => p.id === planId) ? planId : plans.data?.plans?.[0]?.id ?? null
   const points = useApi(`/club/${kind}/points`, { plan_id: chosen ?? 0 }, chosen != null)
   const rows = points.data?.rows ?? []
   const [code, setCode] = useState(null)
@@ -590,18 +590,17 @@ export function MyClub({ arg }) {
 
 export function MyVisitorClub({ arg }) {
   const { isDark } = useAppearance()
-  const team = useApi('/club/visitor/team', {})
+  const [planId, setPlanId] = useState(null)
   // Hooks must run in the same order on every render, so these sit above the early returns.
   const [month, setMonth] = useState(null)
   const [scorecardRetry, setScorecardRetry] = useState(0)
+  const team = useApi('/club/visitor/team', { ...(planId != null ? { plan_id: planId } : {}), ...(month ? { month } : {}), retry: scorecardRetry })
   const planTypeEarly = team.data?.plan?.plan_type
   const isLadder = planTypeEarly === 'ladder'
   const target = useApi('/target', { by: 'visitor', month: '' }, !isLadder && !team.loading)
-  const sc = useApi('/club/visitor/scorecard',
-    { plan_id: team.data?.plan?.id, code: team.data?.code, ...(month ? { month } : {}), retry: scorecardRetry },
-    isLadder && team.data?.plan?.id != null)
-  if (team.error) return <div className="w-full max-w-[1600px] mx-auto px-6 p-6" role="alert" dir="rtl"><div className="rounded-[28px] bg-rose-50/90 border border-rose-200 text-rose-700 p-5 text-xs font-semibold">{team.error}</div></div>
-  if (team.loading) return <div className="w-full max-w-[1600px] mx-auto px-6 p-6 text-center text-xs text-[#86868B]" dir="rtl">در حال بارگذاری…</div>
+  const sc = { data: team.data?.scorecard, loading: team.loading, error: team.error }
+  if (team.error) return <div role="alert" dir="rtl"><p>{team.error}</p><button type="button" onClick={() => setScorecardRetry((n) => n + 1)}>تلاش مجدد</button>{planId != null && <button type="button" onClick={() => { setPlanId(null); setMonth(null) }}>بازگشت به طرح پیش‌فرض</button>}</div>
+  if (team.loading) return <div className="banner" role="status" dir="rtl">در حال بارگذاری کارنامه…</div>
 
   const { plan } = team.data || {}
   // Requirement 2: Two clear sections (visitor_summary & portfolio_customers)
@@ -654,9 +653,17 @@ export function MyVisitorClub({ arg }) {
       </div>
 
       {/* Visitor KPI Bento Grid */}
+      <AppleCard title="طرح و دورهٔ کارنامه" subtitle={`بازه طرح: ${faDigits(plan.start_key)} تا ${faDigits(plan.end_key)}`}>
+        <label className="text-sm">انتخاب طرح
+          <select aria-label="انتخاب طرح" value={plan.id} onChange={(e) => { setPlanId(Number(e.target.value)); setMonth(null) }} className="border rounded-xl p-2 mx-2 bg-transparent">
+            {(team.data?.plans ?? [plan]).map((p) => <option key={p.id} value={p.id}>{p.name} — {{ current: 'جاری', upcoming: 'آینده', archived: 'آرشیو', inactive: 'غیرفعال' }[p.status] || 'طرح'}</option>)}
+          </select>
+        </label>
+        {isLadder && <p className="text-xs mt-2">ماه کارنامه: {sc.data?.month ? monthLabel(sc.data.month) : 'بدون داده'}؛ {sc.data?.month_provisional ? 'امتیاز موقت و قابل تغییر' : 'ماه پایان‌یافته؛ قابل بازنگری با اصلاح داده'}</p>}
+      </AppleCard>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 w-full">
         <AppleKpiCard label="شناسه ویزیتور" value={faDigits(summary.code)} unit="کد سیستمی بازاریاب" icon={Store} tone="teal" />
-        <AppleKpiCard label="امتیاز ویزیتور (یکپارچه با مدیریت)" value={fa(summary.points)} unit="امتیاز کل کسب‌شده" icon={Award} tone="teal" />
+        <AppleKpiCard label={isLadder ? 'جمع امتیاز ماه‌های پایان‌یافته' : 'امتیاز ویزیتور'} value={fa(summary.points)} unit={isLadder ? 'بدون امتیاز موقت ماه در جریان' : 'امتیاز کل کسب‌شده'} icon={Award} tone="teal" />
         <AppleKpiCard label={isLadder ? 'فروش ماه کارنامه بر مبنای تارگت' : 'فروش خالص کل پرتفوی'} value={isLadder ? (!sc.loading && !sc.error && sc.data?.sales_rial != null ? fa(sc.data.sales_rial) : '—') : fa(summary.sales_rial)} unit={isLadder ? 'ریال؛ شامل پروموشن و کسر مرجوعی' : 'ریال خالص (کسر مرجوعی)'} icon={CircleDollarSign} tone="amber" />
         <AppleKpiCard label={isLadder ? 'مشتریان خریدار ماه کارنامه' : 'مشتریان خریدار در دوره'} value={isLadder ? (!sc.loading && !sc.error && sc.data?.customers_count != null ? fa(sc.data.customers_count) : '—') : fa(summary.customers_count)} unit="مشتری یکتای فعال" icon={Users} tone="violet" />
       </div>
@@ -682,7 +689,7 @@ export function MyVisitorClub({ arg }) {
             : sc.error ? <div role="alert"><p>{sc.error}</p><button type="button" onClick={() => setScorecardRetry((n) => n + 1)}>تلاش مجدد</button></div>
             : sc.data?.available === false ? <p role="status">{sc.data.reason || 'دادهٔ کارنامه در دسترس نیست.'}</p>
             : sc.data ? <ReportCard scorecard={sc.data} months={team.data?.months ?? []} month={month} onMonth={setMonth} />
-            : <p role="status">دادهٔ کارنامه در دسترس نیست.</p>}
+            : <p role="status">{team.data?.unavailable_reason || 'دادهٔ کارنامه در دسترس نیست.'}</p>}
         </AppleCard>
       ) : (
       <AppleCard
@@ -733,7 +740,7 @@ export function MyVisitorClub({ arg }) {
       )}
 
       {/* Section 2: Portfolio Customers Leaderboard */}
-      <AppleCard
+      {!isLadder && <AppleCard
         title="لیدربورد پرتفوی مشتریان من"
         subtitle="بررسی فروش خالص، امتیاز و فاصله هر مشتری تا ارتقای پله بعدی جهت پیگیری و تارگت‌گذاری"
         badge={`${customers.length} مشتری`}
@@ -758,12 +765,12 @@ export function MyVisitorClub({ arg }) {
           },
           { label: 'سهم از پرتفوی', render: (r) => faDigits(Math.round((r.sales_rial / (summary.sales_rial || 1)) * 100)) + '٪', value: (r) => r.sales_rial },
         ]} />
-      </AppleCard>
+      </AppleCard>}
 
       {/* Monthly Chart */}
-      <AppleCard title="روند امتیازات ماهانه پرتفوی" subtitle="روند رشد امتیازات ماهانه بر اساس فروش خالص تجمیعی">
+      {!isLadder && <AppleCard title="روند امتیازات ماهانه پرتفوی" subtitle="روند رشد امتیازات ماهانه بر اساس فروش خالص تجمیعی">
         <PointsChart history={summary.history} name="نمودار امتیاز ماهانه ویزیتور" />
-      </AppleCard>
+      </AppleCard>}
     </div>
   )
 }

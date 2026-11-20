@@ -3,6 +3,7 @@
 Pure module: holds no I/O, database or FastAPI code. Only Pydantic models and functions.
 """
 from typing import Literal
+import math
 
 from pydantic import BaseModel, Field, model_validator
 
@@ -19,7 +20,7 @@ class Kpi(BaseModel):
     weight: float = Field(gt=0, le=1)
     ladder: list[list[float]]
     product_groups: list[str] | None = None
-    threshold: float = DEFAULT_BASKET_THRESHOLD
+    threshold: float = Field(DEFAULT_BASKET_THRESHOLD, gt=0, le=1)
 
 
 class GradeBand(BaseModel):
@@ -49,6 +50,8 @@ class LadderConfig(BaseModel):
 def _check_ladder(ladder: list[list[float]], label: str) -> None:
     if not ladder:
         raise ValueError(f"نردبان «{label}» خالی است")
+    if any(len(pair) != 2 or any(not math.isfinite(v) or v < 0 for v in pair) for pair in ladder):
+        raise ValueError(f"پله‌های نردبان «{label}» باید شامل آستانه و امتیاز نامنفی و محدود باشند")
     for (t1, s1), (t2, s2) in zip(ladder, ladder[1:]):
         if t2 <= t1:
             raise ValueError(f"آستانه‌های نردبان «{label}» باید اکیداً صعودی باشند")

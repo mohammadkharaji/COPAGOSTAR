@@ -18,7 +18,7 @@ from . import club_ladder_report, club_store, rbac
 from .club_ladder import LadderConfig
 from .config import DB_PATH, DEFAULT_CORE
 from .db import connect
-from .jalali import days_in_jalali_month
+from .jalali import days_in_jalali_month, gregorian_to_jalali, jalali_to_gregorian
 from .target import TARGET_CORES, _table_exists
 
 router = APIRouter(prefix="/api/club")
@@ -101,6 +101,19 @@ def _plans(kind: str) -> list[dict]:
                 pass
         out.append(plan)
     return out
+
+
+def _plan_options(plans: list[dict], today: int | None = None) -> list[dict]:
+    """Current active plans first, then upcoming plans, then the most recent archive."""
+    if today is None:
+        y, m, d = gregorian_to_jalali(datetime.now().date())
+        today = y * 10000 + m * 100 + d
+    options = [{**p, "status": ("inactive" if not p["active"] else
+                "upcoming" if p["start_key"] > today else
+                "archived" if p["end_key"] < today else "current")} for p in plans]
+    priority = {"current": 0, "upcoming": 1, "archived": 2, "inactive": 3}
+    return sorted(options, key=lambda p: (priority[p["status"]],
+                  p["start_key"] if p["status"] == "upcoming" else -p["start_key"], -p["id"]))
 
 
 def _sales_by_code(kind: str, core: str, start: int, end: int) -> dict[str, tuple[str, float]]:
@@ -198,7 +211,12 @@ def _routes(kind: str) -> None:
 
     @router.get(f"{base}/plans")
     def list_plans(request: Request):
-        return {"plans": _plans(kind)}
+        plans = _plans(kind)
+        core = request.query_params.get("core")
+        if core:
+            _core(core)
+            plans = [p for p in plans if p["core"] == core]
+        return {"plans": _plan_options(plans)}
 
     @router.post(f"{base}/plans", status_code=201)
     def create_plan(body: PlanBody):
@@ -207,6 +225,11 @@ def _routes(kind: str) -> None:
             raise HTTPException(403, "فقط مدیر می‌تواند طرح بسازد")
         if body.end_key < body.start_key:
             raise HTTPException(400, "تاریخ پایان باید بعد از تاریخ شروع باشد")
+        try:
+            for key in (body.start_key, body.end_key):
+                jalali_to_gregorian(key // 10000, key // 100 % 100, key % 100)
+        except ValueError:
+            raise HTTPException(400, "تاریخ جلالی طرح نامعتبر است")
         _core(body.core)
         if body.plan_type == "ladder":
             if kind != "visitor":
@@ -444,24 +467,28 @@ def visitor_scorecard(plan_id: int, code: str, month: str | None = None):
         raise HTTPException(404, "طرح پیدا نشد")
     if plan.get("plan_type") != "ladder":
         raise HTTPException(400, "این طرح نردبان نیست")
+    if month is not None and month not in club_ladder_report.plan_months(plan):
+        raise HTTPException(400, "ماه انتخاب‌شده خارج از بازه طرح است")
     unavailable = _ladder_unavailable(plan)
     if unavailable:
         return unavailable
     return club_ladder_report.scorecard(plan, code, month)
 
 
-def _ladder_member_view(plan: dict, code: str) -> dict:
+def _ladder_member_view(plan: dict, code: str, month: str | None = None) -> dict:
     """Member-facing summary of a ladder plan: the same keys a linear plan returns, plus the full scorecard."""
-    if _ladder_unavailable(plan) is not None:
+    unavailable = _ladder_unavailable(plan)
+    if unavailable is not None:
         return {"points": 0, "sales_rial": 0.0, "breakdown": [], "history": [], "scorecard": None,
+                "unavailable_reason": unavailable["reason"],
                 "tier": {"level": None, "step": 0, "rank_national": None, "rank_branch": None, "prize": None,
                          "points_needed_label": "هنوز داده‌ای بارگذاری نشده است"}}
-    sc = club_ladder_report.scorecard(plan, code, None)
+    sc = club_ladder_report.scorecard(plan, code, month)
     history = [{"month": m, "points": round(v, 2), "provisional": False} for m, v in sorted(sc["months"].items())]
     if sc["provisional_month"]:
         history.append({"month": sc["provisional_month"]["month"],
                         "points": round(sc["provisional_month"]["score"], 2), "provisional": True})
-    return {"points": round(sc["total"], 2), "sales_rial": 0.0,
+    return {"points": round(sc["total"], 2), "sales_rial": sc["sales_rial"],
             "breakdown": [{"label": k["label"], "points": round(k["weighted"], 2)} for k in sc["kpis"]],
             "history": history, "scorecard": {**sc, "history": history},
             "tier": {"level": sc["grade"], "step": 0, "rank_national": sc["rank_national"],
@@ -547,15 +574,17 @@ def _team(plan: dict, visitor_code: str) -> list[dict]:
 
 
 @router.get("/visitor/team")
-def my_team(plan_id: int | None = None):
+def my_team(plan_id: int | None = None, month: str | None = None):
     """The visitor's own progress (matching admin view) plus customer portfolio leaderboard."""
     p = rbac.require()
     link = _link_for(p.user)
     if link is None or link[0] != "visitor":
         raise HTTPException(403, "این صفحه فقط برای حساب ویزیتور است")
     code = link[1]
-    plans = _plans("visitor")
-    plan = next((x for x in plans if x["id"] == plan_id), None) or (plans[0] if plans else None)
+    plans = _plan_options(_plans("visitor"))
+    plan = next((x for x in plans if x["id"] == plan_id), None) if plan_id is not None else (plans[0] if plans else None)
+    if plan_id is not None and plan is None:
+        raise HTTPException(404, "طرح پیدا نشد")
     if plan is None:
         empty_summary = {"code": code, "name": code, "points": 0, "sales_rial": 0.0, "breakdown": [],
                          "tier": None, "history": [], "customers_count": 0}
@@ -563,14 +592,17 @@ def my_team(plan_id: int | None = None):
                 "team": [], "points": 0, "sales_rial": 0.0, "tier": None, "customers": 0, "history": []}
 
     if plan.get("plan_type") == "ladder":
-        v = _ladder_member_view(plan, code)
+        if month is not None and month not in club_ladder_report.plan_months(plan):
+            raise HTTPException(400, "ماه انتخاب‌شده خارج از بازه طرح است")
+        v = _ladder_member_view(plan, code, month)
         sc = v["scorecard"]
-        summary = {"code": code, "name": sc["name"] if sc else code, "points": v["points"], "sales_rial": 0.0,
-                   "breakdown": v["breakdown"], "tier": v["tier"], "history": v["history"], "customers_count": 0}
+        summary = {"code": code, "name": sc["name"] if sc else code, "points": v["points"], "sales_rial": sc["sales_rial"] if sc else None,
+                   "breakdown": v["breakdown"], "tier": v["tier"], "history": v["history"], "customers_count": sc["customers_count"] if sc else None}
         months_list = [{"month": m} for m in club_ladder_report.plan_months(plan)]
         return {"visitor_summary": summary, "portfolio_customers": [], "code": code, "plan": plan,
-                "points": v["points"], "sales_rial": 0.0, "breakdown": v["breakdown"], "tier": v["tier"],
-                "team": [], "customers": 0, "history": v["history"], "scorecard": sc, "months": months_list}
+                "points": v["points"], "sales_rial": summary["sales_rial"], "breakdown": v["breakdown"], "tier": v["tier"],
+                "team": [], "customers": summary["customers_count"], "history": v["history"], "scorecard": sc, "months": months_list,
+                "plans": plans, "unavailable_reason": v.get("unavailable_reason")}
 
     # Unified Visitor Summary (aggregated across visitor_code directly with gamification rules)
     v_score = _scores(plan, "visitor").get(code, {})
@@ -597,6 +629,7 @@ def my_team(plan_id: int | None = None):
     }
 
     return {
+        "plans": plans,
         "visitor_summary": visitor_summary,
         "portfolio_customers": portfolio,
         # Backwards-compatible top-level keys

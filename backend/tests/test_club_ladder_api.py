@@ -321,5 +321,43 @@ def test_member_team_endpoint_carries_ladder_summary(client):
     assert s["points"] == pytest.approx(12.37, abs=0.01) and s["tier"]["level"] == "C" and s["tier"]["rank_national"] == 1
     assert [h["month"] for h in s["history"]] == ["140507", "140508"] and s["history"][1]["provisional"] is True
     assert body["scorecard"]["month"] == "140508" and body["plan"]["plan_type"] == "ladder"
+    assert body["plans"][0]["id"] == pid
+    assert s["sales_rial"] == 1000 and s["customers_count"] == 1
+    previous = u.get("/api/club/visitor/team", params={"plan_id": pid, "month": "140507"})
+    assert previous.status_code == 200
+    assert previous.json()["scorecard"]["month_provisional"] is False
+    assert previous.json()["visitor_summary"]["customers_count"] == 2
+    assert u.get("/api/club/visitor/team", params={"plan_id": 9999}).status_code == 404
+    assert u.get("/api/club/visitor/team", params={"plan_id": pid, "month": "140509"}).status_code == 400
+    assert u.get("/api/club/visitor/scorecard", params={"plan_id": pid, "code": "12"}).status_code == 403
     me = u.get("/api/club/me").json()
     assert me["plans"][0]["tier"]["level"] == "C" and me["plans"][0]["points"] == pytest.approx(12.37, abs=0.01)
+
+
+def test_scorecard_next_steps_and_missing_targets(client):
+    pid = ladder_plan(client).json()["id"]
+    sc = client.get("/api/club/visitor/scorecard", params={"plan_id": pid, "code": "11", "month": "140507"}).json()
+    rial = next(k for k in sc["kpis"] if k["metric"] == "rial")
+    assert rial["next_step"]["additional"] == pytest.approx(80)
+    assert rial["next_step"]["weighted_gain"] == pytest.approx((19.23 - 14.79) * .6)
+    assert sc["data_cutoff"] == 14050803
+    latest = client.get("/api/club/visitor/scorecard", params={"plan_id": pid, "code": "11"}).json()
+    coverage = next(k for k in latest["kpis"] if k["metric"] == "coverage")
+    assert coverage["target_missing"] is True and coverage["next_step"] is None
+    assert client.get("/api/club/visitor/scorecard", params={"plan_id": pid, "code": "11", "month": "140513"}).status_code == 400
+
+
+def test_plan_dates_must_be_real_jalali_dates(client):
+    assert ladder_plan(client, start_key=14051301).status_code == 400
+    assert ladder_plan(client, end_key=14050831).status_code == 400
+
+
+def test_plan_options_prioritize_current_then_upcoming_then_archive():
+    from app.club import _plan_options
+    def plan(id, start, end, active=True):
+        return {"id": id, "start_key": start, "end_key": end, "active": active}
+    plans = [plan(1, 14050101, 14050231), plan(2, 14050801, 14050830),
+             plan(3, 14050901, 14050930), plan(4, 14050801, 14050830, False)]
+    options = _plan_options(plans, today=14050820)
+    assert [p["id"] for p in options] == [2, 3, 1, 4]
+    assert [p["status"] for p in options] == ["current", "upcoming", "archived", "inactive"]

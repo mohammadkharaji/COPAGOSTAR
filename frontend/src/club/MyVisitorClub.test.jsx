@@ -11,12 +11,18 @@ afterEach(cleanup)
 function show(scorecard) {
   useApi.mockImplementation((path) => path === '/club/visitor/team'
     ? { data: { plan: { id: 1, name: 'طرح نمونه', plan_type: 'ladder' }, code: '11',
-      visitor_summary: { code: '11', name: 'فروشنده', points: 10 } }, loading: false }
+      visitor_summary: { code: '11', name: 'فروشنده', points: 10 }, scorecard: scorecard.data }, loading: scorecard.loading, error: scorecard.error }
     : path === '/club/visitor/scorecard' ? scorecard : { data: null, loading: false })
   render(<AppearanceProvider><MyVisitorClub /></AppearanceProvider>)
 }
 
 describe('visitor ladder scorecard states', () => {
+  it('changes the selected plan without requesting a duplicate scorecard', () => {
+    show({ loading: false, data: { available: false, reason: 'بدون داده' } })
+    fireEvent.change(screen.getByRole('combobox', { name: 'انتخاب طرح' }), { target: { value: '1' } })
+    expect(useApi.mock.calls.some(([path, params]) => path === '/club/visitor/team' && params.plan_id === 1)).toBe(true)
+    expect(useApi.mock.calls.some(([path]) => path === '/club/visitor/scorecard')).toBe(false)
+  })
   it('shows loading instead of the linear report or empty rings', () => {
     show({ loading: true, data: null })
     expect(screen.getByText('در حال بارگذاری کارنامه…')).toBeInTheDocument()
@@ -28,7 +34,7 @@ describe('visitor ladder scorecard states', () => {
     show({ loading: false, error: 'خطای کارنامه', data: { sales_rial: 999 } })
     expect(screen.getByRole('alert')).toHaveTextContent('خطای کارنامه')
     fireEvent.click(screen.getByRole('button', { name: 'تلاش مجدد' }))
-    expect(useApi.mock.calls.some(([path, params]) => path === '/club/visitor/scorecard' && params.retry === 1)).toBe(true)
+    expect(useApi.mock.calls.some(([path, params]) => path === '/club/visitor/team' && params.retry === 1)).toBe(true)
     expect(screen.queryByText(/محاسبه مستقیم بر مبنای/)).toBeNull()
   })
 

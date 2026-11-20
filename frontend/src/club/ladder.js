@@ -22,10 +22,11 @@ export function validateConfig(config = {}) {
   if (Math.abs(weightSum(kpis) - 1) > 0.001) errors.push('مجموع ضرایب شاخص‌ها باید برابر ۱ باشد.')
   for (const kpi of kpis) {
     const ladder = kpi.ladder ?? []
-    if (!ladder.length || ladder.some((pair) => pair.length !== 2 || pair.some((n) => !Number.isFinite(n)))) {
+    if (!ladder.length || ladder.some((pair) => pair.length !== 2 || pair.some((n) => !Number.isFinite(n) || n < 0))) {
       errors.push(`نردبان «${kpi.label}» معتبر نیست.`)
       continue
     }
+    if (kpi.metric === 'basket' && (!(kpi.threshold > 0) || kpi.threshold > 1)) errors.push('آستانه سبد باید بزرگ‌تر از صفر و حداکثر یک باشد.')
     if (ladder.slice(1).some(([threshold], i) => threshold <= ladder[i][0])) {
       errors.push(`آستانه‌های نردبان «${kpi.label}» باید صعودی باشند.`)
     }

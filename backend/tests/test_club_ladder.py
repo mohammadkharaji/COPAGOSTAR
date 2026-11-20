@@ -31,6 +31,20 @@ def test_month_score_weights_two_kpis():
     assert [k["key"] for k in kpis] == ["rial", "cov"]
     assert kpis[0]["weighted"] == pytest.approx(8.874) and kpis[1]["ratio"] == 1.0
 
+
+@pytest.mark.parametrize("ladder", [[[0.6]], [[0.6, 8, 9]], [[-1, 8]], [[0.6, float('inf')]]])
+def test_ladder_rejects_malformed_or_unbounded_steps(ladder):
+    with pytest.raises(ValidationError):
+        L.LadderConfig(kpis=[L.Kpi(key="r", label="ریال", metric="rial", weight=1, ladder=ladder)],
+                       grade_bands=[], prize_table=[])
+
+
+@pytest.mark.parametrize("threshold", [0, -1, 1.1])
+def test_basket_threshold_must_be_a_positive_fraction(threshold):
+    with pytest.raises(ValidationError):
+        L.Kpi(key="b", label="سبد", metric="basket", weight=1, ladder=L.DEFAULT_BASKET_LADDER,
+              threshold=threshold)
+
 @pytest.mark.parametrize("bad", [
     {"kpis": [{"key": "a", "label": "a", "metric": "rial", "weight": 0.5, "ladder": LAD}]},                   # sum 0.5
     {"kpis": [{"key": "a", "label": "a", "metric": "rial", "weight": 1, "ladder": [[0.9, 25], [0.6, 8]]}]},   # not increasing

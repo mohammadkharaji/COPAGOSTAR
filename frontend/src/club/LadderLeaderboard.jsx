@@ -14,15 +14,16 @@ export default function LadderLeaderboard({ data, onSelect }) {
     ...months.map((m) => ({
       label: m.completed ? monthLabel(m.month) : `${monthLabel(m.month)} (در جریان)`,
       render: (r) => {
-        const val = m.completed ? (r.months?.[m.month] ?? 0) : (r.provisional_month?.score ?? 0)
+        const val = m.completed ? (r.months?.[m.month] ?? 0) : (r.provisional_month?.month === m.month ? r.provisional_month.score : null)
+        if (val == null) return '—'
         return <span className="tabular-nums">{fa(Number(val.toFixed(2)))}</span>
       },
-      value: (r) => m.completed ? (r.months?.[m.month] ?? 0) : (r.provisional_month?.score ?? 0),
+      value: (r) => m.completed ? (r.months?.[m.month] ?? 0) : (r.provisional_month?.month === m.month ? r.provisional_month.score : 0),
     })),
     { label: 'جمع', render: (r) => <span className="tabular-nums font-extrabold text-[#0071E3]">{fa(Number((r.total ?? 0).toFixed(2)))}</span>, value: (r) => r.total ?? 0 },
     { label: 'میانگین', render: (r) => <span className="tabular-nums">{fa(Number((r.average ?? 0).toFixed(2)))}</span>, value: (r) => r.average ?? 0 },
     { label: 'ماه‌ها', render: (r) => faDigits(r.tenure ?? 0), value: (r) => r.tenure ?? 0 },
-    { label: 'جایزه', render: (r) => (r.prize ? fa(r.prize) : '—'), value: (r) => r.prize ?? 0 },
+    { label: 'جایزه برآوردی (ریال)', render: (r) => (r.prize ? fa(r.prize) : '—'), value: (r) => r.prize ?? 0 },
   ]
 
   return <Table name="جدول رتبه‌بندی نردبان" rows={rows} columns={columns} onRow={onSelect ? (r) => onSelect(r.code) : undefined} />

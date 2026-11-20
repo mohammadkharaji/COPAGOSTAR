@@ -64,8 +64,8 @@ export default function ReportCard({ scorecard, months = [], month, onMonth }) {
           <div className="text-sm font-bold text-[#1D1D1F]">{scorecard.name || scorecard.code}</div>
           <div className={`text-[11px] mt-0.5 ${tone}`}>
             درجه {scorecard.grade ?? '—'} · {fa(scorecard.tenure ?? 0)} ماه · رتبه کشوری {fa(scorecard.rank_national ?? '—')}
-            {' · '}رتبه شعبه {fa(scorecard.rank_branch ?? '—')}
-            {scorecard.prize ? ` · جایزه ${fa(scorecard.prize)}` : ''}
+            {' · '}رتبه شعبه و درجه {fa(scorecard.rank_branch ?? '—')}
+            {scorecard.prize ? ` · جایزه برآوردی ${fa(scorecard.prize)} ریال` : ''}
           </div>
         </div>
         <div className="mr-auto flex items-center gap-2">
@@ -75,6 +75,12 @@ export default function ReportCard({ scorecard, months = [], month, onMonth }) {
             {months.map((m) => <option key={m.month} value={m.month}>{monthLabel(m.month)}</option>)}
           </select>
         </div>
+      </div>
+
+      <div className={`text-xs leading-relaxed ${tone}`}>
+        <p>{scorecard.ranking_note}</p>
+        {scorecard.data_cutoff && <p>آخرین تاریخ فروش در داده: {faDigits(scorecard.data_cutoff)}</p>}
+        <p>امتیاز این ماه: {scorecard.month_provisional ? 'موقت' : 'ماه پایان‌یافته'}؛ جمع ماه‌های پایان‌یافته: {fa(Number((scorecard.total ?? 0).toFixed(2)))}</p>
       </div>
 
       {history.length > 0 && (
@@ -99,8 +105,8 @@ export default function ReportCard({ scorecard, months = [], month, onMonth }) {
       ) : (
         <Table name="شاخص‌های کارنامه" rows={rows.map((k) => ({ ...k, _key: k.key }))} columns={[
           { label: 'شاخص', render: (r) => <b className="font-bold text-[#1D1D1F]">{r.label}</b>, value: (r) => r.label },
-          { label: 'هدف', render: (r) => (r.target == null ? '—' : <span className="tabular-nums">{fa(Math.round(r.target))}</span>), value: (r) => r.target ?? 0 },
-          { label: 'واقعی', render: (r) => <span className="tabular-nums">{fa(Math.round(r.actual))}</span>, value: (r) => r.actual },
+          { label: 'هدف', render: (r) => r.metric === 'basket' ? `${fa(Math.max(...r.ladder.map(([t]) => t)))} گروه` : (r.target == null ? '—' : <span className="tabular-nums">{fa(Math.round(r.target))}</span>), value: (r) => r.target ?? 0 },
+          { label: 'واقعی', render: (r) => <span className="tabular-nums">{r.metric === 'basket' ? `${fa(r.ratio)} گروه` : fa(Math.round(r.actual))}</span>, value: (r) => r.metric === 'basket' ? r.ratio : r.actual },
           { label: 'تحقق', render: (r) => <span className="tabular-nums">{r.metric === 'basket' ? `${fa(r.ratio)} گروه` : `${faDigits(Math.round((r.ratio ?? 0) * 100))}٪`}</span>, value: (r) => r.ratio },
           { label: 'امتیاز', render: (r) => <span className="tabular-nums font-bold text-[#1D1D1F]">{fa(r.score)}</span>, value: (r) => r.score },
           { label: 'ضریب', render: (r) => <span className="tabular-nums">{fa(r.weight)}</span>, value: (r) => r.weight },
@@ -111,6 +117,15 @@ export default function ReportCard({ scorecard, months = [], month, onMonth }) {
       {rows.filter((k) => k.ladder?.length).map((k) => (
         <p key={k.key} className={`text-[11px] leading-relaxed ${tone}`}>قاعده نردبان {k.label}: {ladderRule(k.ladder, k.metric)}</p>
       ))}
+      {rows.length > 0 && <section aria-label="قدم بعدی" className="space-y-2 border rounded-xl p-3">
+        <h3 className="text-sm font-bold">قدم بعدی برای ارتقای امتیاز</h3>
+        {rows.map((k) => <p key={k.key} className="text-xs leading-relaxed">
+          {k.label}: {k.target_missing ? 'هدف ثبت نشده؛ ابتدا هدف این شاخص باید تکمیل شود.'
+            : k.next_step ? `${fa(Math.ceil(k.next_step.additional))} ${k.metric === 'basket' ? 'گروه' : k.metric === 'coverage' ? 'مشتری' : 'ریال'} تا پله بعد؛ ${fa(Number(k.next_step.weighted_gain.toFixed(2)))} امتیاز وزنی بیشتر`
+            : 'بالاترین پلهٔ امتیازی این شاخص محقق شده است.'}
+        </p>)}
+        <p className={`text-xs ${tone}`}>این فاصله با ثابت ماندن هدف و سایر داده‌ها محاسبه می‌شود؛ مرجوعی یا اصلاح هدف می‌تواند نتیجه را تغییر دهد.</p>
+      </section>}
     </div>
   )
 }

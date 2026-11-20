@@ -145,14 +145,26 @@ def leaderboard(plan: dict) -> dict:
         con.close()
     scores = _month_scores(cfg, vms)
     completed = _completed(months, last)
-    rows = _rows(cfg, vms, scores, completed, months[-1] if months else None, averages)
+    latest_loaded = max((vm.month for vm in vms), default=None)
+    rows = _rows(cfg, vms, scores, completed, latest_loaded, averages)
     return {"available": True, "plan": plan,
+            "last_sales_key": last,
             "months": [{"month": m, "completed": completed[m]} for m in months], "rows": rows}
 
 
 def _month_kpis(cfg: LadderConfig, vm) -> list[dict]:
     inputs = {k.key: D.kpi_inputs(vm, k) for k in cfg.kpis}
-    return month_score(cfg, inputs, D.basket_groups(vm, _basket_threshold(cfg)))[1]
+    rows = month_score(cfg, inputs, D.basket_groups(vm, _basket_threshold(cfg)))[1]
+    for row in rows:
+        missing = row["metric"] != "basket" and (row["target"] is None or row["target"] <= 0)
+        nxt = next(((t, s) for t, s in row["ladder"] if t > row["ratio"] and s > row["score"]), None)
+        row["next_step"] = None if missing or nxt is None else {
+            "threshold": nxt[0], "additional": max(0.0, nxt[0] - row["ratio"]) if row["metric"] == "basket"
+            else max(0.0, nxt[0] * row["target"] - row["actual"]),
+            "weighted_gain": (nxt[1] - row["score"]) * row["weight"],
+        }
+        row["target_missing"] = missing
+    return rows
 
 
 def scorecard(plan: dict, code: str, month: str | None = None) -> dict:
@@ -160,7 +172,9 @@ def scorecard(plan: dict, code: str, month: str | None = None) -> dict:
     board = leaderboard(plan)
     cfg = _config(plan)
     months = [m["month"] for m in board["months"]]
-    chosen = month or (months[-1] if months else None)
+    loaded_months = sorted({m for r in board["rows"] for m in r["months"]} |
+                           {r["provisional_month"]["month"] for r in board["rows"] if r.get("provisional_month")})
+    chosen = month or (loaded_months[-1] if loaded_months else months[0] if months else None)
     vm = None
     if chosen:
         con = connect(read_only=True)
@@ -177,7 +191,10 @@ def scorecard(plan: dict, code: str, month: str | None = None) -> dict:
         history.append({"month": row["provisional_month"]["month"],
                         "points": round(row["provisional_month"]["score"], 2), "provisional": True})
     return {**row, "month": chosen, "history": history, "kpis": _month_kpis(cfg, vm) if vm else [],
+            "month_provisional": chosen not in row["months"],
+            "ranking_note": "رتبه متراکم بر اساس جمع ماه‌های پایان‌یافته؛ رتبه شعبه در همان درجه است. جایزه برآوردی است، نه پرداخت تأییدشده.",
+            "data_cutoff": board["last_sales_key"],
             "sales_rial": vm.rial_actuals.get(D.ALL, 0.0) if vm else None,
             "customers_count": vm.coverage_actual if vm else None,
             "note": None if vm else NOTE_NO_TARGET,
-            "ladder_max": max(points for _, points in cfg.kpis[0].ladder)}
+            "ladder_max": sum(max(points for _, points in k.ladder) * k.weight for k in cfg.kpis)}

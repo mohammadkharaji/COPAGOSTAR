@@ -24,7 +24,7 @@ def test_points_match_hand_computed_values(tmp_path, monkeypatch):
     c = seeded(tmp_path, monkeypatch)
     # Plan July 1405, 500,000 Rial per point.
     r = c.post("/api/club/b2b/plans", json={"name": "تیر ۱۴۰۵", "core": "kg", "start_key": 14050701,
-                                             "end_key": 14050731, "rial_per_point": 500000})
+                                             "end_key": 14050730, "rial_per_point": 500000})
     assert r.status_code == 201
     plan_id = r.json()["id"]
     rows = {x["code"]: x for x in c.get("/api/club/b2b/points", params={"plan_id": plan_id}).json()["rows"]}
@@ -37,7 +37,7 @@ def test_points_match_hand_computed_values(tmp_path, monkeypatch):
 def test_points_floor_on_partial_block(tmp_path, monkeypatch):
     c = seeded(tmp_path, monkeypatch)
     r = c.post("/api/club/b2b/plans", json={"name": "صد هزار", "core": "kg", "start_key": 14050701,
-                                             "end_key": 14050731, "rial_per_point": 400000})
+                                             "end_key": 14050730, "rial_per_point": 400000})
     rows = {x["code"]: x for x in c.get("/api/club/b2b/points", params={"plan_id": r.json()["id"]}).json()["rows"]}
     # 1,300,000 / 400,000 = 3.25 -> 3 (floor, no partial points).
     assert rows["C1"]["points"] == 3
@@ -46,7 +46,7 @@ def test_points_floor_on_partial_block(tmp_path, monkeypatch):
 def test_club_account_sees_only_its_own_code(tmp_path, monkeypatch):
     c = seeded(tmp_path, monkeypatch)
     c.post("/api/club/b2b/plans", json={"name": "تیر", "core": "kg", "start_key": 14050701,
-                                         "end_key": 14050731, "rial_per_point": 500000})
+                                         "end_key": 14050730, "rial_per_point": 500000})
     # Create a club account through the admin API, then link it to C1.
     c.post("/api/admin/roles/defaults")
     role = next(x for x in c.get("/api/admin/roles").json() if x["name"] == "CustomerClub")
@@ -83,7 +83,7 @@ def _visitor_client(tmp_path, monkeypatch):
     c.post("/api/admin/users", json={"username": "visitor1", "password": "password-123", "role_id": role["id"]})
     c.put("/api/club/link", json={"username": "visitor1", "kind": "visitor", "code": "V1"})
     c.post("/api/club/visitor/plans", json={"name": "مرداد-شهریور", "core": "kg", "start_key": 14050701,
-                                             "end_key": 14050831, "rial_per_point": 250000, "target_points": 10})
+                                             "end_key": 14050830, "rial_per_point": 250000, "target_points": 10})
     return c
 
 
@@ -112,7 +112,7 @@ def test_custom_tier_points_array(tmp_path, monkeypatch):
     c = seeded(tmp_path, monkeypatch)
     # 4 explicit thresholds: [2, 4, 6, 8]
     r = c.post("/api/club/b2b/plans", json={"name": "پله‌های سفارشی", "core": "kg", "start_key": 14050701,
-                                             "end_key": 14050731, "rial_per_point": 500000, "tier_points": [2, 4, 6, 8]})
+                                             "end_key": 14050730, "rial_per_point": 500000, "tier_points": [2, 4, 6, 8]})
     assert r.status_code == 201
     plan_id = r.json()["id"]
     pts = c.get("/api/club/b2b/points", params={"plan_id": plan_id}).json()
@@ -133,7 +133,7 @@ def test_points_cannot_be_negative(tmp_path, monkeypatch):
     ]
     c = build_client(tmp_path, monkeypatch, {"sr_kg_140507": rows})
     r = c.post("/api/club/b2b/plans", json={"name": "برگشتی بیش از فروش", "core": "kg", "start_key": 14050701,
-                                             "end_key": 14050731, "rial_per_point": 100000})
+                                             "end_key": 14050730, "rial_per_point": 100000})
     rows_resp = {x["code"]: x for x in c.get("/api/club/b2b/points", params={"plan_id": r.json()["id"]}).json()["rows"]}
     assert rows_resp["C9"]["points"] == 0
 
@@ -164,7 +164,7 @@ def test_multi_rule_scoring_matches_gamification_workbook(tmp_path, monkeypatch)
     rules = [{"label": "فروش پایه", "metric": "rial", "ratio": 100000, "factor": 1},
              {"label": "کالای تمرکزی ۳X", "metric": "rial", "ratio": 100000, "factor": 3, "brand": "ویفر"}]
     r = c.post("/api/club/b2b/plans", json={"name": "گیمیفیکیشن", "core": "kg", "start_key": 14050701,
-                                             "end_key": 14050731, "rial_per_point": 1, "rules": rules})
+                                             "end_key": 14050730, "rial_per_point": 1, "rules": rules})
     got = {x["code"]: x for x in c.get("/api/club/b2b/points", params={"plan_id": r.json()["id"]}).json()["rows"]}
     # C1 1,500,000 Rial: base 15 + focus 45 = 60. C2 300,000: base 3 only.
     assert got["C1"]["points"] == 60 and got["C2"]["points"] == 3
@@ -176,7 +176,7 @@ def _member(tmp_path, monkeypatch):
     from app.api import app
     c = seeded(tmp_path, monkeypatch)
     c.post("/api/club/b2b/plans", json={"name": "تیر", "core": "kg", "start_key": 14050701,
-                                         "end_key": 14050731, "rial_per_point": 500000})
+                                         "end_key": 14050730, "rial_per_point": 500000})
     c.post("/api/admin/roles/defaults")
     role = next(x for x in c.get("/api/admin/roles").json() if x["name"] == "CustomerClub")
     c.post("/api/admin/users", json={"username": "cust1", "password": "password-123", "role_id": role["id"]})
@@ -188,7 +188,7 @@ def _member(tmp_path, monkeypatch):
 
 def test_club_member_cannot_create_or_delete_plans(tmp_path, monkeypatch):
     c, u = _member(tmp_path, monkeypatch)
-    body = {"name": "طرح تست", "core": "kg", "start_key": 14050701, "end_key": 14050731, "rial_per_point": 1}
+    body = {"name": "طرح تست", "core": "kg", "start_key": 14050701, "end_key": 14050730, "rial_per_point": 1}
     assert u.post("/api/club/b2b/plans", json=body).status_code == 403
     plan_id = c.get("/api/club/b2b/plans").json()["plans"][0]["id"]
     assert u.delete(f"/api/club/b2b/plans/{plan_id}").status_code == 403

@@ -1,6 +1,10 @@
 import { DEFAULT_KPIS, validateConfig, weightSum, parseLadder, formatLadder } from './ladder'
 
 describe('ladder config helpers', () => {
+  it('rejects negative scores and invalid basket thresholds', () => {
+    expect(validateConfig({ kpis: [{ ...DEFAULT_KPIS[1], weight: 1, threshold: 0 }] }).length).toBeGreaterThan(0)
+    expect(validateConfig({ kpis: [{ ...DEFAULT_KPIS[0], weight: 1, ladder: [[.6, -2]] }] }).length).toBeGreaterThan(0)
+  })
   it('default kpis sum to one and validate', () => {
     expect(weightSum(DEFAULT_KPIS)).toBeCloseTo(1, 3)
     expect(validateConfig({ kpis: DEFAULT_KPIS, grade_bands: [], prize_table: [] })).toEqual([])
