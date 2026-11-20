@@ -23,6 +23,14 @@ Persian, right-to-left sales dashboard. Amounts are in Rial, dates are Jalali (1
 - **`api.py` and `rbac.py` move together.** Any new endpoint also needs its page in `rbac.PAGES` and its entry in `EXACT`/`PREFIX`, or it is admin-only (fail closed) and the new page 403s for every other user. Prove it with a test that calls the route as a **non-admin**.
 - Data never enters the repo: `data/`, `*.xlsx`, `*.tsv`, `*.sqlite` are ignored. `scripts/sync.py` rebuilds DuckDB from raw data.
 
+## MCP servers
+
+`.mcp.json` at the repo root configures the same three MCP servers used with Claude Code: `memory`
+(`npx @modelcontextprotocol/server-memory`), `notebooklm` (local `node
+C:/Users/m.kharaji/tools/notebooklm-mcp/dist/index.js`) and `playwright` (`npx @playwright/mcp@latest`).
+The file holds no secrets, but the `notebooklm` path is machine-specific: edit that entry when the
+checkout moves to another user or machine.
+
 ## Run and test
 
 - Start everything: `start-dashboard.bat` (backend :8000, frontend :5173, sync watcher).

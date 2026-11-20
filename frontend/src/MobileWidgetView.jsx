@@ -553,7 +553,7 @@ export default function MobileWidgetView({ principal, core, month = '', filters,
 
               {/* Metric Title Label */}
               <div className="text-right text-xs font-semibold text-slate-200 mb-1">
-                {isVisitor ? 'مجموع امتیاز عملکرد لحظه‌ای' : 'قیمت و فروش لحظه‌ای ۱ ماهه'}
+                {isVisitor ? 'مجموع امتیاز عملکرد' : 'فروش محقق‌شده'}
               </div>
 
               {/* Trend Badge with Arrow (Exact alignment with red/green colors) */}
