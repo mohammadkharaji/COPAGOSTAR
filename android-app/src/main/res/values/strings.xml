@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Copa - نبض فروش</string>
+    <string name="widget_description">ویجت پایش لحظه‌ای فروش کوپا گستر</string>
+    <string name="sales_title">فروش محقق‌شده</string>
+    <string name="brand_name">کوپا گستر</string>
+    <string name="default_price">۲۹۱,۷۵۷,۸۵۵,۴۸۸ تومان</string>
+    <string name="default_trend">↓ ۲۳٪-</string>
+    <string name="default_date">۱۴۰۵/۰۸/۲۸ ، ۲۰:۳۰</string>
+    <string name="default_footer">تحقق: ۷۷٪   |   ۱۸,۸۳۶ خریدار   |   ۲۴ از ۲۵ روز</string>
+</resources>

@@ -1,0 +1,125 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widget_container"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@drawable/widget_bg"
+    android:padding="16dp">
+
+    <!-- Top Row: Refresh (Left) and Brand (Right) -->
+    <RelativeLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+
+        <!-- Refresh Button on Left -->
+        <ImageView
+            android:id="@+id/btn_refresh"
+            android:layout_width="32dp"
+            android:layout_height="32dp"
+            android:layout_alignParentLeft="true"
+            android:layout_alignParentStart="true"
+            android:layout_centerVertical="true"
+            android:padding="4dp"
+            android:src="@drawable/ic_refresh"
+            android:contentDescription="بروزرسانی" />
+
+        <!-- Brand Name & Gold Badge on Right -->
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_alignParentRight="true"
+            android:layout_alignParentEnd="true"
+            android:layout_centerVertical="true"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+
+            <TextView
+                android:id="@+id/txt_brand"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/brand_name"
+                android:textColor="#FFFFFF"
+                android:textSize="14sp"
+                android:textStyle="bold"
+                android:layout_marginRight="6dp"
+                android:layout_marginEnd="6dp" />
+
+            <TextView
+                android:layout_width="22dp"
+                android:layout_height="22dp"
+                android:background="@drawable/gold_badge"
+                android:text="KG"
+                android:textColor="#0F172A"
+                android:textSize="10sp"
+                android:textStyle="bold"
+                android:gravity="center" />
+        </LinearLayout>
+    </RelativeLayout>
+
+    <!-- Timestamp Row (Right-aligned) -->
+    <TextView
+        android:id="@+id/txt_date"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/default_date"
+        android:textColor="#93C5FD"
+        android:textSize="11sp"
+        android:gravity="right|end"
+        android:layout_marginTop="2dp" />
+
+    <!-- Metric Title -->
+    <TextView
+        android:id="@+id/txt_title"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/sales_title"
+        android:textColor="#E2E8F0"
+        android:textSize="12sp"
+        android:gravity="right|end"
+        android:layout_marginTop="2dp" />
+
+    <!-- Trend Badge -->
+    <TextView
+        android:id="@+id/txt_trend"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/default_trend"
+        android:textColor="#FB7185"
+        android:textSize="12sp"
+        android:textStyle="bold"
+        android:gravity="right|end"
+        android:layout_marginTop="1dp" />
+
+    <!-- Hero Amount -->
+    <TextView
+        android:id="@+id/txt_amount"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/default_price"
+        android:textColor="#FFFFFF"
+        android:textSize="22sp"
+        android:textStyle="bold"
+        android:gravity="right|end"
+        android:layout_marginTop="2dp"
+        android:layout_marginBottom="6dp" />
+
+    <!-- Divider Line (Using ImageView to comply with RemoteViews) -->
+    <ImageView
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="#26FFFFFF"
+        android:layout_marginBottom="6dp"
+        android:contentDescription="خط جداکننده" />
+
+    <!-- Micro Stats Footer -->
+    <TextView
+        android:id="@+id/txt_footer"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/default_footer"
+        android:textColor="#CBD5E1"
+        android:textSize="10sp"
+        android:gravity="center" />
+
+</LinearLayout>

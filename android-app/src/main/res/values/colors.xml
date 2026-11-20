@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="widget_bg_start">#0A2B78</color>
+    <color name="widget_bg_center">#07205D</color>
+    <color name="widget_bg_end">#041238</color>
+    <color name="text_white">#FFFFFF</color>
+    <color name="text_muted">#A5B4FC</color>
+    <color name="text_gold">#FBBF24</color>
+    <color name="trend_red">#FB7185</color>
+    <color name="trend_green">#34D399</color>
+    <color name="divider_line">#33FFFFFF</color>
+</resources>
