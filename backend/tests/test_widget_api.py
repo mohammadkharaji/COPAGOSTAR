@@ -80,6 +80,20 @@ def test_widget_pulse_executive_view(client):
     assert "latest_bi_sync" in data
 
 
+def test_widget_sales_definition_matches_dashboard(client):
+    from app import db
+    con = db.connect(read_only=False)
+    try:
+        con.execute("UPDATE fact_sales SET total_discount=100, discount=20, settlement_discount=30 "
+                    "WHERE year_month='140508' AND visitor_code='11'")
+    finally:
+        con.close()
+    pulse = client.get('/api/mobile/widget-pulse').json()
+    assert pulse['sales_definition'] == 'dashboard_net_after_promotions'
+    assert pulse['net_rial_vat'] == 1250
+    assert pulse['target_achievement_pct'] == round(1250 / 1500 * 100, 1)
+
+
 def test_widget_pulse_branch_scoped_executive(client):
     client.post("/api/admin/roles/defaults")
     r_role = client.post(

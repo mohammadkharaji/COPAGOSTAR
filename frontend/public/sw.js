@@ -1,4 +1,4 @@
-const CACHE_NAME = 'sr-pulse-v1'
+const CACHE_NAME = 'sr-pulse-v2'
 const STATIC_ASSETS = [
   '/',
   '/index.html',
@@ -18,7 +18,7 @@ self.addEventListener('activate', (event) => {
     caches.keys().then((keys) =>
       Promise.all(
         keys.map((key) => {
-          if (key !== CACHE_NAME) {
+          if (key.startsWith('sr-pulse-') && key !== CACHE_NAME) {
             return caches.delete(key)
           }
         })
@@ -30,6 +30,7 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   const { request } = event
   const url = new URL(request.url)
+  if (request.method !== 'GET' || url.origin !== self.location.origin) return
 
   // API endpoints are always fetched live from the network to protect RBAC boundaries and freshness
   if (url.pathname.startsWith('/api/')) {
@@ -37,7 +38,15 @@ self.addEventListener('fetch', (event) => {
     return
   }
 
-  // Static assets and shell: Cache-first with network fallback and background revalidation
+  // Network-first shell avoids pinning HTML to obsolete hashed JS after deployment.
+  if (request.mode === 'navigate') {
+    event.respondWith(fetch(request).catch(() => caches.match('/index.html')))
+    return
+  }
+
+  // Only public static assets may enter this cache. Never cache authenticated responses.
+  if (!STATIC_ASSETS.includes(url.pathname) && !url.pathname.startsWith('/assets/')) return
+  // Static assets: cache-first with network fallback and background revalidation
   event.respondWith(
     caches.match(request).then((cached) => {
       const fetchPromise = fetch(request).then((networkResponse) => {

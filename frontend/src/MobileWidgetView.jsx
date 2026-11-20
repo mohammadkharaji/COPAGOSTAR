@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   ArrowLeft,
   Award,
@@ -29,7 +29,16 @@ import { fa, fa1, faDigits, monthLabel } from './format'
 export const SCRIPTABLE_CODE = `// Nabz-e-Foroosh (نبض فروش) - iOS Scriptable Home Screen Widget
 // Displays dynamic Sales Intelligence & Visitor Club metrics with Apple Hybrid Glass styling.
 
-const DASHBOARD_URL = "https://copagostar.internal"; // Replace with your server URL
+const DASHBOARD_URL = "https://copadash.amadehlaziz.com";
+const TOKEN_KEY = 'sr-widget-token';
+if (!config.runsInWidget) {
+  const prompt = new Alert();
+  prompt.title = 'توکن اختصاصی ویجت';
+  prompt.addSecureTextField('توکن را وارد کنید');
+  prompt.addAction('ذخیره یا جایگزینی');
+  prompt.addCancelAction('ادامه بدون تغییر');
+  if (await prompt.presentAlert() === 0) Keychain.set(TOKEN_KEY, prompt.textFieldValue(0).trim());
+}
 const API_URL = \`\${DASHBOARD_URL}/api/mobile/widget-pulse\`;
 
 async function createWidget() {
@@ -41,8 +50,10 @@ async function createWidget() {
   try {
     const req = new Request(API_URL);
     req.method = "GET";
-    req.headers = { "Accept": "application/json" };
+    req.timeoutInterval = 20;
+    req.headers = { "Accept": "application/json", Authorization: 'Bearer ' + (Keychain.contains(TOKEN_KEY) ? Keychain.get(TOKEN_KEY) : '') };
     data = await req.loadJSON();
+    if (req.response.statusCode !== 200 || data.schema_version !== 2) data = null;
   } catch (err) {
     data = null;
   }
@@ -68,6 +79,8 @@ async function createWidget() {
     const errText = widget.addText("نیاز به اتصال یا ورود مجدد");
     errText.textColor = new Color("#F87171");
     errText.font = Font.systemFont(12);
+  } else if (!data.available) {
+    widget.addText(data.reason || 'داده موجود نیست');
   } else if (data.role_view === "visitor") {
     // Visitor Ladder Card
     const scoreStack = widget.addStack();
@@ -99,7 +112,7 @@ async function createWidget() {
     ringText.font = Font.mediumSystemFont(10);
   } else {
     // Executive Pulse Card
-    const label = widget.addText("فروش خالص جاری (با مالیات):");
+    const label = widget.addText("فروش خالص دوره داده (با مالیات):");
     label.textColor = new Color("#94A3B8");
     label.font = Font.systemFont(11);
 
@@ -111,7 +124,7 @@ async function createWidget() {
 
     const sub = widget.addStack();
     sub.layoutHorizontally();
-    const tgt = sub.addText(\`تحقق: \${data.target_achievement_pct ? data.target_achievement_pct + "%" : "—"}\`);
+    const tgt = sub.addText(\`تحقق: \${data.target_achievement_pct != null ? data.target_achievement_pct + "%" : "—"}\`);
     tgt.textColor = new Color("#10B981");
     tgt.font = Font.boldSystemFont(12);
 
@@ -122,6 +135,9 @@ async function createWidget() {
     cust.font = Font.systemFont(11);
   }
 
+  widget.refreshAfterDate = new Date(Date.now() + 900000);
+  if (data?.as_of_date) widget.addText('تاریخ داده: ' + data.as_of_date);
+  if (data?.freshness !== 'fresh') widget.addText('تازگی داده تأیید نشده است');
   widget.url = \`\${DASHBOARD_URL}/#widget\`;
   return widget;
 }
@@ -142,36 +158,75 @@ export default function MobileWidgetView({ principal, onNavigate, onLogout }) {
   const [guideOpen, setGuideOpen] = useState(false)
   const [copied, setCopied] = useState(false)
   const [guideTab, setGuideTab] = useState('android') // 'android' | 'ios'
+  const [widgetToken, setWidgetToken] = useState(null)
+  const [tokenBusy, setTokenBusy] = useState(false)
+  const pendingRequest = useRef(null)
+
+  const manageToken = async (method) => {
+    setTokenBusy(true)
+    setWidgetToken(null)
+    try {
+      const response = await fetch('/api/mobile/widget-token', { method, credentials: 'same-origin', cache: 'no-store' })
+      if (!response.ok) throw new Error('عملیات توکن انجام نشد')
+      const result = await response.json()
+      setWidgetToken(result.token || null)
+    } catch (err) { setError(err.message) }
+    finally { setTokenBusy(false) }
+  }
 
   const loadData = useCallback(async () => {
+    pendingRequest.current?.abort()
+    const controller = new AbortController()
+    pendingRequest.current = controller
+    const timeout = setTimeout(() => controller.abort(), 20000)
     setLoading(true)
     setError(null)
     try {
       const res = await fetch('/api/mobile/widget-pulse', {
         headers: { Accept: 'application/json' },
-        credentials: 'same-origin',
+        credentials: 'same-origin', cache: 'no-store', signal: controller.signal,
       })
       if (!res.ok) {
+        if (res.status === 401 || res.status === 403) {
+          setWidgetToken(null)
+          throw new Error(res.status === 401 ? 'نشست پایان یافته؛ دوباره وارد شوید' : 'دسترسی به ویجت مجاز نیست')
+        }
         throw new Error(`خطا در دریافت نبض فروش (${res.status})`)
       }
       const json = await res.json()
+      if (pendingRequest.current !== controller) return
+      if (json.schema_version !== 2) throw new Error('نسخه پاسخ ویجت پشتیبانی نمی‌شود')
       setData(json)
     } catch (err) {
-      setError(err.message || 'خطا در ارتباط با سرور')
+      if (pendingRequest.current !== controller) return
+      setData(null)
+      setError(controller.signal.aborted ? 'مهلت ارتباط تمام شد؛ دوباره تلاش کنید' : err.message || 'خطا در ارتباط با سرور')
     } finally {
-      setLoading(false)
+      clearTimeout(timeout)
+      if (pendingRequest.current === controller) setLoading(false)
     }
   }, [])
 
   useEffect(() => {
     loadData()
+    const refresh = () => { if (document.visibilityState === 'visible') loadData() }
+    const interval = setInterval(refresh, 900000)
+    document.addEventListener('visibilitychange', refresh)
+    window.addEventListener('online', refresh)
+    return () => {
+      clearInterval(interval)
+      document.removeEventListener('visibilitychange', refresh)
+      window.removeEventListener('online', refresh)
+      pendingRequest.current?.abort()
+      pendingRequest.current = null
+    }
   }, [loadData])
 
   const copyScript = useCallback(() => {
     if (typeof navigator !== 'undefined' && navigator.clipboard) {
-      navigator.clipboard.writeText(SCRIPTABLE_CODE)
-      setCopied(true)
-      setTimeout(() => setCopied(false), 2500)
+      navigator.clipboard.writeText(SCRIPTABLE_CODE.replace('https://copadash.amadehlaziz.com', window.location.origin))
+        .then(() => { setCopied(true); setTimeout(() => setCopied(false), 2500) })
+        .catch(() => setError('کپی انجام نشد؛ کد را دستی انتخاب کنید'))
     }
   }, [])
 
@@ -296,7 +351,8 @@ export default function MobileWidgetView({ principal, onNavigate, onLogout }) {
         {/* Content based on Role View */}
         {data && (
           <main className="space-y-4 flex-1">
-            {isVisitor ? (
+            {data.freshness !== 'fresh' && <p role="status">تازگی داده تأیید نشده است؛ زمان همگام‌سازی را بررسی کنید.</p>}
+            {!data.available ? <div role="status">{data.reason || 'داده‌ای موجود نیست'}</div> : isVisitor ? (
               /* ================= VISITOR LADDER CARD ================= */
               <div className={`rounded-3xl p-5 ${glassCard} relative overflow-hidden transition-all`}>
                 {/* Glow Accent */}
@@ -308,6 +364,8 @@ export default function MobileWidgetView({ principal, onNavigate, onLogout }) {
                     <span className="text-[11px] font-bold text-purple-600 dark:text-purple-400 bg-purple-500/10 px-2.5 py-0.5 rounded-full">
                       {data.plan_name || 'نردبان پاداش فروش'}
                     </span>
+                    <p className="text-xs mt-2">{({ current: 'طرح جاری', upcoming: 'طرح آینده', archived: 'طرح بایگانی', inactive: 'طرح غیرفعال' })[data.plan_status]} · {data.as_of_month ? monthLabel(data.as_of_month) : 'بدون دوره'} {data.month_provisional ? '· امتیاز ماه موقت' : ''}</p>
+                    {data.as_of_date && <p className="text-xs">تاریخ آخرین داده: {data.as_of_date}</p>}
                     <h2 className="text-base font-extrabold mt-1.5 text-slate-900 dark:text-white">
                       {data.visitor_name}
                     </h2>
@@ -320,7 +378,7 @@ export default function MobileWidgetView({ principal, onNavigate, onLogout }) {
                   <div className="flex flex-col items-center">
                     <span className="text-[10px] text-slate-400 font-medium">گرید عملکرد</span>
                     <span className="w-10 h-10 mt-0.5 rounded-2xl bg-gradient-to-tr from-amber-500 to-amber-300 text-slate-950 font-black text-xl flex items-center justify-center shadow-md shadow-amber-500/20">
-                      {data.grade || 'C'}
+                      {data.grade || '—'}
                     </span>
                   </div>
                 </div>
@@ -413,6 +471,7 @@ export default function MobileWidgetView({ principal, onNavigate, onLogout }) {
                       <span className="text-base font-black text-[#0071E3] dark:text-[#38BDF8] tabular-nums">
                         {fa(data.rings?.basket ?? 0)}٪
                       </span>
+                      <span className="text-[10px]">{fa(data.basket?.achieved_groups ?? 0)} از {fa(data.basket?.target_groups ?? 0)} گروه</span>
                     </div>
                   </div>
                 </div>
@@ -428,6 +487,7 @@ export default function MobileWidgetView({ principal, onNavigate, onLogout }) {
                         پاداش تخمینی رتبه
                       </span>
                       <span className="text-[10px] text-slate-400">بر اساس جدول جوایز فعال</span>
+                      <p className="text-[10px]">برآورد است، نه تسویه یا پرداخت تأییدشده</p>
                     </div>
                   </div>
                   <div className="text-left font-black text-base text-amber-500 whitespace-nowrap">
@@ -455,14 +515,14 @@ export default function MobileWidgetView({ principal, onNavigate, onLogout }) {
                     )}
                   </div>
                   <span className="text-[10px] px-2.5 py-0.5 rounded-full font-bold bg-[#0071E3]/15 text-[#0071E3] dark:text-[#38BDF8]">
-                    پایش لحظه‌ای
+                    آخرین دوره داده
                   </span>
                 </div>
 
                 {/* Big Net Sales */}
                 <div className="mb-5">
                   <span className="text-xs text-slate-500 dark:text-slate-400 font-medium block mb-1">
-                    فروش خالص جاری (با مالیات و عوارض)
+                    فروش خالص دوره داده (با مالیات و عوارض)
                   </span>
                   <div className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white tracking-normal whitespace-nowrap">
                     {fa(data.net_rial_vat)} <span className="text-xs font-bold text-slate-400">ریال</span>
@@ -598,7 +658,7 @@ export default function MobileWidgetView({ principal, onNavigate, onLogout }) {
                           ۲
                         </span>
                         <p>
-                          روی صفحه اصلی گوشی لمس طولانی کرده، بخش <b>ویجت‌ها (Widgets)</b> را باز کنید و ویجت <b>«نبض فروش»</b> را به دسکتاپ گوشی اضافه کنید.
+                          این نصب یک برنامه وب است؛ ویجت بومی اندروید در همه مرورگرها پشتیبانی نمی‌شود. برای دیدن اعداد، برنامه را باز کنید.
                         </p>
                       </div>
                     </div>
@@ -617,10 +677,14 @@ export default function MobileWidgetView({ principal, onNavigate, onLogout }) {
                           ۲
                         </span>
                         <p>
-                          برای ویجت نیتیو روی صفحه قفل یا صفحه اصلی، برنامه رایگان <b>Scriptable</b> را از App Store نصب کرده و کد زیر را در یک اسکریپت جدید قرار دهید:
+                          برای ویجت صفحه اصلی، برنامه <b>Scriptable</b> را نصب کنید. توکن اختصاصی بسازید، کد را اجرا کنید و توکن را در پنجره امن وارد کنید؛ سپس ویجت متوسط Scriptable را اضافه کرده و این اسکریپت را انتخاب کنید. زمان تازه‌سازی نهایی را iOS تعیین می‌کند.
                         </p>
                       </div>
 
+                      <p>توکن ۹۰ روز اعتبار دارد و فقط همین ویجت را می‌خواند. ساخت توکن جدید، قبلی را باطل می‌کند. آن را منتشر نکنید.</p>
+                      <button disabled={tokenBusy} onClick={() => manageToken('POST')}>ساخت یا جایگزینی توکن</button>
+                      <button disabled={tokenBusy} onClick={() => manageToken('DELETE')}>لغو دسترسی ویجت</button>
+                      {widgetToken && <input aria-label="توکن اختصاصی ویجت" readOnly value={widgetToken} dir="ltr" className="w-full text-slate-900" />}
                       {/* Scriptable Code Box */}
                       <div className="relative mt-2">
                         <button
@@ -640,7 +704,7 @@ export default function MobileWidgetView({ principal, onNavigate, onLogout }) {
                           )}
                         </button>
                         <pre className="text-[10px] p-3 pt-9 rounded-xl bg-slate-900 text-slate-300 font-mono overflow-x-auto max-h-40 text-left" dir="ltr">
-                          {SCRIPTABLE_CODE}
+                          {SCRIPTABLE_CODE.replace('https://copadash.amadehlaziz.com', window.location.origin)}
                         </pre>
                       </div>
                     </div>

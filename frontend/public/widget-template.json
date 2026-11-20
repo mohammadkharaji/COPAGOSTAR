@@ -50,7 +50,7 @@
     },
     {
       "type": "Container",
-      "$when": "${role_view == 'visitor'}",
+      "$when": "${available && role_view == 'visitor'}",
       "items": [
         {
           "type": "ColumnSet",
@@ -107,7 +107,7 @@
             },
             {
               "title": "حلقه سبد فروشی",
-              "value": "${rings.basket}%"
+              "value": "${basket.achieved_groups} از ${basket.target_groups} گروه (${rings.basket}%)"
             },
             {
               "title": "پاداش تخمینی",
@@ -119,11 +119,11 @@
     },
     {
       "type": "Container",
-      "$when": "${role_view == 'executive'}",
+      "$when": "${available && role_view == 'executive'}",
       "items": [
         {
           "type": "TextBlock",
-          "text": "فروش خالص جاری (با مالیات)",
+          "text": "فروش خالص دوره داده (با مالیات)",
           "size": "Small",
           "isSubtle": true
         },
@@ -151,11 +151,23 @@
             },
             {
               "title": "آخرین همگام‌سازی BI",
-              "value": "${if(latest_bi_sync != null, latest_bi_sync, 'به‌روز')}"
+              "value": "${if(latest_bi_sync != null, latest_bi_sync, 'نامشخص')}"
             }
           ]
         }
       ]
+    },
+    {
+      "type": "TextBlock",
+      "$when": "${!available}",
+      "text": "${reason}",
+      "wrap": true
+    },
+    {
+      "type": "TextBlock",
+      "$when": "${freshness != 'fresh'}",
+      "text": "تازگی همگام‌سازی تأیید نشده است؛ تاریخ خود داده را نیز بررسی کنید.",
+      "wrap": true
     }
   ],
   "actions": [

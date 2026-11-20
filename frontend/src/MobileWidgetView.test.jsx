@@ -1,4 +1,34 @@
-import { SCRIPTABLE_CODE } from './MobileWidgetView'
+import { render, screen, cleanup, waitFor } from '@testing-library/react'
+import { vi, afterEach } from 'vitest'
+import MobileWidgetView, { SCRIPTABLE_CODE } from './MobileWidgetView'
+
+afterEach(() => { cleanup(); vi.unstubAllGlobals() })
+
+describe('widget response states', () => {
+  it('renders unavailable data without fabricated scores', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => ({
+      schema_version: 2, available: false, role_view: 'visitor', reason: 'حساب متصل نیست', freshness: 'unknown',
+    }) }))
+    render(<MobileWidgetView principal={{}} />)
+    expect(await screen.findByText('حساب متصل نیست')).toBeInTheDocument()
+    expect(screen.queryByText('گرید عملکرد')).not.toBeInTheDocument()
+  })
+
+  it('handles expired sessions without displaying old metrics', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 401 }))
+    render(<MobileWidgetView principal={{}} />)
+    expect(await screen.findByText('نشست پایان یافته؛ دوباره وارد شوید')).toBeInTheDocument()
+    expect(screen.queryByText('گرید عملکرد')).not.toBeInTheDocument()
+  })
+
+  it('uses no-store and rejects incompatible response versions', async () => {
+    const fetch = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ schema_version: 1 }) })
+    vi.stubGlobal('fetch', fetch)
+    render(<MobileWidgetView principal={{}} />)
+    await waitFor(() => expect(screen.getByText('نسخه پاسخ ویجت پشتیبانی نمی‌شود')).toBeInTheDocument())
+    expect(fetch.mock.calls[0][1].cache).toBe('no-store')
+  })
+})
 
 describe('MobileWidgetView and PWA Integration', () => {
   it('includes ready-to-copy iOS Scriptable script template with correct endpoint', () => {
@@ -9,6 +39,9 @@ describe('MobileWidgetView and PWA Integration', () => {
     expect(SCRIPTABLE_CODE).toContain('total_score')
     expect(SCRIPTABLE_CODE).toContain('net_rial_vat')
     expect(SCRIPTABLE_CODE).toContain('role_view')
+    expect(SCRIPTABLE_CODE).toContain('Keychain')
+    expect(SCRIPTABLE_CODE).toContain('Authorization')
+    expect(SCRIPTABLE_CODE).not.toContain('copagostar.internal')
   })
 
   it('validates manifest configuration structure', async () => {

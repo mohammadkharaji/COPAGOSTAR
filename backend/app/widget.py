@@ -8,14 +8,41 @@ Serves dynamic pulse metrics:
 """
 from __future__ import annotations
 
+from datetime import datetime, timezone
 from fastapi import APIRouter, HTTPException
 
-from . import bi_sync_service, club, club_ladder_report, club_store, rbac
+from . import bi_sync_service, club, club_ladder_report, club_store, rbac, widget_tokens
 from .config import DB_PATH, HOLIDAYS
 from .db import connect
 from .jalali import days_in_jalali_month, format_jdate, jalali_to_gregorian, jalali_weekday
 
 router = APIRouter(prefix="/api/mobile")
+
+
+@router.post("/widget-token")
+def issue_widget_token():
+    return widget_tokens.issue(rbac.require())
+
+
+@router.delete("/widget-token")
+def revoke_widget_token():
+    widget_tokens.revoke(rbac.require().user)
+    return {"revoked": True}
+
+
+def _freshness():
+    sync = bi_sync_service.read_status().get("last_successful_sync")
+    age = None
+    if sync:
+        try:
+            stamp = datetime.fromisoformat(sync.replace("Z", "+00:00"))
+            stamp = stamp if stamp.tzinfo else stamp.replace(tzinfo=timezone.utc)
+            age = max(0, (datetime.now(timezone.utc) - stamp).total_seconds())
+        except (TypeError, ValueError):
+            pass
+    return {"schema_version": 2, "generated_at": datetime.now(timezone.utc).isoformat(),
+            "latest_bi_sync": sync, "freshness": "unknown" if age is None else "stale" if age > 86400 else "fresh",
+            "refresh_after_seconds": 900}
 
 
 def _is_working(jy: int, jm: int, d: int) -> bool:
@@ -38,13 +65,21 @@ def _visitor_link(username: str) -> str | None:
                 return str(row[1])
         finally:
             con.close()
-    except Exception:
-        pass
+    except Exception as exc:
+        raise HTTPException(503, "اطلاعات اتصال باشگاه در دسترس نیست") from exc
     return None
 
 
 @router.get("/widget-pulse")
 def widget_pulse():
+    data = _pulse()
+    cutoff = data.get("data_cutoff")
+    if cutoff:
+        data["as_of_date"] = format_jdate(cutoff // 10000, cutoff // 100 % 100, cutoff % 100)
+    return {**data, **_freshness()}
+
+
+def _pulse():
     """Fast, role-aware summary for mobile home-screen widgets and PWA dashboard."""
     p = rbac.require()
     visitor_code = _visitor_link(p.user)
@@ -52,13 +87,14 @@ def widget_pulse():
     # 1. Visitor Role View (Sales Power Club linked accounts)
     if visitor_code:
         plans = club._plans("visitor")
-        ladder_plans = [pl for pl in plans if pl.get("plan_type") == "ladder"]
-        active_plan = next((pl for pl in ladder_plans if pl.get("active")), ladder_plans[0] if ladder_plans else None)
+        ladder_plans = club._plan_options([pl for pl in plans if pl.get("plan_type") == "ladder"])
+        active_plan = ladder_plans[0] if ladder_plans else None
 
         if not active_plan:
             return {
                 "role_view": "visitor",
-                "available": True,
+                "available": False,
+                "reason": "طرح نردبانی برای این حساب ثبت نشده است",
                 "visitor_code": visitor_code,
                 "visitor_name": visitor_code,
                 "branch": None,
@@ -98,17 +134,10 @@ def widget_pulse():
         cov_ratio = (cov_kpi.get("ratio") or 0.0) if cov_kpi else 0.0
 
         basket_ratio = 0.0
-        if basket_kpi:
-            b_target = basket_kpi.get("target")
-            b_actual = basket_kpi.get("actual", 0.0)
-            if b_target and b_target > 0:
-                basket_ratio = b_actual / b_target
-            elif b_actual > 0:
-                cfg_kpis = active_plan.get("config", {}).get("kpis", []) if isinstance(active_plan.get("config"), dict) else []
-                basket_cfg = next((k for k in cfg_kpis if k.get("metric") == "basket"), None)
-                ladder = basket_cfg.get("ladder", []) if basket_cfg else []
-                top_threshold = ladder[-1][0] if ladder else 5.0
-                basket_ratio = min(b_actual / top_threshold, 1.0) if top_threshold > 0 else 0.0
+        achieved_groups = basket_kpi.get("ratio", 0.0) if basket_kpi else 0.0
+        target_groups = max((step[0] for step in (basket_kpi or {}).get("ladder", [])), default=0)
+        if target_groups > 0:
+            basket_ratio = achieved_groups / target_groups
 
         rial_pct = round(rial_ratio * 100, 1)
         cov_pct = round(cov_ratio * 100, 1)
@@ -116,14 +145,21 @@ def widget_pulse():
 
         return {
             "role_view": "visitor",
-            "available": True,
+            "available": bool(kpis),
+            "reason": sc.get("note") or (None if kpis else "داده ماهانه این ویزیتور در دسترس نیست"),
             "visitor_code": visitor_code,
             "visitor_name": sc.get("name") or visitor_code,
             "branch": sc.get("branch"),
             "plan_id": active_plan.get("id"),
+            "plan_status": active_plan.get("status"),
+            "basket": {"achieved_groups": achieved_groups, "target_groups": target_groups,
+                       "progress_pct": round(basket_ratio * 100, 1)},
+            "month_provisional": sc.get("month_provisional"),
+            "ranking_note": sc.get("ranking_note"),
+            "data_cutoff": sc.get("data_cutoff"),
             "plan_name": active_plan.get("name", "نردبان پاداش فروش"),
             "total_score": round(float(sc.get("total", 0.0)), 2),
-            "grade": sc.get("grade") or "C",
+            "grade": sc.get("grade"),
             "rank_national": sc.get("rank_national"),
             "rank_branch": sc.get("rank_branch"),
             "prize_amount": sc.get("prize") or 0,
@@ -138,6 +174,9 @@ def widget_pulse():
         }
 
     # 2. Executive / Manager Role View (Admin, Superadmin, Branch/Line Managers)
+    if not p.is_admin and "overview" not in p.pages:
+        return {"role_view": "visitor", "available": False,
+                "reason": "حساب شما به ویزیتور متصل نیست یا مجوز پایش مدیریتی ندارد"}
     if not DB_PATH.exists():
         raise HTTPException(503, "پایگاه داده هنوز ساخته نشده است")
 
@@ -166,7 +205,8 @@ def widget_pulse():
             st = bi_sync_service.read_status()
             return {
                 "role_view": "executive",
-                "available": True,
+                "available": False,
+                "reason": "داده‌ای در محدوده دسترسی شما وجود ندارد",
                 "month": None,
                 "jalali_month": None,
                 "as_of_date": None,
@@ -184,13 +224,18 @@ def widget_pulse():
         month_start = last // 100 * 100 + 1
         month_end = last
 
+        # Use exactly the dashboard's net-sales definition, including promotion discounts.
+        # Runtime import avoids a router-import cycle while retaining one source of truth.
+        from .api import METRICS_SQL, _metrics
+        from .config import PROMO_KALA_SOURCES
         row = con.execute(
-            f"SELECT COALESCE(SUM(rial_vat), 0), COUNT(DISTINCT customer_code) "
+            f"SELECT {METRICS_SQL} "
             f"FROM fact_sales WHERE jdate_key >= ? AND jdate_key <= ?{scope_sql}",
-            [month_start, month_end, *scope_args],
+            [*PROMO_KALA_SOURCES, month_start, month_end, *scope_args],
         ).fetchone()
-        net_rial_vat = float(row[0] or 0.0)
-        active_customers_count = int(row[1] or 0)
+        metrics = _metrics(row)
+        net_rial_vat = float(metrics["net_rial"])
+        active_customers_count = int(metrics["active_customers"])
 
         # Target achievement
         target_rial = 0.0
@@ -219,6 +264,7 @@ def widget_pulse():
             "jalali_month": f"{jy}/{jm:02d}",
             "as_of_date": format_jdate(jy, jm, jd),
             "net_rial_vat": net_rial_vat,
+            "sales_definition": "dashboard_net_after_promotions",
             "target_rial": target_rial,
             "target_achievement_pct": target_achievement_pct,
             "eom_forecast_rial": eom_forecast_rial,

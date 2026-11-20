@@ -358,7 +358,8 @@ def core_clause(col: str = "core") -> tuple[str, list]:
 # Open to every logged-in user: the app shell (sidebar, filter bar, data freshness, calendar, sync state). Anything about
 # sales numbers in them is still limited to the user's cores and branches.
 SHELL = {"/api/auth/me", "/api/auth/logout", "/api/admin/me/password", "/api/health", "/api/meta",
-         "/api/calendar", "/api/sync-status", "/api/filters", "/api/bi-sync/status", "/api/mobile/widget-pulse"}
+         "/api/calendar", "/api/sync-status", "/api/filters", "/api/bi-sync/status", "/api/mobile/widget-pulse",
+         "/api/mobile/widget-token"}
 # Pages only an admin role may hold. `health` reads /api/data-health, which exposes data-quality and row counts across
 # the whole dataset; it is not a per-core report, so it cannot be narrowed by scope and is admin-only instead.
 ADMIN_ONLY_PAGES = frozenset({"health"})

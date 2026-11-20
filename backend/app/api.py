@@ -14,7 +14,7 @@ from fastapi import FastAPI, HTTPException, Query, Request, Response
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
-from . import auth, rbac, config, bi_sync_service, bi_scheduler
+from . import auth, rbac, config, bi_sync_service, bi_scheduler, widget_tokens
 from .config import CORES, DEFAULT_CORE, HOLIDAYS, PROMO_KALA_SOURCES, RAW_DIR, ROOT, DB_PATH
 from .db import connect
 from .jalali import (JALALI_MONTHS, JALALI_WEEKDAYS, days_in_jalali_month, format_jdate, gregorian_to_jalali,
@@ -54,7 +54,14 @@ async def require_login(request: Request, call_next):
     if path.startswith("/api/"):
         principal = None
         if path not in PUBLIC_API:
-            principal = rbac.principal_from_token(request.cookies.get(auth.COOKIE))
+            authorization = request.headers.get("authorization", "")
+            if authorization:
+                if path != "/api/mobile/widget-pulse" or request.method != "GET":
+                    return JSONResponse({"detail": "Widget credential is read-only"}, status_code=403,
+                                        headers={"Cache-Control": "no-store"})
+                principal = widget_tokens.resolve(authorization.removeprefix("Bearer "))
+            else:
+                principal = rbac.principal_from_token(request.cookies.get(auth.COOKIE))
             if principal is None:
                 return JSONResponse({"detail": "نیاز به ورود"}, status_code=401, headers={"Cache-Control": "no-store"})
             if not rbac.allowed(principal, request.method, path):
