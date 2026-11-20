@@ -6,14 +6,16 @@ branch, group, visitor code, the product's TargetCategory and day of month.
 from __future__ import annotations
 
 
-def month_sales(con, core_name: str, ym: str, scope: str = "", scope_args: list | None = None) -> list[tuple]:
+def month_sales(con, core_name: str, ym: str, scope: str = "", scope_args: list | None = None,
+                include_customer: bool = False) -> list[tuple]:
     """(branch, group_name, visitor_code, target_category, day, rial) rows of one month.
 
     `scope` must be a fragment produced by `rbac.scope_clause`, never user input."""
     return con.execute(
         f"""SELECT s.branch, s.group_name, s.visitor_code,
                    COALESCE(d_u.target_category, d_p.target_category),
-                   COALESCE(s.jdate_key, 0) % 100, SUM(s.rial_vat)
+                    COALESCE(s.jdate_key, 0) % 100, SUM(s.rial_vat)
+                    {', s.customer_code' if include_customer else ''}
            FROM fact_sales s
            LEFT JOIN dim_product d_u ON s.unique_product_code IS NOT NULL AND d_u.unique_product_code = s.unique_product_code
            LEFT JOIN (
@@ -24,7 +26,7 @@ def month_sales(con, core_name: str, ym: str, scope: str = "", scope_args: list 
            ) d_p ON (s.unique_product_code IS NULL OR d_u.target_category IS NULL)
                 AND s.product_code IS NOT NULL AND d_p.product_code = s.product_code
            WHERE s.core=? AND s.year_month=?{scope}
-           GROUP BY 1, 2, 3, 4, 5""", [core_name, ym, *(scope_args or [])]).fetchall()
+            GROUP BY 1, 2, 3, 4, 5{', 7' if include_customer else ''}""", [core_name, ym, *(scope_args or [])]).fetchall()
 
 
 def visitor_codes_by_name(con, core_name: str) -> dict[str, tuple[str, int]]:

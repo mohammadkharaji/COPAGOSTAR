@@ -9,12 +9,10 @@ Serves dynamic pulse metrics:
 from __future__ import annotations
 
 from datetime import datetime, timezone
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 
 from . import bi_sync_service, club, club_ladder_report, club_store, rbac, widget_tokens
-from .config import DB_PATH, HOLIDAYS
-from .db import connect
-from .jalali import days_in_jalali_month, format_jdate, jalali_to_gregorian, jalali_weekday
+from .jalali import format_jdate
 
 router = APIRouter(prefix="/api/mobile")
 
@@ -45,17 +43,6 @@ def _freshness():
             "refresh_after_seconds": 900}
 
 
-def _is_working(jy: int, jm: int, d: int) -> bool:
-    return jalali_weekday(jalali_to_gregorian(jy, jm, d)) != 6 and format_jdate(jy, jm, d) not in HOLIDAYS
-
-
-def _table_exists(con, name: str) -> bool:
-    try:
-        return bool(con.execute("SELECT COUNT(*) FROM information_schema.tables WHERE table_name=?", [name]).fetchone()[0])
-    except Exception:
-        return False
-
-
 def _visitor_link(username: str) -> str | None:
     try:
         con = club_store.connect()
@@ -71,15 +58,15 @@ def _visitor_link(username: str) -> str | None:
 
 
 @router.get("/widget-pulse")
-def widget_pulse():
-    data = _pulse()
+def widget_pulse(request: Request, core: str | None = None, month: str | None = None):
+    data = _pulse(request, core, month)
     cutoff = data.get("data_cutoff")
     if cutoff:
         data["as_of_date"] = format_jdate(cutoff // 10000, cutoff // 100 % 100, cutoff % 100)
     return {**data, **_freshness()}
 
 
-def _pulse():
+def _pulse(request: Request | None = None, core: str | None = None, month: str | None = None):
     """Fast, role-aware summary for mobile home-screen widgets and PWA dashboard."""
     p = rbac.require()
     visitor_code = _visitor_link(p.user)
@@ -177,101 +164,22 @@ def _pulse():
     if not p.is_admin and "overview" not in p.pages:
         return {"role_view": "visitor", "available": False,
                 "reason": "حساب شما به ویزیتور متصل نیست یا مجوز پایش مدیریتی ندارد"}
-    if not DB_PATH.exists():
-        raise HTTPException(503, "پایگاه داده هنوز ساخته نشده است")
-
-    con = connect(read_only=True)
-    try:
-        if not _table_exists(con, "fact_sales"):
-            st = bi_sync_service.read_status()
-            return {
-                "role_view": "executive",
-                "available": False,
-                "reason": "داده‌های فروش هنوز بارگذاری نشده است",
-                "net_rial_vat": 0,
-                "target_achievement_pct": None,
-                "eom_forecast_rial": 0,
-                "active_customers_count": 0,
-                "latest_bi_sync": st.get("last_successful_sync"),
-            }
-
-        c_sql, c_args = rbac.core_clause()
-        b_sql, b_args = rbac.scope_clause()
-        scope_sql = c_sql + b_sql
-        scope_args = [*c_args, *b_args]
-
-        last = con.execute(f"SELECT MAX(jdate_key) FROM fact_sales WHERE 1=1{scope_sql}", scope_args).fetchone()[0]
-        if not last:
-            st = bi_sync_service.read_status()
-            return {
-                "role_view": "executive",
-                "available": False,
-                "reason": "داده‌ای در محدوده دسترسی شما وجود ندارد",
-                "month": None,
-                "jalali_month": None,
-                "as_of_date": None,
-                "net_rial_vat": 0,
-                "target_achievement_pct": None,
-                "eom_forecast_rial": 0,
-                "active_customers_count": 0,
-                "latest_bi_sync": st.get("last_successful_sync"),
-                "working_days": 0,
-                "elapsed_working_days": 0,
-            }
-
-        jy, jm, jd = last // 10000, last // 100 % 100, last % 100
-        current_month = f"{jy}{jm:02d}"
-        month_start = last // 100 * 100 + 1
-        month_end = last
-
-        # Use exactly the dashboard's net-sales definition, including promotion discounts.
-        # Runtime import avoids a router-import cycle while retaining one source of truth.
-        from .api import METRICS_SQL, _metrics
-        from .config import PROMO_KALA_SOURCES
-        row = con.execute(
-            f"SELECT {METRICS_SQL} "
-            f"FROM fact_sales WHERE jdate_key >= ? AND jdate_key <= ?{scope_sql}",
-            [*PROMO_KALA_SOURCES, month_start, month_end, *scope_args],
-        ).fetchone()
-        metrics = _metrics(row)
-        net_rial_vat = float(metrics["net_rial"])
-        active_customers_count = int(metrics["active_customers"])
-
-        # Target achievement
-        target_rial = 0.0
-        if _table_exists(con, "fact_target"):
-            t_row = con.execute(
-                f"SELECT COALESCE(SUM(target_rial), 0) FROM fact_target WHERE month=?{scope_sql}",
-                [current_month, *scope_args],
-            ).fetchone()
-            target_rial = float(t_row[0] or 0.0)
-
-        target_achievement_pct = round((net_rial_vat / target_rial) * 100, 1) if target_rial > 0 else None
-
-        # EOM Forecast
-        month_days = days_in_jalali_month(jy, jm)
-        working_days = sum(_is_working(jy, jm, d) for d in range(1, month_days + 1))
-        elapsed_days = sum(_is_working(jy, jm, d) for d in range(1, jd + 1))
-        eom_forecast_rial = round(net_rial_vat / elapsed_days * working_days) if elapsed_days > 0 else net_rial_vat
-
-        st = bi_sync_service.read_status()
-        latest_bi_sync = st.get("last_successful_sync") or st.get("updated_at")
-
-        return {
-            "role_view": "executive",
-            "available": True,
-            "month": current_month,
-            "jalali_month": f"{jy}/{jm:02d}",
-            "as_of_date": format_jdate(jy, jm, jd),
-            "net_rial_vat": net_rial_vat,
-            "sales_definition": "dashboard_net_after_promotions",
-            "target_rial": target_rial,
-            "target_achievement_pct": target_achievement_pct,
-            "eom_forecast_rial": eom_forecast_rial,
-            "active_customers_count": active_customers_count,
-            "latest_bi_sync": latest_bi_sync,
-            "working_days": working_days,
-            "elapsed_working_days": elapsed_days,
-        }
-    finally:
-        con.close()
+    from . import target
+    selected_core = core or next((c for c in target.TARGET_CORES if c in p.cores), next(iter(p.cores), "kg"))
+    report = target.build_report(selected_core, month, filters=target._filters(request) if request else {})
+    if not report.get("available"):
+        return {**report, "role_view": "executive"}
+    summary = report["summary"]
+    return {
+        "role_view": "executive", "available": True,
+        "core": selected_core, "month": report["month"], "jalali_month": report["jalali_month"],
+        "as_of_date": report["as_of"], "months": report["months"], "filters": report["filters"],
+        "summary": summary, "actual_rial": summary["actual_rial"],
+        # Compatibility alias for already-installed scripts; this is target actual, not net-after-discounts.
+        "net_rial_vat": summary["actual_rial"], "sales_definition": "target_actual_rial_vat",
+        "target_rial": summary["target_rial"],
+        "target_achievement_pct": summary["achieved_pct"] * 100 if summary["achieved_pct"] is not None else None,
+        "eom_forecast_rial": summary["projected_rial"],
+        "active_customers_count": report["active_customers_count"],
+        "working_days": report["working_days"], "elapsed_working_days": report["elapsed_working_days"],
+    }

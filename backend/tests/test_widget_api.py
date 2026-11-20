@@ -89,9 +89,28 @@ def test_widget_sales_definition_matches_dashboard(client):
     finally:
         con.close()
     pulse = client.get('/api/mobile/widget-pulse').json()
-    assert pulse['sales_definition'] == 'dashboard_net_after_promotions'
-    assert pulse['net_rial_vat'] == 1250
-    assert pulse['target_achievement_pct'] == round(1250 / 1500 * 100, 1)
+    report = client.get('/api/target', params={'core': 'kg'}).json()
+    assert pulse['actual_rial'] == report['summary']['actual_rial'] == 1400
+    assert pulse['target_rial'] == report['summary']['target_rial']
+    assert pulse['target_achievement_pct'] == report['summary']['achieved_pct'] * 100
+    assert pulse['eom_forecast_rial'] == report['summary']['projected_rial']
+
+
+@pytest.mark.parametrize('params', [
+    {'core': 'kg', 'month': '140507'},
+    {'core': 'kg', 'month': '140508', 'branch': 'شعبه تهران'},
+    {'core': 'kg', 'month': '140507', 'visitor': ['11', '12']},
+    {'core': 'kg', 'month': '140507', 'category': 'دسته A'},
+])
+def test_widget_matches_target_for_same_selection(client, params):
+    report = client.get('/api/target', params=params).json()
+    response = client.get('/api/mobile/widget-pulse', params=params)
+    assert response.status_code == 200
+    pulse = response.json()
+    assert pulse['month'] == report['month']
+    assert pulse['core'] == report['core']
+    assert pulse['summary'] == report['summary']
+    assert pulse['as_of_date'] == report['as_of']
 
 
 def test_widget_pulse_branch_scoped_executive(client):

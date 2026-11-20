@@ -109,6 +109,7 @@ export default function App({ onLogout }) {
   const [route, setRoute] = useState(pageFromHash)
   const [month, setMonth] = useState(init.month)
   const [dims, setDims] = useState(init.dims)
+  const [targetFilters, setTargetFilters] = useState({})
   const hashDriven = useRef(false)
   const [health, setHealth] = useState(null)
   const [meta, setMeta] = useState(null)
@@ -257,7 +258,7 @@ export default function App({ onLogout }) {
   if (!principal) return <div className="banner" dir="rtl">در حال بارگذاری…</div>
 
   if (page === 'widget') {
-    return <ErrorBoundary key={page}><Suspense fallback={pageLoading}><MobileWidgetView principal={principal} onNavigate={go} onLogout={onLogout} /></Suspense></ErrorBoundary>
+    return <ErrorBoundary key={page}><Suspense fallback={pageLoading}><MobileWidgetView principal={principal} core={core} month={month} filters={targetFilters[core] || {}} onNavigate={go} onLogout={onLogout} /></Suspense></ErrorBoundary>
   }
 
   const title = page === 'admin' ? 'مدیریت کاربران و نقش‌ها' : page ? (NAV.find(([k]) => k === page)?.[1] ?? 'گزارش') : 'بدون دسترسی'
@@ -309,7 +310,7 @@ export default function App({ onLogout }) {
         )}
         {page === 'trend' && <TrendPage p={p} />}
         {page === 'monthly' && <MonthlyTrendPage p={p} />}
-        {page === 'target' && <TargetPage key={core} core={core} />}
+          {page === 'target' && <TargetPage key={core} core={core} selectedMonth={month} onMonthChange={setMonth} selectedFilters={targetFilters[core] || {}} onFiltersChange={(next) => setTargetFilters((prev) => ({ ...prev, [core]: next }))} />}
         {page === 'growth' && <GrowthPage p={p} />}
         {page === 'branch' && <BranchRegionPage p={p} openProfile={openProfile} openVisitor={(c) => go('visitor', c)} />}
         {page === 'product' && <ProductBrandPage p={p} openProfile={openProfile} />}

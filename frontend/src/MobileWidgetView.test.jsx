@@ -1,10 +1,23 @@
 import { render, screen, cleanup, waitFor } from '@testing-library/react'
 import { vi, afterEach } from 'vitest'
-import MobileWidgetView, { SCRIPTABLE_CODE } from './MobileWidgetView'
+import MobileWidgetView, { SCRIPTABLE_CODE, widgetQuery, scriptableCode } from './MobileWidgetView'
 
 afterEach(() => { cleanup(); vi.unstubAllGlobals() })
 
 describe('widget response states', () => {
+  it('passes the same core, month and repeated target filters to the API and installed script', async () => {
+    const filters = { branch: 'شعبه تهران', visitor: ['11', '12'] }
+    const query = widgetQuery('kg', '140507', filters)
+    const fetch = vi.fn().mockResolvedValue({ ok: true, json: async () => ({
+      schema_version: 2, available: false, reason: 'بدون داده',
+    }) })
+    vi.stubGlobal('fetch', fetch)
+    render(<MobileWidgetView principal={{}} core="kg" month="140507" filters={filters} />)
+    await screen.findByText('بدون داده')
+    expect(fetch.mock.calls[0][0]).toBe(`/api/mobile/widget-pulse?${query}`)
+    expect(new URLSearchParams(query).getAll('visitor')).toEqual(['11', '12'])
+    expect(scriptableCode('https://example.test', query)).toContain(`/api/mobile/widget-pulse?${query}`)
+  })
   it('renders unavailable data without fabricated scores', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => ({
       schema_version: 2, available: false, role_view: 'visitor', reason: 'حساب متصل نیست', freshness: 'unknown',

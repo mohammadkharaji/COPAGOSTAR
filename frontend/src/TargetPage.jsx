@@ -224,11 +224,19 @@ function TargetProgressBar({ value, expected, isDark }) {
  * TargetPage (تحقق تارگت و بودجه) - Executive Dark Bento Redesign
  * ─────────────────────────────────────────────────────────────
  */
-export default function TargetPage({ core, onUnavailable }) {
+export default function TargetPage({ core, onUnavailable, selectedMonth, onMonthChange, selectedFilters, onFiltersChange }) {
   const { isDark } = useAppearance()
-  const [month, setMonth] = useState('')
+  const [localMonth, setLocalMonth] = useState('')
+  const month = selectedMonth ?? localMonth
+  const setMonth = onMonthChange ?? setLocalMonth
   const [by, setBy] = useState('branch')
-  const [sel, setSel] = useState({})
+  const [localSel, setLocalSel] = useState({})
+  const sel = selectedFilters ?? localSel
+  const setSel = (update) => {
+    const next = typeof update === 'function' ? update(sel) : update
+    if (onFiltersChange) onFiltersChange(next)
+    else setLocalSel(next)
+  }
   const [statusFilter, setStatusFilter] = useState(null) // null | 'ahead' | 'near' | 'behind'
   const [searchQuery, setSearchQuery] = useState('')
 

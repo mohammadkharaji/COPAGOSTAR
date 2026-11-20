@@ -18,7 +18,7 @@ def session(tmp_path, monkeypatch):
     monkeypatch.setenv("SR_AUTH_SECRET", "widget-test-secret-12345678901234567890")
     client = TestClient(app, base_url="https://testserver")
     client.cookies.set(auth.COOKIE, auth.make_token(auth.username()))
-    monkeypatch.setattr(widget, "_pulse", lambda: {"available": True})
+    monkeypatch.setattr(widget, "_pulse", lambda *args: {"available": True})
     return client
 
 

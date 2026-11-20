@@ -30,7 +30,7 @@ NO_SUPERVISOR, NO_MANAGER = "بدون سرپرست در فایل تارگت", "�
 NO_TARGET = "__no_target__"  # sales of products whose category has no target (counted in actual, shown apart)
 
 T = namedtuple("T", "branch line category group code name supervisor manager rial")
-A = namedtuple("A", "branch line code category day amount")
+A = namedtuple("A", "branch line code category day amount customer")
 
 
 def _table_exists(con, name: str) -> bool:
@@ -59,6 +59,12 @@ def _filters(request: Request) -> dict[str, set[str]]:
 
 @router.get("")
 def target_report(request: Request, core: str = "kg", month: str | None = Query(None), by: str = "branch"):
+    return build_report(core, month, by, _filters(request))
+
+
+def build_report(core: str, month: str | None = None, by: str = "branch",
+                 filters: dict[str, set[str]] | None = None):
+    """Single source of truth for target-page and widget metrics, selection and RBAC."""
     if core not in CORES:
         raise HTTPException(400, "هسته فروش نامعتبر است")
     if by not in BY:
@@ -71,7 +77,7 @@ def target_report(request: Request, core: str = "kg", month: str | None = Query(
     if not DB_PATH.exists():
         raise HTTPException(503, "پایگاه داده هنوز ساخته نشده است")
     name = CORES[core]
-    filters = _filters(request)
+    filters = filters or {}
     con = connect(read_only=True)
     try:
         if not _table_exists(con, "fact_target"):
@@ -92,7 +98,7 @@ def target_report(request: Request, core: str = "kg", month: str | None = Query(
                FROM fact_target WHERE core=? AND month=?{b_scope}""", [name, ym, *b_sargs]).fetchall()]
         by_name = target_sales.visitor_codes_by_name(con, name)
         s_scope, s_sargs = rbac.scope_clause("s")
-        sales = target_sales.month_sales(con, name, ym, s_scope, s_sargs)
+        sales = target_sales.month_sales(con, name, ym, s_scope, s_sargs, include_customer=True)
         last = con.execute(f"SELECT MAX(jdate_key) FROM fact_sales WHERE core=?{b_scope}", [name, *b_sargs]).fetchone()[0]
     finally:
         con.close()
@@ -107,7 +113,7 @@ def target_report(request: Request, core: str = "kg", month: str | None = Query(
             c = codes.setdefault(t.code, {"name": t.name, "supervisor": t.supervisor, "branch": t.branch, "rial": 0.0})
             c["rial"] += t.rial
     outside = sum(r[5] or 0 for r in sales if r[3] not in cats)
-    arows = [A(r[0], r[1], r[2], r[3] if r[3] in cats else NO_TARGET, r[4], r[5] or 0.0) for r in sales]
+    arows = [A(r[0], r[1], r[2], r[3] if r[3] in cats else NO_TARGET, r[4], r[5] or 0.0, r[6]) for r in sales]
 
     def t_attrs(t):
         return {"branch": t.branch, "line": t.line, "manager": t.manager, "supervisor": t.supervisor,
@@ -207,6 +213,7 @@ def target_report(request: Request, core: str = "kg", month: str | None = Query(
         "as_of": format_jdate(jy, jm, as_of_day) if as_of_day else None, "month_days": month_days,
         "working_days": working, "elapsed_working_days": elapsed, "remaining_working_days": remaining, "expected_pct": exp_pct,
         "summary": metrics(total_target, total_actual), "status_counts": dict(counts), "rows": rows, "daily": daily,
+        "active_customers_count": len({a.customer for a, _ in asel if a.customer is not None}),
         "options": options, "filters": {k: sorted(v) for k, v in filters.items()},
         "quality": {
             "visitors_in_target": len({t.name for t in trows}), "visitors_without_code": len(no_code),

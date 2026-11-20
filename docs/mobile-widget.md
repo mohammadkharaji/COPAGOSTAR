@@ -40,9 +40,19 @@ installation; Add to Home Screen installs the web application instead.
   `basket.target_groups` and `basket.progress_pct` make the units explicit.
 - Total/rank is the club's completed-month result. Monthly KPIs can be
   provisional. Data completion is not financial settlement; prizes are estimates.
-- Executive net sales reuse the dashboard's net-after-promotions definition,
-  including discounts and settlement discounts. The month is the latest month
-  with scoped data, not a promise of real-time or current-calendar-month data.
+- Executive achievement, target and forecast reuse `target.build_report`, exactly
+  as the target page does. Actual is the sum of Rial+Vat including promotions and
+  negative returns, not the separately defined net-after-discounts measure.
+  `actual_rial` is the canonical field; `net_rial_vat` is a compatibility alias
+  for installed scripts. The complete unrounded `summary` matches the target API.
+  The default core is an authorized target-enabled core; the default month is
+  the latest loaded target month, just as on the target page. Explicit `core`,
+  `month` and repeated target-filter parameters use the same validation and RBAC.
+  Unsupported cores do not silently aggregate unrelated sales or targets.
+- Browser target selection is shared with the widget in the application. Copied
+  Scriptable code includes that selection; recopy it after changing the selection.
+  Existing external scripts without query parameters use the default target core
+  and latest target month. Independent devices do not synchronize browser state.
   Forecast is a simple working-day extrapolation, not a commitment.
 - `generated_at` is response time; `as_of_date` is the underlying sales cutoff.
   `freshness` describes BI synchronization only: unknown with no valid success
