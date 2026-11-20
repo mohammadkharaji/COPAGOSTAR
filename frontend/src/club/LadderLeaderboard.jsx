@@ -13,8 +13,11 @@ export default function LadderLeaderboard({ data, onSelect }) {
     { label: 'شعبه', render: (r) => r.branch ?? '—', value: (r) => r.branch ?? '' },
     ...months.map((m) => ({
       label: m.completed ? monthLabel(m.month) : `${monthLabel(m.month)} (در جریان)`,
-      render: (r) => <span className="tabular-nums">{fa(Number((r.months?.[m.month] ?? 0).toFixed(2)))}</span>,
-      value: (r) => r.months?.[m.month] ?? 0,
+      render: (r) => {
+        const val = m.completed ? (r.months?.[m.month] ?? 0) : (r.provisional_month?.score ?? 0)
+        return <span className="tabular-nums">{fa(Number(val.toFixed(2)))}</span>
+      },
+      value: (r) => m.completed ? (r.months?.[m.month] ?? 0) : (r.provisional_month?.score ?? 0),
     })),
     { label: 'جمع', render: (r) => <span className="tabular-nums font-extrabold text-[#0071E3]">{fa(Number((r.total ?? 0).toFixed(2)))}</span>, value: (r) => r.total ?? 0 },
     { label: 'میانگین', render: (r) => <span className="tabular-nums">{fa(Number((r.average ?? 0).toFixed(2)))}</span>, value: (r) => r.average ?? 0 },

@@ -567,9 +567,10 @@ def my_team(plan_id: int | None = None):
         sc = v["scorecard"]
         summary = {"code": code, "name": sc["name"] if sc else code, "points": v["points"], "sales_rial": 0.0,
                    "breakdown": v["breakdown"], "tier": v["tier"], "history": v["history"], "customers_count": 0}
+        months_list = [{"month": m} for m in club_ladder_report.plan_months(plan)]
         return {"visitor_summary": summary, "portfolio_customers": [], "code": code, "plan": plan,
                 "points": v["points"], "sales_rial": 0.0, "breakdown": v["breakdown"], "tier": v["tier"],
-                "team": [], "customers": 0, "history": v["history"], "scorecard": sc}
+                "team": [], "customers": 0, "history": v["history"], "scorecard": sc, "months": months_list}
 
     # Unified Visitor Summary (aggregated across visitor_code directly with gamification rules)
     v_score = _scores(plan, "visitor").get(code, {})

@@ -172,6 +172,10 @@ def scorecard(plan: dict, code: str, month: str | None = None) -> dict:
         "code": code, "name": code, "branch": None, "grade": None, "tenure": 0, "months": {}, "total": 0.0,
         "average": 0.0, "rank_national": None, "rank_grade": None, "rank_branch": None,
         "rank_month_national": None, "provisional_month": None, "prize": None}
-    return {**row, "month": chosen, "kpis": _month_kpis(cfg, vm) if vm else [],
+    history = [{"month": m, "points": round(v, 2), "provisional": False} for m, v in sorted(row["months"].items())]
+    if row.get("provisional_month"):
+        history.append({"month": row["provisional_month"]["month"],
+                        "points": round(row["provisional_month"]["score"], 2), "provisional": True})
+    return {**row, "month": chosen, "history": history, "kpis": _month_kpis(cfg, vm) if vm else [],
             "note": None if vm else NOTE_NO_TARGET,
             "ladder_max": max(points for _, points in cfg.kpis[0].ladder)}

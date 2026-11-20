@@ -117,7 +117,7 @@ def month_score(
         total += weighted
         kpis.append({
             "key": kpi.key, "label": kpi.label, "metric": kpi.metric, "target": target, "actual": actual,
-            "ratio": ratio, "score": score, "weight": kpi.weight, "weighted": weighted,
+            "ratio": ratio, "score": score, "weight": kpi.weight, "weighted": weighted, "ladder": kpi.ladder,
         })
     return total, kpis
 
