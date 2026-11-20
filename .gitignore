@@ -18,3 +18,5 @@ dist/
 *.bak-*
 skill-updates/
 
+# graphify knowledge graph: generated output, rebuilt by `graphify extract .`
+graphify-out/

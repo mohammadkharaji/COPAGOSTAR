@@ -1,0 +1,35 @@
+# What the knowledge graph should not index.
+#
+# This repo is the authoritative copy of the application code (the outer D:\SR working copy is
+# ignored by design). Dependencies, virtualenvs and data snapshots are noise: they add tens of
+# thousands of nodes describing other people's code and crowd out our own symbols.
+
+# dependencies and virtualenvs
+node_modules/
+.venv/
+venv/
+__pycache__/
+*.pyc
+
+# build output
+dist/
+.vite/
+
+# data and generated artifacts
+data/
+*.duckdb
+*.xlsx
+*.tsv
+*.sqlite
+*.parquet
+*.bak
+*.bak-*
+
+# agent tooling, not application code
+.claude/
+.omc/
+.impeccable/
+skill-updates/
+
+# the graph's own output
+graphify-out/
