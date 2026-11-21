@@ -130,25 +130,26 @@ export default function CustomerMetricsPage({ p, core, setCore, openCustomer }) 
     return '#14B8A6'
   }
 
-  // Top brands or product groups list (clean & sorted)
+  // Top brands or product groups list (sorted by selected metric)
   const productChartData = useMemo(() => {
     const list = prodMode === 'brand'
       ? (data?.breakdown_brand || data?.by_brand)
       : (data?.breakdown_category || data?.by_category)
     if (!list) return []
     return [...list]
-      .filter((b) => (b.active_custs || 0) > 3)
+      .filter((b) => (b.active_custs || 0) > 0)
+      .sort((a, b) => (b[selectedMetric] || 0) - (a[selectedMetric] || 0))
       .slice(0, 10)
-  }, [data, prodMode])
+  }, [data, prodMode, selectedMetric])
 
-  // Branches/Regions list (sorted by selected metric)
+  // Branches/Regions list (sorted by selected metric, top 8 for clean fit without scrollbar)
   const geoChartData = useMemo(() => {
     const list = geoMode === 'branch' ? data?.breakdown_branch : data?.breakdown_region
     if (!list) return []
     return [...list]
-      .filter((g) => (g.active_custs || 0) > 2)
+      .filter((g) => (g.active_custs || 0) > 0)
       .sort((a, b) => (b[selectedMetric] || 0) - (a[selectedMetric] || 0))
-      .slice(0, 10)
+      .slice(0, 8)
   }, [data, geoMode, selectedMetric])
 
   // Active / Total customer base ratio
@@ -652,8 +653,8 @@ export default function CustomerMetricsPage({ p, core, setCore, openCustomer }) 
             </span>
           </div>
 
-          {/* 6 Metric Pills */}
-          <div className={`p-1 rounded-2xl flex items-center gap-1 overflow-x-auto max-w-full border ${
+          {/* 6 Metric Pills (Wrap cleanly without ugly horizontal scrollbars) */}
+          <div className={`p-1 rounded-2xl flex flex-wrap items-center gap-1.5 max-w-full no-scrollbar border ${
             isDark ? 'bg-black/30 border-white/5' : 'bg-slate-100 border-slate-200'
           }`}>
             {METRIC_OPTIONS.map((opt) => {
@@ -727,14 +728,16 @@ export default function CustomerMetricsPage({ p, core, setCore, openCustomer }) 
               </div>
             </div>
 
-            {/* Threshold legend */}
+            {/* Sorting & Threshold header */}
             <div className="flex items-center justify-between text-xs font-bold mb-2">
-              <span className="text-slate-400 text-[11px]">رتبه‌بندی به تفکیک حجم فعالیت</span>
+              <span className={`text-[11px] ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                مرتب‌سازی: بیشترین {activeMetricObj.label}
+              </span>
               {selectedMetric === 'churn_rate' ? (
                 <div className="flex items-center gap-3 text-[11px]">
                   <span className="flex items-center gap-1 text-rose-400">
                     <span className="w-2 h-2 rounded-full bg-rose-400" />
-                    ریزش بحرانی (&gt;۶۵٪)
+                    ریزش بالا (&gt;۶۵٪)
                   </span>
                   <span className="flex items-center gap-1 text-emerald-400">
                     <span className="w-2 h-2 rounded-full bg-emerald-400" />
@@ -742,14 +745,16 @@ export default function CustomerMetricsPage({ p, core, setCore, openCustomer }) 
                   </span>
                 </div>
               ) : (
-                <span className="text-slate-400 text-[11px]">واحد سنجش: {activeMetricObj.unit}</span>
+                <span className={`text-[11px] ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                  واحد سنجش: {activeMetricObj.unit}
+                </span>
               )}
             </div>
 
-            {/* Bar Chart */}
+            {/* Bar Chart (Zero clutter, no overlapping LabelList on bars) */}
             <div className="h-[360px] w-full mt-3" dir="ltr">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={productChartData} margin={{ top: 25, right: 8, left: 8, bottom: 12 }}>
+                <BarChart data={productChartData} margin={{ top: 15, right: 8, left: 8, bottom: 12 }}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={isDark ? '#2D3748' : '#E2E8F0'} opacity={0.5} />
                   <XAxis
                     dataKey="name"
@@ -766,58 +771,59 @@ export default function CustomerMetricsPage({ p, core, setCore, openCustomer }) 
                     tickLine={false}
                   />
                   <YAxis
+                    domain={activeMetricObj.isPercent ? [0, 100] : [0, 'auto']}
+                    ticks={activeMetricObj.isPercent ? [0, 25, 50, 75, 100] : undefined}
                     tick={{ fill: isDark ? '#A0AEC0' : '#64748B', fontSize: 10.5 }}
                     axisLine={false}
                     tickLine={false}
                     unit={activeMetricObj.unit === '٪' ? '٪' : ''}
                   />
                   <Tooltip
-                    contentStyle={{
-                      backgroundColor: isDark ? 'rgba(11, 16, 14, 0.95)' : 'rgba(255, 255, 255, 0.95)',
-                      borderColor: isDark ? 'rgba(16, 185, 129, 0.25)' : 'rgba(0, 0, 0, 0.1)',
-                      borderRadius: '16px',
-                      boxShadow: '0 12px 30px rgba(0,0,0,0.3)',
-                      backdropFilter: 'blur(12px)',
-                      direction: 'rtl',
+                    content={({ active, payload }) => {
+                      if (!active || !payload?.length) return null
+                      const item = payload[0].payload
+                      const val = item[selectedMetric]
+                      return (
+                        <div className={`p-3 rounded-2xl border shadow-2xl backdrop-blur-xl ${
+                          isDark ? 'bg-[#0B100E]/95 border-emerald-500/30 text-white' : 'bg-white/95 border-slate-200 text-slate-900'
+                        }`} dir="rtl">
+                          <div className="font-bold text-xs mb-1 text-slate-300">
+                            {prodMode === 'brand' ? 'برند:' : 'گروه کالا:'} <span className="text-white font-extrabold">{item.name}</span>
+                          </div>
+                          <div className="flex items-center justify-between gap-4 text-xs">
+                            <span className="text-slate-400">{activeMetricObj.label}:</span>
+                            <span className="font-black tabular-nums" style={{ color: getBrandBarColor(item) }}>
+                              {fa2(val)} {activeMetricObj.unit}
+                            </span>
+                          </div>
+                          {item.active_custs != null && (
+                            <div className="flex items-center justify-between gap-4 text-[11px] text-slate-400 mt-1.5 pt-1.5 border-t border-white/10">
+                              <span>خریداران در دوره:</span>
+                              <span className="font-bold tabular-nums text-slate-200">{fa(item.active_custs)} خریدار</span>
+                            </div>
+                          )}
+                        </div>
+                      )
                     }}
-                    formatter={(val) => [
-                      `${fa2(val)} ${activeMetricObj.unit}`,
-                      activeMetricObj.label,
-                    ]}
-                    labelFormatter={(label) => `${prodMode === 'brand' ? 'برند' : 'گروه کالا'}: ${label}`}
                   />
                   <Bar dataKey={selectedMetric} radius={[8, 8, 0, 0]} maxBarSize={36}>
                     {productChartData.map((entry, index) => (
                       <Cell key={`cell-${index}`} fill={getBrandBarColor(entry)} />
                     ))}
-                    <LabelList
-                      dataKey={selectedMetric}
-                      position="top"
-                      formatter={(val) => `${fa2(val)}${activeMetricObj.unit === '٪' ? '٪' : ''}`}
-                      style={{
-                        fill: isDark ? '#F1F5F9' : '#0F172A',
-                        fontSize: 10,
-                        fontWeight: 800,
-                      }}
-                    />
                   </Bar>
                 </BarChart>
               </ResponsiveContainer>
             </div>
           </div>
 
-          {/* Quick Data Chips Footer */}
-          <div className="pt-3 mt-3 border-t border-black/[0.04] dark:border-white/[0.06] grid grid-cols-2 sm:grid-cols-4 gap-2 text-center text-xs">
-            {productChartData.slice(0, 4).map((b) => (
-              <div key={b.name} className={`p-2 rounded-xl border ${
-                isDark ? 'bg-white/[0.02] border-white/5' : 'bg-slate-50 border-slate-200'
-              }`}>
-                <span className="font-bold text-slate-400 block truncate text-[11px]">{b.name}</span>
-                <span className="font-black text-slate-100 tabular-nums mt-0.5 block text-xs">
-                  {fa2(b[selectedMetric])} {activeMetricObj.unit}
-                </span>
-              </div>
-            ))}
+          {/* Clean 1-Line Summary Footer */}
+          <div className="pt-3 mt-3 border-t border-black/[0.04] dark:border-white/[0.06] flex items-center justify-between text-xs text-slate-400">
+            <span>
+              بیشترین: <strong className={isDark ? 'text-slate-100' : 'text-slate-900'}>{productChartData[0]?.name || '—'}</strong> ({fa2(productChartData[0]?.[selectedMetric])} {activeMetricObj.unit})
+            </span>
+            <span>
+              میانگین شاخص: <strong className={isDark ? 'text-slate-100' : 'text-slate-900'}>{fa2(metrics[selectedMetric] || 0)} {activeMetricObj.unit}</strong>
+            </span>
           </div>
         </div>
 
@@ -864,8 +870,8 @@ export default function CustomerMetricsPage({ p, core, setCore, openCustomer }) 
               </div>
             </div>
 
-            {/* Apple Ranked Horizontal Bar List */}
-            <div className="h-[360px] overflow-y-auto space-y-2.5 pr-1 pl-1 py-1">
+            {/* Apple Ranked Horizontal Bar List (Natural height, zero vertical scrollbar) */}
+            <div className="space-y-2.5 py-1">
               {geoChartData.map((item, index) => {
                 const val = item[selectedMetric] || 0
                 const maxVal = selectedMetric.includes('rate')
