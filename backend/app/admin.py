@@ -421,6 +421,27 @@ def change_own_password(body: OwnPasswordBody, request: Request):
     return {"ok": True, "signed_out_elsewhere": True}
 
 
+# ---------- sessions ----------
+
+@router.get("/sessions")
+def list_sessions():
+    """Who is signed in right now, with the device each browser reported and whether it is actively online."""
+    return rbac.online_sessions()
+
+
+@router.post("/sessions/{sid}/revoke")
+def revoke_session(sid: str, request: Request):
+    """Sign the user behind this session out at once: its next request is rejected with 401."""
+    with _Tx() as con:
+        row = con.execute("SELECT * FROM sessions WHERE sid=?", (sid,)).fetchone()
+        if row is None:
+            raise HTTPException(404, "نشست یافت نشد")
+        con.execute("DELETE FROM sessions WHERE sid=?", (sid,))
+        rbac.audit_row(con, _actor(), "session.revoke", "user", row["username"],
+                       {"device": row["device"], "ip": row["ip"]}, _ip(request))
+    return {"ok": True}
+
+
 # ---------- audit ----------
 
 @router.get("/audit")

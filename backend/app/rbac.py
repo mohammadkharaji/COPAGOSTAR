@@ -16,8 +16,10 @@ from __future__ import annotations
 import hmac
 import json
 import re
+import secrets
 import sqlite3
 import threading
+import time
 from contextlib import closing
 from contextvars import ContextVar
 from dataclasses import dataclass
@@ -72,6 +74,14 @@ CREATE TABLE IF NOT EXISTS audit_log(
     detail TEXT NOT NULL DEFAULT '{}',
     ip TEXT NOT NULL DEFAULT '');
 CREATE INDEX IF NOT EXISTS audit_ts ON audit_log(ts);
+CREATE TABLE IF NOT EXISTS sessions(
+    sid TEXT PRIMARY KEY,
+    username TEXT NOT NULL,
+    device TEXT NOT NULL DEFAULT '',
+    ip TEXT NOT NULL DEFAULT '',
+    created_at TEXT NOT NULL,
+    last_seen_at TEXT NOT NULL);
+CREATE INDEX IF NOT EXISTS sessions_user ON sessions(username);
 CREATE TABLE IF NOT EXISTS tickets(
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -295,13 +305,95 @@ def revoke_sessions(username: str) -> None:
             con.execute("UPDATE users SET token_version=token_version+1 WHERE username=?", (username,))
     except (sqlite3.Error, OSError):
         pass
+    end_sessions(username)
+
+
+# ---------- open sessions ----------
+#
+# One row per browser session, deleted when it ends for any reason. Login deletes the user's other rows first, so a
+# second device signs the first one out at its next request; the admin can delete a row to sign a user out at once.
+# Rows untouched for a session lifetime past the token's own expiry are pruned on login (e.g. a deleted browser).
+
+def _prune_sessions(con: sqlite3.Connection) -> None:
+    cutoff = time.time() - 2 * auth.SESSION_SECONDS
+    con.execute("DELETE FROM sessions WHERE created_at < ?", (datetime.fromtimestamp(cutoff).isoformat(timespec="seconds"),))
+
+
+def start_session(user: str, device: str, ip: str) -> str:
+    """Begin a new session for `user`, ending their other sessions, and return its id for the token."""
+    sid = secrets.token_hex(16)
+    try:
+        with write_lock, closing(connect(create=True)) as con:
+            con.execute("BEGIN IMMEDIATE")
+            con.execute("DELETE FROM sessions WHERE username=?", (user,))
+            _prune_sessions(con)
+            con.execute("INSERT INTO sessions(sid, username, device, ip, created_at, last_seen_at) VALUES (?,?,?,?,?,?)",
+                        (sid, user, device, ip, now_iso(), now_iso()))
+            con.commit()
+    except (sqlite3.Error, OSError):
+        pass
+    return sid
+
+
+def touch_session(sid: str) -> bool:
+    """Record activity and say whether the session is still open. Store failures keep the session alive: an accounts
+    file problem must not log everyone out."""
+    try:
+        with closing(connect()) as con:
+            if con is None:
+                return False
+            row = con.execute("UPDATE sessions SET last_seen_at=? WHERE sid=?", (now_iso(), sid))
+            return row.rowcount == 1
+    except (sqlite3.Error, OSError):
+        return True
+
+
+def end_session(sid: str) -> None:
+    try:
+        with closing(connect()) as con:
+            if con is not None:
+                con.execute("DELETE FROM sessions WHERE sid=?", (sid,))
+    except (sqlite3.Error, OSError):
+        pass
+
+
+def end_sessions(user: str) -> None:
+    try:
+        with closing(connect()) as con:
+            if con is not None:
+                con.execute("DELETE FROM sessions WHERE username=?", (user,))
+    except (sqlite3.Error, OSError):
+        pass
+
+
+def online_sessions() -> dict:
+    """Everyone signed in right now. A device counts as online when it made a request in the last five minutes; the row
+    itself lives for the whole session, so `sessions` lists every open session and `online` only the active ones."""
+    try:
+        con = connect()
+        if con is None:
+            return {"online": 0, "rows": [], "count": 0}
+        with closing(con):
+            rows = con.execute("SELECT * FROM sessions ORDER BY last_seen_at DESC").fetchall()
+    except (sqlite3.Error, OSError):
+        return {"online": 0, "rows": [], "count": 0}
+    now = datetime.now()
+    out = [{**dict(r), "active": (now - datetime.fromisoformat(r["last_seen_at"])).total_seconds() < 300} for r in rows]
+    return {"online": sum(1 for r in out if r["active"]), "rows": out, "count": len(out)}
 
 
 def principal_from_token(token: str | None) -> Principal | None:
     got = auth.verify_signed(token)
     if got is None:
         return None
-    user, version = got
+    user, version, sid = got
+    if not sid or not touch_session(sid):   # a revoked session, or a token without a row (widget), is not a session
+        return None
+    return principal_for(user, version)
+
+
+def principal_for(user: str, version: int | None) -> Principal | None:
+    """Resolve a name and token version to the user as they are now, with no session row (widget credentials)."""
     if _is_env_user(user):
         return superadmin() if version is None else None
     found = _load(user)

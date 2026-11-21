@@ -4,8 +4,12 @@
     <string name="widget_description">ویجت پایش لحظه‌ای فروش کوپا گستر</string>
     <string name="sales_title">فروش محقق‌شده</string>
     <string name="brand_name">کوپا گستر</string>
-    <string name="default_price">۲۹۱,۷۵۷,۸۵۵,۴۸۸ تومان</string>
-    <string name="default_trend">↓ ۲۳٪-</string>
-    <string name="default_date">۱۴۰۵/۰۸/۲۸ ، ۲۰:۳۰</string>
-    <string name="default_footer">تحقق: ۷۷٪   |   ۱۸,۸۳۶ خریدار   |   ۲۴ از ۲۵ روز</string>
+    <string name="default_price">—</string>
+    <string name="default_trend">—</string>
+    <string name="default_date">در انتظار اتصال…</string>
+    <string name="default_footer">توکن ویجت را در برنامه ثبت کنید</string>
+    <string name="hint_title">توکن ویجت</string>
+    <string name="hint_save">ثبت و به‌روزرسانی</string>
+    <string name="hint_placeholder">توکن را از داشبورد وب، بخش ویجت بسازید و اینجا بچسبانید</string>
+    <string name="hint_error">اتصال ناموفق: توکن نامعتبر است یا اعتبارش تمام شده</string>
 </resources>

@@ -40,7 +40,7 @@ def resolve(token):
         if row is None:
             return None
         # Re-resolve current role, scopes, active flag and password/session version on every request.
-        p = rbac.principal_from_token(auth.make_token(row["username"], version=row["version"]))
+        p = rbac.principal_for(row["username"], row["version"])
         if p is not None:
             con.execute("UPDATE widget_tokens SET last_used_at=? WHERE digest=?", (time.time(), digest))
         return p

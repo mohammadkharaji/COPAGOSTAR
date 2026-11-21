@@ -1,7 +1,7 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import {
   ShieldCheck, UserPlus, Users, KeyRound, History, Search, Check, AlertCircle, Edit2, UserX, UserCheck,
-  Trash2, Sparkles, Filter, TrendingUp, BarChart3, MessageSquare, Award, Layers
+  Trash2, Sparkles, Filter, TrendingUp, BarChart3, MessageSquare, Award, Layers, Activity
 } from 'lucide-react'
 import { motion } from 'motion/react'
 import { send, useApi } from './api'
@@ -90,7 +90,7 @@ const SCOPE_HINT = {
   branch: 'هر کاربر فقط داده‌های شعبه‌هایی را می‌بیند که برایش انتخاب می‌شود.',
   supervisor: 'هر کاربر فقط داده‌های سرپرست‌هایی را می‌بیند که برایش انتخاب می‌شود.',
 }
-const KNOWN_ACTIONS = ['login', 'login.failed', 'role.create', 'role.update', 'role.delete', 'role.defaults', 'user.create', 'user.update', 'user.deactivate', 'user.reset_password']
+const KNOWN_ACTIONS = ['login', 'login.failed', 'logout', 'session.revoke', 'role.create', 'role.update', 'role.delete', 'role.defaults', 'user.create', 'user.update', 'user.deactivate', 'user.reset_password']
 const AUDIT_PAGE = 50
 
 const when = (ts) => {
@@ -286,6 +286,7 @@ function ScopePicker({ mode, options, branches, supervisors, onBranches, onSuper
 const NEW_USER = { id: null, username: '', display_name: '', password: '', role_id: '', is_active: true, branches: [], supervisors: [] }
 
 function UsersTab({ options, roles, ver, bump }) {
+  const { isDark } = useAppearance()
   const users = useApi('/admin/users', { v: ver })
   const [form, setForm] = useState(null)
   const [q, setQ] = useState('')
@@ -550,6 +551,7 @@ function UsersTab({ options, roles, ver, bump }) {
 const NEW_ROLE = { id: null, name: '', description: '', pages: [], cores: [], scope_mode: 'all', is_admin: false, user_count: 0, original_mode: 'all' }
 
 function RolePermissionsTree({ form, set, options }) {
+  const { isDark } = useAppearance()
   const allConfiguredPages = useMemo(() => {
     const list = []
     PERMISSION_GROUPS.forEach((g) => {
@@ -1018,6 +1020,7 @@ function RolesTab({ options, roles, bump }) {
 
 /* ---------- گزارش رویدادها ---------- */
 function AuditTab() {
+  const { isDark } = useAppearance()
   const [draft, setDraft] = useState({ actor: '', action: '' })
   const [applied, setApplied] = useState({ actor: '', action: '' })
   const [offset, setOffset] = useState(0)
@@ -1100,6 +1103,7 @@ function AuditTab() {
                 <th className="py-3 px-3 font-semibold">رویداد</th>
                 <th className="py-3 px-3 font-semibold">هدف</th>
                 <th className="py-3 px-3 font-semibold">IP</th>
+                <th className="py-3 px-3 font-semibold">دستگاه</th>
                 <th className="py-3 px-3 font-semibold">جزئیات</th>
               </tr>
             </thead>
@@ -1119,6 +1123,7 @@ function AuditTab() {
                   </td>
                   <td className={`py-3 px-3 ${isDark ? 'text-slate-400' : 'text-[#86868B]'}`} dir="ltr">{[r.target_type, r.target].filter(Boolean).join(': ') || '—'}</td>
                   <td className={`py-3 px-3 ${isDark ? 'text-slate-400' : 'text-[#86868B]'}`} dir="ltr">{r.ip || '—'}</td>
+                  <td className={`py-3 px-3 ${isDark ? 'text-slate-200' : 'text-[#1D1D1F]'}`}>{r.detail?.device || '—'}</td>
                   <td className="py-3 px-3">
                     {r.detail && Object.keys(r.detail).length ? (
                       <details className={`cursor-pointer ${isDark ? 'text-emerald-400' : 'text-emerald-700'}`}>
@@ -1165,6 +1170,95 @@ function AuditTab() {
   )
 }
 
+/* ---------- کاربران آنلاین ---------- */
+function OnlineTab() {
+  const { isDark } = useAppearance()
+  const [tick, setTick] = useState(0)
+  const list = useApi('/admin/sessions', { t: tick })
+  const act = useAction()
+  useEffect(() => {   // a live list: refresh every 15s while the tab is open
+    const id = setInterval(() => setTick((n) => n + 1), 15000)
+    return () => clearInterval(id)
+  }, [])
+  const d = list.data
+  const kick = async (s) => {
+    if (!window.confirm(`کاربر «${s.username}» از این دستگاه (${s.device || 'نامشخص'}) خارج شود؟`)) return
+    await act.run(() => send('POST', `/admin/sessions/${s.sid}/revoke`), `کاربر «${s.username}» خارج شد.`)
+    setTick((n) => n + 1)
+  }
+  return (
+    <AppleCard
+      title="کاربران آنلاین"
+      subtitle="همهٔ نشست‌های باز؛ هر کاربر فقط روی یک دستگاه می‌تواند وارد شود و ورود دوباره، دستگاه قبلی را خارج می‌کند."
+      badge={d ? `${fa(d.online)} آنلاین از ${fa(d.count)} نشست باز` : 'در حال بارگذاری'}
+      action={
+        <button
+          type="button"
+          className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white shadow-sm shadow-emerald-500/25 active:scale-95 transition-all cursor-pointer"
+          onClick={() => setTick((n) => n + 1)}
+          disabled={list.loading}
+        >
+          به‌روزرسانی
+        </button>
+      }
+    >
+      <Msg msg={act.msg} />
+      {list.error && <div className="banner err" role="alert">دریافت فهرست آنلاین ناموفق بود.</div>}
+      {list.loading && !d && <div className="banner">در حال بارگذاری…</div>}
+      {d && (d.rows.length ? (
+        <div className="overflow-x-auto">
+          <table className="w-full text-right text-xs">
+            <thead>
+              <tr className={`border-b ${isDark ? 'border-white/10 text-slate-400' : 'border-black/[0.06] text-[#86868B]'}`}>
+                <th className="py-3 px-3 font-semibold">کاربر</th>
+                <th className="py-3 px-3 font-semibold">دستگاه</th>
+                <th className="py-3 px-3 font-semibold">IP</th>
+                <th className="py-3 px-3 font-semibold">ورود</th>
+                <th className="py-3 px-3 font-semibold">آخرین فعالیت</th>
+                <th className="py-3 px-3 font-semibold">وضعیت</th>
+                <th className="py-3 px-3 font-semibold">عملیات</th>
+              </tr>
+            </thead>
+            <tbody>
+              {d.rows.map((s) => (
+                <tr key={s.sid} className={`border-b transition-colors ${
+                  isDark ? 'border-white/[0.04] hover:bg-white/[0.03]' : 'border-black/[0.03] hover:bg-black/[0.015]'
+                }`}>
+                  <td className={`py-3 px-3 font-bold ${isDark ? 'text-slate-100' : 'text-[#1D1D1F]'}`} dir="ltr">{s.username}</td>
+                  <td className={`py-3 px-3 ${isDark ? 'text-slate-200' : 'text-[#1D1D1F]'}`}>{s.device || '—'}</td>
+                  <td className={`py-3 px-3 ${isDark ? 'text-slate-400' : 'text-[#86868B]'}`} dir="ltr">{s.ip || '—'}</td>
+                  <td className={`py-3 px-3 ${isDark ? 'text-slate-400' : 'text-[#86868B]'}`} title={s.created_at}>{when(s.created_at)}</td>
+                  <td className={`py-3 px-3 ${isDark ? 'text-slate-400' : 'text-[#86868B]'}`} title={s.last_seen_at}>{when(s.last_seen_at)}</td>
+                  <td className="py-3 px-3">
+                    <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold ${
+                      s.active
+                        ? isDark ? 'bg-emerald-500/15 text-emerald-400' : 'bg-emerald-500/15 text-emerald-700'
+                        : isDark ? 'bg-white/10 text-slate-400' : 'bg-black/[0.06] text-[#86868B]'
+                    }`}>
+                      <span className={`w-1.5 h-1.5 rounded-full ${s.active ? 'bg-emerald-500' : 'bg-[#86868B]'}`} />
+                      {s.active ? 'آنلاین' : 'بی‌فعالیت'}
+                    </span>
+                  </td>
+                  <td className="py-3 px-3">
+                    <button
+                      type="button"
+                      className="px-3 py-1 rounded-lg text-xs font-semibold bg-rose-500/10 hover:bg-rose-500/20 text-rose-700 transition-colors cursor-pointer"
+                      onClick={() => kick(s)}
+                      disabled={act.busy}
+                    >
+                      خروج از پنل
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : <div className="text-center py-10 text-xs text-[#86868B]">در حال حاضر هیچ نشست بازی وجود ندارد.</div>)}
+    </AppleCard>
+  )
+}
+
 export default function AdminPage() {
   const { isDark, isSolid } = useAppearance()
   const [tab, setTab] = useState('users')
@@ -1186,6 +1280,7 @@ export default function AdminPage() {
         <div className={`flex items-center gap-1 p-1 rounded-2xl ${isDark ? 'bg-white/[0.06]' : 'bg-[#E8E8ED]/80'}`}>
           {[
             ['users', 'کاربران', Users],
+            ['online', 'کاربران آنلاین', Activity],
             ['roles', 'نقش‌ها و دسترسی‌ها', KeyRound],
             ['audit', 'گزارش رویدادها', History],
           ].map(([k, label, Icon]) => (
@@ -1210,8 +1305,9 @@ export default function AdminPage() {
       </div>
 
       {failed && <div className="banner err" role="alert">دریافت اطلاعات مدیریت ناموفق بود: {failed}</div>}
+      {tab === 'online' && <OnlineTab />}
       {tab === 'audit' && <AuditTab />}
-      {tab !== 'audit' && !failed && (!options.data || !roles.data) && <div className="banner">در حال بارگذاری…</div>}
+      {tab !== 'audit' && tab !== 'online' && !failed && (!options.data || !roles.data) && <div className="banner">در حال بارگذاری…</div>}
       {tab === 'users' && options.data && roles.data && <UsersTab options={options.data} roles={roles.data} ver={ver} bump={bump} />}
       {tab === 'roles' && options.data && roles.data && <RolesTab options={options.data} roles={roles.data} bump={bump} />}
     </div>

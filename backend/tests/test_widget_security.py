@@ -17,7 +17,8 @@ def session(tmp_path, monkeypatch):
     monkeypatch.setenv("SR_AUTH_PASS_HASH", auth.hash_password("widget-password"))
     monkeypatch.setenv("SR_AUTH_SECRET", "widget-test-secret-12345678901234567890")
     client = TestClient(app, base_url="https://testserver")
-    client.cookies.set(auth.COOKIE, auth.make_token(auth.username()))
+    sid = rbac.start_session(auth.username(), "تست", "127.0.0.1")
+    client.cookies.set(auth.COOKIE, auth.make_token(auth.username(), sid=sid))
     monkeypatch.setattr(widget, "_pulse", lambda *args: {"available": True})
     return client
 

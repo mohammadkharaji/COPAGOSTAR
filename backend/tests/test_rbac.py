@@ -7,6 +7,8 @@ import pytest
 from fastapi.testclient import TestClient
 from test_api import TEST_PASSWORD, build_client, make_row
 
+from app import auth, rbac
+
 S = "SRSalesProcedure1405"
 
 
@@ -129,6 +131,70 @@ def test_deactivation_invalidates_existing_session(client):
     assert c2.get("/api/auth/me").status_code == 200
     client.post(f"/api/admin/users/{user['id']}/deactivate")
     assert c2.get("/api/auth/me").status_code == 401
+
+
+def test_second_device_signs_the_first_one_out(client):
+    """One device per user: logging in elsewhere ends the earlier session at its next request."""
+    role = _mkrole(client, "مدیرعامل", "all")
+    _mkuser(client, "single.device", role)
+    first = _login(client.app, "single.device")
+    assert first.get("/api/auth/me").status_code == 200
+    second = _login(client.app, "single.device")
+    assert second.get("/api/auth/me").status_code == 200
+    assert first.get("/api/auth/me").status_code == 401
+
+
+def test_login_records_the_device_and_session_activity(client):
+    role = _mkrole(client, "مدیرعامل", "all")
+    _mkuser(client, "device.user", role)
+    c2 = TestClient(client.app, base_url="https://testserver",
+                    headers={"user-agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X)"})
+    assert c2.post("/api/auth/login", json={"username": "device.user", "password": TEST_PASSWORD}).status_code == 200
+    sessions = client.get("/api/admin/sessions").json()
+    row = next(s for s in sessions["rows"] if s["username"] == "device.user")
+    assert row["device"] == "آیفون" and row["active"] is True
+
+    audit = client.get("/api/admin/audit", params={"actor": "device.user", "action": "login"}).json()
+    assert audit["rows"] and audit["rows"][0]["detail"]["device"] == "آیفون"
+
+
+def test_admin_can_sign_a_user_out_at_once(client):
+    role = _mkrole(client, "مدیرعامل", "all")
+    _mkuser(client, "kick.me", role)
+    c2 = _login(client.app, "kick.me")
+    row = next(s for s in client.get("/api/admin/sessions").json()["rows"] if s["username"] == "kick.me")
+    assert client.post(f"/api/admin/sessions/{row['sid']}/revoke").status_code == 200
+    assert c2.get("/api/auth/me").status_code == 401
+    assert client.post(f"/api/admin/sessions/{row['sid']}/revoke").status_code == 404
+    audit = client.get("/api/admin/audit", params={"action": "session.revoke"}).json()
+    assert audit["rows"][0]["target"] == "kick.me"
+
+
+def test_sessions_list_requires_admin(client):
+    role = _mkrole(client, "مدیرعامل", "all")
+    _mkuser(client, "plain.user", role)
+    c2 = _login(client.app, "plain.user")
+    assert c2.get("/api/admin/sessions").status_code == 403
+
+
+def test_logout_ends_only_this_session(client):
+    """Logout ends that browser's session row only; another row for the same user (only reachable by writing the store
+    directly, since login evicts it) is untouched."""
+    role = _mkrole(client, "مدیرعامل", "all")
+    _mkuser(client, "one.session", role)
+    c2 = _login(client.app, "one.session")
+    sid_a = next(s for s in client.get("/api/admin/sessions").json()["rows"] if s["username"] == "one.session")["sid"]
+    sid_b = "b" * 32
+    with closing(sqlite3.connect(rbac.ensure_store())) as con:
+        con.execute("INSERT INTO sessions(sid, username, device, ip, created_at, last_seen_at) VALUES (?,?,?,?,?,?)",
+                    (sid_b, "one.session", "اندروید", "10.0.0.1", rbac.now_iso(), rbac.now_iso()))
+        con.commit()
+    other = TestClient(client.app, base_url="https://testserver")
+    other.cookies.set("sr_session", auth.make_token("one.session", version=0, sid=sid_b))
+    assert other.get("/api/auth/me").status_code == 200
+    assert c2.post("/api/auth/logout").status_code == 200
+    assert other.get("/api/auth/me").status_code == 200   # the other session is not signed out by this logout
+    assert not any(s["sid"] == sid_a for s in client.get("/api/admin/sessions").json()["rows"])
 
 
 def test_default_roles_are_created_once(client):

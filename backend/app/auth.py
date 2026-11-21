@@ -90,17 +90,19 @@ def _sign(payload: str) -> str:
     return _b64(hmac.new(secret().encode(), payload.encode(), hashlib.sha256).digest())
 
 
-def make_token(user: str, now: float | None = None, version: int | None = None) -> str:
-    """Session token. Env-superadmin tokens carry `user|exp`; database users add `|version` so a password reset or
-    deactivation (which bumps the version) ends their old sessions."""
-    parts = [user, str(int((now or time.time()) + SESSION_SECONDS))] + ([] if version is None else [str(version)])
+def make_token(user: str, now: float | None = None, version: int | None = None, sid: str = "") -> str:
+    """Session token `user|exp|version|sid`. `version` ends a database user's sessions after a password reset or
+    deactivation; `sid` names the row in app.rbac's sessions table, which is what the admin can revoke. Widget
+    credentials reuse the token without a session row and leave `sid` empty."""
+    parts = [user, str(int((now or time.time()) + SESSION_SECONDS)),
+             "" if version is None else str(version), sid]
     payload = _b64("|".join(parts).encode())
     return f"{payload}.{_sign(payload)}"
 
 
-def verify_signed(token: str | None, now: float | None = None) -> tuple[str, int | None] | None:
-    """(user, version) of a correctly signed, unexpired token, whoever the user is; None otherwise.
-    Whether the user still exists is for the caller (app.rbac) to decide."""
+def verify_signed(token: str | None, now: float | None = None) -> tuple[str, int | None, str] | None:
+    """(user, version, sid) of a correctly signed, unexpired token, whoever the user is; None otherwise.
+    Whether the user and the session still exist is for the caller (app.rbac) to decide."""
     if not token or not configured() or token.count(".") != 1:
         return None
     payload, sig = token.split(".")
@@ -108,11 +110,21 @@ def verify_signed(token: str | None, now: float | None = None) -> tuple[str, int
         return None
     try:
         parts = _unb64(payload).decode().split("|")
-        if len(parts) not in (2, 3) or int(parts[1]) < (now or time.time()):
+        if len(parts) != 4 or int(parts[1]) < (now or time.time()):
             return None
-        return parts[0], (int(parts[2]) if len(parts) == 3 else None)
+        return parts[0], (int(parts[2]) if parts[2] else None), parts[3]
     except (ValueError, UnicodeDecodeError):
         return None
+
+
+def device_of(user_agent: str | None) -> str:
+    """Coarse device label for the session list and the audit log, from the browser's user agent."""
+    ua = (user_agent or "").lower()
+    for needle, label in (("ipad", "آیپد"), ("iphone", "آیفون"), ("android", "اندروید"), ("tablet", "تبلت"),
+                          ("windows", "ویندوز"), ("macintosh", "مک"), ("mac os", "مک"), ("linux", "لینوکس")):
+        if needle in ua:
+            return label
+    return "نامشخص" if not ua else "مرورگر"
 
 
 def verify_token(token: str | None, now: float | None = None) -> str | None:

@@ -108,10 +108,13 @@ def login(body: LoginBody, request: Request, response: Response):
         time.sleep(0.4)
         raise HTTPException(401, "نام کاربری یا رمز عبور درست نیست")
     limiter.ok(pair)   # the per-address counter is never cleared by a success, so alternating with a valid login cannot reset it
-    rbac.audit(principal.user, "login", ip=key)
+    # One device per user: start_session ends the user's other sessions, so the previous device gets 401 on its next call.
+    device = auth.device_of(request.headers.get("user-agent"))
+    sid = rbac.start_session(principal.user, device, key)
+    rbac.audit(principal.user, "login", ip=key, detail={"device": device})
     response.set_cookie(
-        auth.COOKIE, auth.make_token(principal.user, version=principal.token_version), max_age=auth.SESSION_SECONDS,
-        httponly=True, samesite="strict",
+        auth.COOKIE, auth.make_token(principal.user, version=principal.token_version, sid=sid),
+        max_age=auth.SESSION_SECONDS, httponly=True, samesite="strict",
         secure=os.environ.get("SR_COOKIE_SECURE", "1") != "0", path="/")
     return {"ok": True, **principal.me()}
 
@@ -122,8 +125,13 @@ def me():
 
 
 @app.post("/api/auth/logout")
-def logout(response: Response):
-    rbac.revoke_sessions(rbac.require().user)   # a copied cookie dies too; this also signs the user out of other devices
+def logout(request: Request, response: Response):
+    # Ends this browser's session only; the other signed-in device (there is at most one) stays.
+    user, _, sid = auth.verify_signed(request.cookies.get(auth.COOKIE)) or (None, None, "")
+    if sid:
+        rbac.end_session(sid)
+    if user:
+        rbac.audit(user, "logout", ip=_client_key(request), detail={"device": auth.device_of(request.headers.get("user-agent"))})
     response.delete_cookie(auth.COOKIE, path="/")
     return {"ok": True}
 

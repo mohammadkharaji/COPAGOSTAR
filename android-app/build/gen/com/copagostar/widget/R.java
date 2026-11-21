@@ -29,13 +29,16 @@ public final class R {
     public static final int btn_open_dashboard=0x7f030000;
     public static final int btn_pin_widget=0x7f030001;
     public static final int btn_refresh=0x7f030002;
-    public static final int txt_amount=0x7f030003;
-    public static final int txt_brand=0x7f030004;
-    public static final int txt_date=0x7f030005;
-    public static final int txt_footer=0x7f030006;
-    public static final int txt_title=0x7f030007;
-    public static final int txt_trend=0x7f030008;
-    public static final int widget_container=0x7f030009;
+    public static final int btn_save_token=0x7f030003;
+    public static final int input_token=0x7f030004;
+    public static final int txt_amount=0x7f030005;
+    public static final int txt_brand=0x7f030006;
+    public static final int txt_date=0x7f030007;
+    public static final int txt_footer=0x7f030008;
+    public static final int txt_status=0x7f030009;
+    public static final int txt_title=0x7f03000a;
+    public static final int txt_trend=0x7f03000b;
+    public static final int widget_container=0x7f03000c;
   }
   public static final class layout {
     public static final int activity_main=0x7f040000;
@@ -48,8 +51,12 @@ public final class R {
     public static final int default_footer=0x7f050003;
     public static final int default_price=0x7f050004;
     public static final int default_trend=0x7f050005;
-    public static final int sales_title=0x7f050006;
-    public static final int widget_description=0x7f050007;
+    public static final int hint_error=0x7f050006;
+    public static final int hint_placeholder=0x7f050007;
+    public static final int hint_save=0x7f050008;
+    public static final int hint_title=0x7f050009;
+    public static final int sales_title=0x7f05000a;
+    public static final int widget_description=0x7f05000b;
   }
   public static final class xml {
     public static final int widget_info=0x7f060000;

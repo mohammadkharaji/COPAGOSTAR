@@ -470,21 +470,21 @@ def test_logout_ends_the_session(client):
 
 def test_forged_tampered_and_expired_tokens_are_rejected(client):
     from app import auth
-    good = auth.make_token("admin")
+    good = auth.make_token("admin", sid="0" * 32)   # signed correctly, so only the forgery checks can reject it
     payload, sig = good.split(".")
-    other = auth.make_token("admin", now=1)
-    for bad in ("", "x", "a.b", good + "x", payload + "." + sig[::-1], payload, other, auth.make_token("root")):
+    other = auth.make_token("admin", now=1, sid="0" * 32)
+    for bad in ("", "x", "a.b", good + "x", payload + "." + sig[::-1], payload, other, auth.make_token("root", sid="0" * 32)):
         anon = fresh(client)
         anon.cookies.set("sr_session", bad)
         assert anon.get("/api/overview").status_code == 401, bad
-    assert auth.verify_token(good) == "admin"
-    assert auth.verify_token(good, now=10**12) is None
+    assert auth.verify_signed(good)[:2] == ("admin", None)
+    assert auth.verify_signed(good, now=10**12) is None
 
 
 def test_token_signed_with_another_secret_is_rejected(client, monkeypatch):
     from app import auth
     monkeypatch.setenv("SR_AUTH_SECRET", "z" * 40)
-    forged = auth.make_token("admin")
+    forged = auth.make_token("admin", sid="0" * 32)
     monkeypatch.setenv("SR_AUTH_SECRET", "t" * 40)
     anon = fresh(client)
     anon.cookies.set("sr_session", forged)
